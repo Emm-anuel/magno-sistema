@@ -1,0 +1,42 @@
+# ── Entornos y secretos ──────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Backend (Maven / Java) ───────────────────────────────────────────
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+!backend/.mvn/wrapper/maven-wrapper.properties
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ── Frontend (Node) ──────────────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# ── IDEs ─────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── OS ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Docker ───────────────────────────────────────────────────────────
+nginx/ssl/
+
+# ── Logs ─────────────────────────────────────────────────────────────
+*.log
+logs/

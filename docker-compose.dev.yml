@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: magno-postgres
+    environment:
+      POSTGRES_DB: magno_db
+      POSTGRES_USER: magno
+      POSTGRES_PASSWORD: magno123
+    ports:
+      - "5432:5432"
+    volumes:
+      - magno_pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: magno-redis
+    ports:
+      - "6379:6379"
+
+volumes:
+  magno_pgdata:

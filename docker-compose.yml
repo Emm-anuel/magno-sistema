@@ -1,0 +1,108 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: magno-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       magno_db
+      POSTGRES_USER:     ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    volumes:
+      - magno_pgdata:/var/lib/postgresql/data
+    networks:
+      - magno-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d magno_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: magno-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASS}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    volumes:
+      - magno_redis:/data
+    networks:
+      - magno-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASS}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: magno-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL:            jdbc:postgresql://postgres:5432/magno_db
+      DB_USER:           ${DB_USER}
+      DB_PASS:           ${DB_PASS}
+      REDIS_HOST:        redis
+      REDIS_PORT:        6379
+      REDIS_PASS:        ${REDIS_PASS}
+      JWT_SECRET:        ${JWT_SECRET}
+      S3_ENDPOINT:       ${S3_ENDPOINT}
+      S3_REGION:         ${S3_REGION}
+      S3_ACCESS_KEY:     ${S3_ACCESS_KEY}
+      S3_SECRET_KEY:     ${S3_SECRET_KEY}
+      S3_BUCKET:         ${S3_BUCKET:-magno-files}
+      MAIL_HOST:         ${MAIL_HOST}
+      MAIL_PORT:         ${MAIL_PORT:-587}
+      MAIL_USER:         ${MAIL_USER}
+      MAIL_PASS:         ${MAIL_PASS}
+      CORS_ORIGINS:      ${CORS_ORIGINS}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - magno-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: magno-frontend
+    restart: unless-stopped
+    networks:
+      - magno-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: magno-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - magno-net
+
+volumes:
+  magno_pgdata:
+  magno_redis:
+
+networks:
+  magno-net:
+    driver: bridge

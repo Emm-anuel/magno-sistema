@@ -1,0 +1,229 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-[#f8f9fa] text-[#212529];
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #f1f3f5; }
+  ::-webkit-scrollbar-thumb { background: #ced4da; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #adb5bd; }
+}
+
+@layer components {
+
+  /* ── Botones ── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5
+           px-3.5 py-[7px] rounded-lg border border-[#dee2e6]
+           bg-white text-[#495057] text-[13px] font-medium
+           transition-colors duration-150 cursor-pointer
+           hover:border-[#adb5bd] hover:bg-[#f8f9fa]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5
+           px-3.5 py-[7px] rounded-lg border
+           bg-[#2d6a4f] border-[#2d6a4f] text-white text-[13px] font-medium
+           transition-colors duration-150 cursor-pointer
+           hover:bg-[#1b4332] hover:border-[#1b4332]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-sm {
+    @apply px-2.5 py-[5px] text-xs;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5
+           px-3.5 py-[7px] rounded-lg border border-[#fca5a5]
+           bg-white text-[#dc2626] text-[13px] font-medium
+           transition-colors duration-150 cursor-pointer
+           hover:bg-[#fee2e2]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ── Inputs ── */
+  .input {
+    @apply w-full border border-[#dee2e6] rounded-lg px-2.5 py-2
+           text-[13px] text-[#212529] bg-white
+           outline-none transition-[border,box-shadow] duration-150
+           placeholder:text-[#adb5bd]
+           focus:border-[#52b788] focus:shadow-[0_0_0_3px_rgba(82,183,136,0.12)]
+           disabled:bg-[#f8f9fa] disabled:cursor-not-allowed;
+  }
+
+  .input-error {
+    @apply border-[#dc2626] focus:border-[#dc2626] focus:shadow-[0_0_0_3px_rgba(220,38,38,0.12)];
+  }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white border border-[#dee2e6] rounded-[10px]
+           shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)];
+  }
+
+  .card-header {
+    @apply flex items-center justify-between px-[18px] py-3.5
+           border-b border-[#e9ecef];
+  }
+
+  .card-title {
+    @apply text-sm font-semibold text-[#212529];
+  }
+
+  .card-body {
+    @apply p-[18px];
+  }
+
+  /* ── Metric cards ── */
+  .metric-card {
+    @apply bg-white border border-[#dee2e6] rounded-[10px] px-4 py-3.5
+           shadow-[0_1px_3px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)];
+  }
+
+  .metric-label {
+    @apply text-[11px] text-[#adb5bd] uppercase tracking-wide mb-1;
+  }
+
+  .metric-val {
+    @apply text-[22px] font-semibold text-[#212529] leading-none;
+  }
+
+  .metric-sub {
+    @apply text-[11px] text-[#adb5bd] mt-0.5;
+  }
+
+  /* ── Tablas ── */
+  .tabla {
+    @apply w-full border-collapse text-[13px];
+  }
+
+  .tabla thead th {
+    @apply text-left px-3.5 py-[9px] text-[11px] uppercase tracking-wide
+           text-[#adb5bd] font-medium bg-[#f8f9fa]
+           border-b border-[#dee2e6];
+  }
+
+  .tabla tbody td {
+    @apply px-3.5 py-[10px] border-b border-[#e9ecef] align-middle;
+  }
+
+  .tabla tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .tabla tbody tr:hover td {
+    @apply bg-[#f8f9fa];
+  }
+
+  /* ── Badges ── */
+  .badge {
+    @apply inline-block px-[9px] py-[3px] rounded-full text-[11px] font-medium;
+  }
+
+  .badge-verde   { @apply bg-[#d1fae5] text-[#065f46]; }
+  .badge-rojo    { @apply bg-[#fee2e2] text-[#991b1b]; }
+  .badge-amarillo { @apply bg-[#fef3c7] text-[#92400e]; }
+  .badge-azul    { @apply bg-[#dbeafe] text-[#1e40af]; }
+  .badge-gris    { @apply bg-[#e9ecef] text-[#495057]; }
+
+  /* ── Tabs ── */
+  .tabs {
+    @apply flex gap-0.5 border-b-2 border-[#dee2e6] mb-5;
+  }
+
+  .tab {
+    @apply px-4 py-[9px] text-[13px] font-medium text-[#adb5bd] cursor-pointer
+           border-b-2 border-transparent -mb-0.5
+           transition-colors duration-150 hover:text-[#495057];
+  }
+
+  .tab.active {
+    @apply text-[#2d6a4f] border-b-[#2d6a4f];
+  }
+
+  /* ── Alerts ── */
+  .alert {
+    @apply px-3.5 py-2.5 rounded-lg text-[13px] mb-3.5 border-l-[3px];
+  }
+
+  .alert-info   { @apply bg-[#eff6ff] border-[#2563eb] text-[#1e40af]; }
+  .alert-warn   { @apply bg-[#fffbeb] border-[#f59e0b] text-[#92400e]; }
+  .alert-danger { @apply bg-[#fef2f2] border-[#dc2626] text-[#991b1b]; }
+  .alert-ok     { @apply bg-[#f0fdf4] border-[#2d6a4f] text-[#14532d]; }
+
+  /* ── Section title ── */
+  .sec-title {
+    @apply text-[13px] font-semibold text-[#495057]
+           mt-[18px] mb-2.5 pb-1.5 border-b border-[#e9ecef];
+  }
+
+  /* ── Filter bar ── */
+  .filter-bar {
+    @apply flex gap-2 items-center mb-4 flex-wrap;
+  }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    @apply border-2 border-dashed border-[#dee2e6] rounded-lg p-[18px]
+           text-center text-[12px] text-[#adb5bd] cursor-pointer
+           transition-colors duration-150
+           hover:border-[#52b788] hover:text-[#2d6a4f];
+  }
+
+  /* ── Toggle ── */
+  .toggle-label {
+    @apply relative inline-flex items-center cursor-pointer;
+  }
+
+  /* ── Pago cells (tabla de cobros) ── */
+  .pago-ok    { @apply text-[#2d6a4f] font-semibold text-center font-mono text-[12px]; }
+  .pago-x     { @apply text-[#dc2626] font-semibold text-center font-mono text-[12px] cursor-pointer; }
+  .pago-multa { @apply text-[#f59e0b] font-semibold text-center font-mono text-[12px]; }
+
+  /* ── No pago badge ── */
+  .nopago-badge {
+    @apply inline-flex items-center gap-1 bg-[#fee2e2] text-[#991b1b]
+           text-[10px] font-semibold px-[7px] py-[2px] rounded-full ml-1.5;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    @apply hidden fixed inset-0 bg-black/45 z-[2000]
+           items-center justify-center;
+  }
+
+  .modal-overlay.open {
+    @apply flex;
+  }
+
+  .modal-box {
+    @apply bg-white rounded-xl w-[640px] max-w-[95vw] max-h-[90vh] overflow-y-auto
+           shadow-[0_20px_60px_rgba(0,0,0,0.2)]
+           animate-[modalIn_0.18s_ease];
+  }
+
+  .modal-header {
+    @apply flex items-center justify-between px-5 py-4 border-b border-[#e9ecef];
+  }
+
+  .modal-footer {
+    @apply flex items-center justify-end gap-2 px-5 py-3.5 border-t border-[#e9ecef];
+  }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(-12px) scale(0.97); }
+  to   { opacity: 1; transform: none; }
+}

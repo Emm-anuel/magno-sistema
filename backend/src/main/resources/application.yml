@@ -1,0 +1,166 @@
+spring:
+  application:
+    name: magno-sistema
+  profiles:
+    active: dev
+
+  # JPA / Hibernate
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+
+  # Liquibase
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    enabled: true
+
+  # Jackson
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+
+  # Servlet — multipart upload
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when-authorized
+
+# Logging base
+logging:
+  level:
+    root: INFO
+    com.magno: DEBUG
+    org.springframework.security: WARN
+
+---
+# ============================================================
+# PERFIL: dev
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/magno_db
+    username: magno
+    password: magno123
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      connection-timeout: 30000
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+
+  mail:
+    host: smtp.mailtrap.io
+    port: 587
+    username: ${MAIL_USER:dev}
+    password: ${MAIL_PASS:dev}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: false
+      mail.smtp.ssl.protocols: TLSv1.2
+
+  jpa:
+    show-sql: true
+
+magno:
+  jwt:
+    secret: ${JWT_SECRET:dev-secret-key-change-in-production-min-256-bits-long}
+    expiration-ms: 86400000  # 24 horas
+  s3:
+    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    region: ${S3_REGION:us-east-1}
+    access-key: ${S3_ACCESS_KEY:minioadmin}
+    secret-key: ${S3_SECRET_KEY:minioadmin}
+    bucket: ${S3_BUCKET:magno-files}
+  cors:
+    allowed-origins: "http://localhost:5173,http://localhost:3000"
+
+logging:
+  level:
+    com.magno: DEBUG
+    org.hibernate.SQL: DEBUG
+
+---
+# ============================================================
+# PERFIL: prod
+# ============================================================
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}
+    password: ${DB_PASS}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASS:}
+      timeout: 2000ms
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USER}
+    password: ${MAIL_PASS}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+  jpa:
+    show-sql: false
+
+magno:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  s3:
+    endpoint: ${S3_ENDPOINT}
+    region: ${S3_REGION:eu-central-1}
+    access-key: ${S3_ACCESS_KEY}
+    secret-key: ${S3_SECRET_KEY}
+    bucket: ${S3_BUCKET:magno-files}
+  cors:
+    allowed-origins: ${CORS_ORIGINS}
+
+logging:
+  level:
+    root: WARN
+    com.magno: INFO
