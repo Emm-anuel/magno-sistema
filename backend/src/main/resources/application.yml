@@ -19,8 +19,9 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
 
-  # Jackson
+  # Jackson — snake_case para JSON ↔ frontend
   jackson:
+    property-naming-strategy: SNAKE_CASE
     serialization:
       write-dates-as-timestamps: false
     deserialization:
@@ -96,9 +97,10 @@ magno:
   s3:
     endpoint: ${S3_ENDPOINT:http://localhost:9000}
     region: ${S3_REGION:us-east-1}
-    access-key: ${S3_ACCESS_KEY:minioadmin}
-    secret-key: ${S3_SECRET_KEY:minioadmin}
+    access-key: ${S3_ACCESS_KEY:magno}
+    secret-key: ${S3_SECRET_KEY:magno123456}
     bucket: ${S3_BUCKET:magno-files}
+    public-url: ${S3_PUBLIC_URL:http://localhost:9000/magno-files}
   cors:
     allowed-origins: "http://localhost:5173,http://localhost:3000"
 
@@ -157,6 +159,7 @@ magno:
     access-key: ${S3_ACCESS_KEY}
     secret-key: ${S3_SECRET_KEY}
     bucket: ${S3_BUCKET:magno-files}
+    public-url: ${S3_PUBLIC_URL}
   cors:
     allowed-origins: ${CORS_ORIGINS}
 
