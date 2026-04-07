@@ -75,7 +75,7 @@ public class FileService {
         );
 
         String url = props.getPublicUrl().replaceAll("/$", "") + "/" + key;
-        log.info("Archivo subido: " + url);
+        log.info("Archivo subido: {}", url);
         return url;
     }
 
@@ -90,7 +90,7 @@ public class FileService {
         try {
             String prefix = props.getPublicUrl().replaceAll("/$", "") + "/";
             if (!fileUrl.startsWith(prefix)) {
-                log.warn("URL no pertenece a este bucket, ignorando: " + fileUrl);
+                log.warn("URL no pertenece a este bucket, ignorando: {}", fileUrl);
                 return;
             }
             String key = fileUrl.substring(prefix.length());
@@ -100,9 +100,9 @@ public class FileService {
                     .key(key)
                     .build());
 
-            log.info("Archivo eliminado: " + key);
+            log.info("Archivo eliminado: {}", key);
         } catch (Exception e) {
-            log.warn("No se pudo eliminar archivo " + fileUrl + ": " + e.getMessage());
+            log.warn("No se pudo eliminar archivo {}: {}", fileUrl, e.getMessage());
         }
     }
 
