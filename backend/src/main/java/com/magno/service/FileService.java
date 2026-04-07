@@ -8,15 +8,17 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
-import java.util.logging.Logger;
 
 @Service
 public class FileService {
 
-    private static final Logger log = Logger.getLogger(FileService.class.getName());
+    private static final Logger log = LoggerFactory.getLogger(FileService.class);
 
     private static final Set<String> ALLOWED_CONTENT_TYPES = Set.of(
             "image/jpeg", "image/png", "image/webp", "application/pdf",
@@ -88,7 +90,7 @@ public class FileService {
         try {
             String prefix = props.getPublicUrl().replaceAll("/$", "") + "/";
             if (!fileUrl.startsWith(prefix)) {
-                log.warning("URL no pertenece a este bucket, ignorando: " + fileUrl);
+                log.warn("URL no pertenece a este bucket, ignorando: " + fileUrl);
                 return;
             }
             String key = fileUrl.substring(prefix.length());
@@ -100,7 +102,7 @@ public class FileService {
 
             log.info("Archivo eliminado: " + key);
         } catch (Exception e) {
-            log.warning("No se pudo eliminar archivo " + fileUrl + ": " + e.getMessage());
+            log.warn("No se pudo eliminar archivo " + fileUrl + ": " + e.getMessage());
         }
     }
 
