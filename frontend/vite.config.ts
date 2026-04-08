@@ -11,6 +11,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Required for SharedArrayBuffer (ffmpeg.wasm).
+    // In production, add to nginx.conf:
+    //   add_header Cross-Origin-Opener-Policy same-origin;
+    //   add_header Cross-Origin-Embedder-Policy require-corp;
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Embedder-Policy': 'require-corp',

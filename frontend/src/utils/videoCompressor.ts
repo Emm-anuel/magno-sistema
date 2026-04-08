@@ -14,12 +14,17 @@ export async function compressVideo(
   const resolution = options?.maxResolution ?? '720p'
   const crf = options?.crf ?? 28
 
-  try {
-    const ffmpeg = new FFmpeg()
+  if (file.size === 0) {
+    console.warn(`videoCompressor: archivo vacío "${file.name}", usando original`)
+    return file
+  }
 
+  const ffmpeg = new FFmpeg()
+
+  try {
     await ffmpeg.load({
-      coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-      wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm',
+      coreURL: new URL('/ffmpeg/ffmpeg-core.js', window.location.origin).href,
+      wasmURL: new URL('/ffmpeg/ffmpeg-core.wasm', window.location.origin).href,
     })
 
     ffmpeg.on('progress', ({ progress }) => {
@@ -82,5 +87,11 @@ export async function compressVideo(
   } catch (err) {
     console.warn('videoCompressor: ffmpeg failed, returning original file', err)
     return file
+  } finally {
+    try {
+      ffmpeg.terminate()
+    } catch {
+      // terminate() may throw if not fully loaded — ignore
+    }
   }
 }

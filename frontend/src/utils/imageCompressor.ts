@@ -13,6 +13,11 @@ export function compressImage(file: File, options?: CompressOptions): Promise<Fi
   const mimeType = outputFormat === 'webp' ? 'image/webp' : 'image/jpeg';
 
   return new Promise<File>((resolve, reject) => {
+    if (file.size === 0) {
+      reject(new Error(`El archivo "${file.name}" está vacío`))
+      return
+    }
+
     const reader = new FileReader();
 
     reader.onerror = () => {
