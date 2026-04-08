@@ -10,16 +10,19 @@ interface AuthState {
   token: string | null
   usuario: Usuario | null
   isAuthenticated: boolean
+  isHydrated: boolean
   login: (token: string, usuario: Usuario) => void
   logout: () => void
+  setHydrated: () => void
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token:           localStorage.getItem('magno_token'),
+      token:           null,
       usuario:         null,
-      isAuthenticated: !!localStorage.getItem('magno_token'),
+      isAuthenticated: false,
+      isHydrated:      false,
 
       login: (token, usuario) => {
         localStorage.setItem('magno_token', token)
@@ -30,10 +33,19 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('magno_token')
         set({ token: null, usuario: null, isAuthenticated: false })
       },
+
+      setHydrated: () => set({ isHydrated: true }),
     }),
     {
       name: 'magno-auth',
       partialize: (s) => ({ token: s.token, usuario: s.usuario }),
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          // Sincronizar isAuthenticated desde el token persistido
+          state.isAuthenticated = !!state.token
+          state.setHydrated()
+        }
+      },
     },
   ),
 )

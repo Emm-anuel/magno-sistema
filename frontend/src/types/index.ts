@@ -61,6 +61,72 @@ export interface Usuario {
   rol: Rol
   sucursal: Sucursal
   activo: boolean
+  // Campos adicionales (presentes en detalle)
+  ine_numero?: string
+  ine_imagen_url?: string
+  calle?: string
+  no_exterior?: string
+  no_interior?: string
+  colonia?: string
+  municipio?: string
+  estado?: string
+  codigo_postal?: string
+  ref1_nombre?: string
+  ref1_telefono?: string
+  ref1_parentesco?: string
+  ref2_nombre?: string
+  ref2_telefono?: string
+  ref2_parentesco?: string
+}
+
+// ------------------------------------------------------------------
+// Requests de usuario
+// ------------------------------------------------------------------
+export interface UsuarioCreateRequest {
+  nombre_completo: string
+  email: string
+  password: string
+  telefono: string
+  rol: Rol
+  sucursal_id: number
+  calle: string
+  no_exterior: string
+  no_interior?: string
+  colonia: string
+  municipio: string
+  estado: string
+  codigo_postal: string
+  ine_numero: string
+  ine_imagen_url?: string
+  ref1_nombre: string
+  ref1_telefono: string
+  ref1_parentesco: string
+  ref2_nombre: string
+  ref2_telefono: string
+  ref2_parentesco: string
+}
+
+export interface UsuarioUpdateRequest {
+  nombre_completo: string
+  telefono: string
+  rol: Rol
+  sucursal_id: number
+  calle: string
+  no_exterior: string
+  no_interior?: string
+  colonia: string
+  municipio: string
+  estado: string
+  codigo_postal: string
+  ine_numero: string
+  ine_imagen_url?: string
+  ref1_nombre: string
+  ref1_telefono: string
+  ref1_parentesco: string
+  ref2_nombre: string
+  ref2_telefono: string
+  ref2_parentesco: string
+  password?: string
 }
 
 export interface Cliente {

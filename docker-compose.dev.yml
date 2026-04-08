@@ -18,7 +18,7 @@ services:
       - "6379:6379"
 
   minio:
-    image: minio/minio:RELEASE.2025-02-28T09-55-16Z
+    image: minio/minio:latest
     container_name: magno-minio
     environment:
       MINIO_ROOT_USER: magno
@@ -37,7 +37,7 @@ services:
       start_period: 5s
 
   minio-init:
-    image: minio/mc:RELEASE.2025-02-28T09-09-05Z
+    image: minio/mc:latest
     container_name: magno-minio-init
     depends_on:
       minio:

@@ -5,10 +5,18 @@ import AuthLayout from '@/pages/auth/AuthLayout'
 import LoginPage from '@/pages/auth/LoginPage'
 import AppLayout from '@/pages/AppLayout'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
+import UsuariosPage from '@/pages/usuarios/UsuariosPage'
+import UsuarioDetallePage from '@/pages/usuarios/UsuarioDetallePage'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
+import {
+  ALL_ROLES,
+  ADMIN_SUPERVISOR_ROLES,
+  FIELD_ROLES,
+  ADMIN_ONLY_ROLES,
+} from '@/utils/roles'
 
 export default function App() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const { isAuthenticated, isHydrated } = useAuthStore()
 
   return (
     <BrowserRouter>
@@ -18,32 +26,48 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
         </Route>
 
-        {/* Rutas protegidas */}
-        <Route element={<ProtectedRoute />}>
+        {/* Rutas protegidas — todos los roles autenticados */}
+        <Route element={<ProtectedRoute allowedRoles={ALL_ROLES} />}>
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            {/* Módulos — se reemplazarán por sus páginas reales al implementarse */}
             <Route path="/cobros" element={<ModulePlaceholderPage />} />
-            <Route path="/creditos-nuevos" element={<ModulePlaceholderPage />} />
-            <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
-            <Route path="/clientes" element={<ModulePlaceholderPage />} />
-            <Route path="/clientes/:id" element={<ModulePlaceholderPage />} />
-            <Route path="/historial" element={<ModulePlaceholderPage />} />
-            <Route path="/caja" element={<ModulePlaceholderPage />} />
-            <Route path="/gastos" element={<ModulePlaceholderPage />} />
-            <Route path="/reportes" element={<ModulePlaceholderPage />} />
-            <Route path="/sucursales" element={<ModulePlaceholderPage />} />
-            <Route path="/usuarios" element={<ModulePlaceholderPage />} />
-            <Route path="/bitacora" element={<ModulePlaceholderPage />} />
-            <Route path="/administracion" element={<ModulePlaceholderPage />} />
+
+            {/* Supervisor de Campo + superiores */}
+            <Route element={<ProtectedRoute allowedRoles={FIELD_ROLES} />}>
+              <Route path="/creditos-nuevos" element={<ModulePlaceholderPage />} />
+              <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
+              <Route path="/clientes" element={<ModulePlaceholderPage />} />
+              <Route path="/clientes/:id" element={<ModulePlaceholderPage />} />
+              <Route path="/historial" element={<ModulePlaceholderPage />} />
+            </Route>
+
+            {/* Solo Administrador y Supervisor */}
+            <Route element={<ProtectedRoute allowedRoles={ADMIN_SUPERVISOR_ROLES} />}>
+              <Route path="/caja" element={<ModulePlaceholderPage />} />
+              <Route path="/gastos" element={<ModulePlaceholderPage />} />
+              <Route path="/reportes" element={<ModulePlaceholderPage />} />
+            </Route>
+
+            {/* Solo Administrador */}
+            <Route element={<ProtectedRoute allowedRoles={ADMIN_ONLY_ROLES} />}>
+              <Route path="/sucursales" element={<ModulePlaceholderPage />} />
+              <Route path="/usuarios" element={<UsuariosPage />} />
+              <Route path="/usuarios/:id" element={<UsuarioDetallePage />} />
+              <Route path="/bitacora" element={<ModulePlaceholderPage />} />
+              <Route path="/administracion" element={<ModulePlaceholderPage />} />
+            </Route>
           </Route>
         </Route>
 
         {/* Fallback */}
         <Route
           path="*"
-          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+          element={
+            !isHydrated ? null : (
+              <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />
+            )
+          }
         />
       </Routes>
     </BrowserRouter>

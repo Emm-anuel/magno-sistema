@@ -2,6 +2,7 @@ package com.magno.controller;
 
 import com.magno.dto.ApiResponse;
 import com.magno.service.FileService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,22 @@ public class FileController {
         } catch (IOException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error al subir el archivo, intente de nuevo"));
+        }
+    }
+
+    /**
+     * GET /api/files/download?url={s3Url}
+     * Proxies an S3 file through the backend so the browser can download it cross-origin.
+     * Requires authentication. Only accepts URLs that belong to this bucket.
+     */
+    @GetMapping("/download")
+    public void download(
+            @RequestParam String url,
+            HttpServletResponse response) throws IOException {
+        try {
+            fileService.serveFile(url, response, true);
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
         }
     }
 

@@ -1,11 +1,13 @@
 package com.magno.service;
 
 import com.magno.config.StorageProperties;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import org.slf4j.Logger;
@@ -103,6 +105,37 @@ public class FileService {
             log.info("Archivo eliminado: {}", key);
         } catch (Exception e) {
             log.warn("No se pudo eliminar archivo {}: {}", fileUrl, e.getMessage());
+        }
+    }
+
+    /**
+     * Streams a file from S3 directly to the HTTP response.
+     * Validates that the URL belongs to this bucket before fetching.
+     *
+     * @param fileUrl  Public URL previously returned by uploadFile
+     * @param response HttpServletResponse to write the file into
+     * @param download true → Content-Disposition: attachment (download), false → inline
+     */
+    public void serveFile(String fileUrl, HttpServletResponse response, boolean download) throws IOException {
+        String prefix = props.getPublicUrl().replaceAll("/$", "") + "/";
+        if (!fileUrl.startsWith(prefix)) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "URL no pertenece a este bucket");
+            return;
+        }
+        String key = fileUrl.substring(prefix.length());
+
+        try (var s3Object = s3Client.getObject(
+                GetObjectRequest.builder().bucket(props.getBucket()).key(key).build())) {
+
+            String ct = s3Object.response().contentType();
+            response.setContentType(ct != null ? ct : "application/octet-stream");
+
+            if (download) {
+                String fname = key.contains("/") ? key.substring(key.lastIndexOf('/') + 1) : key;
+                response.setHeader("Content-Disposition", "attachment; filename=\"" + fname + "\"");
+            }
+
+            s3Object.transferTo(response.getOutputStream());
         }
     }
 
