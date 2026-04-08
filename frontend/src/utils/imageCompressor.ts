@@ -33,6 +33,12 @@ export function compressImage(file: File, options?: CompressOptions): Promise<Fi
       };
 
       img.onload = () => {
+        // If image already fits within both limits, return original unchanged
+        if (img.width <= maxWidthPx && img.height <= maxHeightPx) {
+          resolve(file);
+          return;
+        }
+
         let { width, height } = img;
 
         // Scale down proportionally if needed
@@ -43,12 +49,6 @@ export function compressImage(file: File, options?: CompressOptions): Promise<Fi
         if (height > maxHeightPx) {
           width = Math.round((width * maxHeightPx) / height);
           height = maxHeightPx;
-        }
-
-        // If image already fits within both limits, return original unchanged
-        if (width === img.width && height === img.height) {
-          resolve(file);
-          return;
         }
 
         const canvas = document.createElement('canvas');
