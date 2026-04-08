@@ -20,10 +20,14 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (error) => {
-    if (error.response?.status === 401) {
+    const isLoginEndpoint = error.config?.url?.includes('/auth/login')
+
+    // Solo redirigir a /login en 401 si NO es la propia petición de login
+    if (error.response?.status === 401 && !isLoginEndpoint) {
       localStorage.removeItem('magno_token')
       window.location.href = '/login'
     }
+
     const apiError: ApiError = {
       status:    error.response?.status ?? 0,
       message:   error.response?.data?.message ?? 'Error de conexión',
@@ -42,6 +46,24 @@ export const authService = {
     api.post('/auth/logout').catch(() => {}),
 }
 
+// ── Usuarios ──────────────────────────────────────────────────────
+export const usuarioService = {
+  listar: (params?: { rol?: string; sucursalId?: number; activo?: boolean; page?: number; size?: number }) =>
+    api.get<import('@/types').Page<import('@/types').Usuario>>('/usuarios', { params }).then((r) => r.data),
+
+  obtener: (id: number) =>
+    api.get<import('@/types').Usuario>(`/usuarios/${id}`).then((r) => r.data),
+
+  crear: (data: import('@/types').UsuarioCreateRequest) =>
+    api.post<import('@/types').Usuario>('/usuarios', data).then((r) => r.data),
+
+  actualizar: (id: number, data: import('@/types').UsuarioUpdateRequest) =>
+    api.put<import('@/types').Usuario>(`/usuarios/${id}`, data).then((r) => r.data),
+
+  cambiarEstado: (id: number, activo: boolean) =>
+    api.patch<import('@/types').Usuario>(`/usuarios/${id}/estado`, { activo }).then((r) => r.data),
+}
+
 // ── Files ─────────────────────────────────────────────────────────
 export const fileService = {
   upload: (file: File, folder?: string) => {
@@ -49,9 +71,9 @@ export const fileService = {
     form.append('file', file)
     if (folder) form.append('folder', folder)
     return api
-      .post<{ url: string }>('/files/upload', form, {
+      .post<{ data: { url: string } }>('/files/upload', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      .then((r) => r.data.url)
+      .then((r) => r.data.data.url)
   },
 }
