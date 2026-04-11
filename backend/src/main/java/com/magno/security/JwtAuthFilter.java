@@ -50,18 +50,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             Claims claims = jwtService.extractAllClaims(token);
             String email = claims.getSubject();
             String rol = claims.get("rol", String.class);
+            Long userId = ((Number) claims.get("userId")).longValue();
+            Long sucursalId = ((Number) claims.get("sucursalId")).longValue();
 
             if (email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                JwtPrincipal principal = new JwtPrincipal(userId, email, rol, sucursalId);
                 var auth = new UsernamePasswordAuthenticationToken(
-                        email,
+                        principal,
                         null,
                         List.of(new SimpleGrantedAuthority(rol))
                 );
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
-        } catch (JwtException | IllegalArgumentException ignored) {
-            // Token inválido → no se establece autenticación, Spring Security denegará
+        } catch (JwtException | IllegalArgumentException | NullPointerException | ClassCastException ignored) {
+            // Token inválido o mal formado → no se establece autenticación, Spring Security denegará
         }
 
         chain.doFilter(request, response);

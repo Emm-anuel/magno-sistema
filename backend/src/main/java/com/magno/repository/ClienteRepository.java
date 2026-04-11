@@ -1,0 +1,42 @@
+package com.magno.repository;
+
+import com.magno.model.Cliente;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface ClienteRepository extends JpaRepository<Cliente, Long>,
+        JpaSpecificationExecutor<Cliente> {
+
+    boolean existsByCurp(String curp);
+
+    boolean existsByCelular(String celular);
+
+    boolean existsByCurpAndIdNot(String curp, Long id);
+
+    boolean existsByCelularAndIdNot(String celular, Long id);
+
+    List<Cliente> findByAsesorId(Long asesorId);
+
+    Page<Cliente> findByActivoTrue(Pageable pageable);
+
+    long countByActivoTrue();
+
+    /** Busca clientes que pertenecen a un asesor específico. */
+    Page<Cliente> findByAsesorIdAndActivoTrue(Long asesorId, Pageable pageable);
+
+    /**
+     * Verifica si el cliente tiene algún crédito activo.
+     * Usa native query para no necesitar la entidad Credito todavía.
+     */
+    @Query(value = "SELECT COUNT(*) > 0 FROM creditos WHERE cliente_id = :clienteId AND estado = 'ACTIVO' AND deleted_at IS NULL",
+           nativeQuery = true)
+    boolean tieneCredito(@Param("clienteId") Long clienteId);
+}

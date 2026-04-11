@@ -28,9 +28,16 @@ api.interceptors.response.use(
       window.location.href = '/login'
     }
 
+    // Spring Boot puede devolver el error en varios formatos
+    const data = error.response?.data
+    const message =
+      (typeof data === 'object' && data !== null)
+        ? (data.message ?? data.error ?? data.detail ?? JSON.stringify(data))
+        : (typeof data === 'string' ? data : 'Error de conexión')
+
     const apiError: ApiError = {
       status:    error.response?.status ?? 0,
-      message:   error.response?.data?.message ?? 'Error de conexión',
+      message,
       timestamp: new Date().toISOString(),
     }
     return Promise.reject(apiError)
@@ -62,6 +69,43 @@ export const usuarioService = {
 
   cambiarEstado: (id: number, activo: boolean) =>
     api.patch<import('@/types').Usuario>(`/usuarios/${id}/estado`, { activo }).then((r) => r.data),
+}
+
+// ── Clientes ─────────────────────────────────────────────────────
+export const clienteService = {
+  listar: (params?: {
+    buscar?: string
+    estado?: string
+    asesorId?: number
+    sucursalId?: number
+    activo?: boolean
+    page?: number
+    size?: number
+  }) =>
+    api.get<import('@/types').Page<import('@/types').ClienteResumen>>('/clientes', { params }).then((r) => r.data),
+
+  obtener: (id: number) =>
+    api.get<import('@/types').ClienteDetalle>(`/clientes/${id}`).then((r) => r.data),
+
+  crear: (data: import('@/types').ClienteCreateRequest) =>
+    api.post<import('@/types').ClienteDetalle>('/clientes', data).then((r) => r.data),
+
+  actualizar: (id: number, data: import('@/types').ClienteUpdateRequest) =>
+    api.put<import('@/types').ClienteDetalle>(`/clientes/${id}`, data).then((r) => r.data),
+
+  cambiarEstado: (id: number, activo: boolean, motivo?: string) =>
+    api.patch<import('@/types').ClienteResumen>(`/clientes/${id}/estado`, { activo, motivo }).then((r) => r.data),
+
+  verificarCurp: (curp: string, excludeId?: number) =>
+    api.get<{ disponible: boolean }>('/clientes/verificar-curp', { params: { curp, excludeId } })
+       .then((r) => r.data.disponible),
+
+  verificarCelular: (celular: string, excludeId?: number) =>
+    api.get<{ disponible: boolean }>('/clientes/verificar-celular', { params: { celular, excludeId } })
+       .then((r) => r.data.disponible),
+
+  historial: (id: number) =>
+    api.get<any[]>(`/clientes/${id}/historial`).then((r) => r.data),
 }
 
 // ── Files ─────────────────────────────────────────────────────────

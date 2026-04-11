@@ -102,7 +102,7 @@ magno:
     bucket: ${S3_BUCKET:magno-files}
     public-url: ${S3_PUBLIC_URL:http://localhost:9000/magno-files}
   cors:
-    allowed-origins: "http://localhost:5173,http://localhost:3000"
+    allowed-origins: "http://localhost:5173,http://localhost:3000,https://kept-ahead-processing-talk.trycloudflare.com"
 
 logging:
   level:

@@ -7,12 +7,15 @@ import AppLayout from '@/pages/AppLayout'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import UsuariosPage from '@/pages/usuarios/UsuariosPage'
 import UsuarioDetallePage from '@/pages/usuarios/UsuarioDetallePage'
+import ClientesPage from '@/pages/clientes/ClientesPage'
+import ClienteDetallePage from '@/pages/clientes/ClienteDetallePage'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
   FIELD_ROLES,
   ADMIN_ONLY_ROLES,
+  CLIENTES_ROLES,
 } from '@/utils/roles'
 
 export default function App() {
@@ -37,9 +40,13 @@ export default function App() {
             <Route element={<ProtectedRoute allowedRoles={FIELD_ROLES} />}>
               <Route path="/creditos-nuevos" element={<ModulePlaceholderPage />} />
               <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
-              <Route path="/clientes" element={<ModulePlaceholderPage />} />
-              <Route path="/clientes/:id" element={<ModulePlaceholderPage />} />
               <Route path="/historial" element={<ModulePlaceholderPage />} />
+            </Route>
+
+            {/* Todos los roles — Clientes */}
+            <Route element={<ProtectedRoute allowedRoles={CLIENTES_ROLES} />}>
+              <Route path="/clientes" element={<ClientesPage />} />
+              <Route path="/clientes/:id" element={<ClienteDetallePage />} />
             </Route>
 
             {/* Solo Administrador y Supervisor */}

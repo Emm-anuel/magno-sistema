@@ -38,7 +38,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Clientes',
     items: [
-      { label: 'Clientes',  to: '/clientes',  icon: Users,   roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO'] },
+      { label: 'Clientes',  to: '/clientes',  icon: Users,   roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
       { label: 'Historial', to: '/historial', icon: History, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO'] },
     ],
   },

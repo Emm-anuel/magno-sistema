@@ -19,3 +19,10 @@ export const FIELD_ROLES: Rol[] = [
 ]
 
 export const ADMIN_ONLY_ROLES: Rol[] = ['ADMINISTRADOR']
+
+export const CLIENTES_ROLES: Rol[] = [
+  'ADMINISTRADOR',
+  'SUPERVISOR',
+  'SUPERVISOR_CAMPO',
+  'ASESOR_COBRADOR',
+]

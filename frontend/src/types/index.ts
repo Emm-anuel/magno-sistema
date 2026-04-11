@@ -129,6 +129,160 @@ export interface UsuarioUpdateRequest {
   password?: string
 }
 
+export type EstadoCliente = 'ACTIVO' | 'EN_MORA' | 'SIN_CREDITO' | 'INACTIVO'
+export type EstadoCivil  = 'SOLTERO' | 'CASADO' | 'UNION_LIBRE'
+
+export const ESTADO_CIVIL_LABELS: Record<EstadoCivil, string> = {
+  SOLTERO:     'Soltero(a)',
+  CASADO:      'Casado(a)',
+  UNION_LIBRE: 'Unión libre',
+}
+
+// ── Clientes ──────────────────────────────────────────────────────
+
+export interface AsesorInfo {
+  id: number
+  nombre_completo: string
+  rol?: string
+}
+
+export interface SucursalInfo {
+  id: number
+  nombre: string
+}
+
+export interface ClienteResumen {
+  id: number
+  nombre: string
+  apellido_paterno: string
+  apellido_materno?: string
+  nombre_completo: string
+  celular: string
+  curp: string
+  estado_civil: EstadoCivil
+  negocio_nombre: string
+  negocio_giro: string
+  asesor?: AsesorInfo
+  sucursal: SucursalInfo
+  activo: boolean
+  tiene_credito_activo: boolean
+  estado_cliente: EstadoCliente
+  created_at: string
+}
+
+export interface ClienteDetalle {
+  id: number
+  // Datos personales
+  nombre: string
+  apellido_paterno: string
+  apellido_materno?: string
+  nombre_completo: string
+  fecha_nacimiento: string
+  genero?: string
+  estado_civil: EstadoCivil
+  nombre_conyuge?: string
+  telefono_fijo?: string
+  celular: string
+  // Identificación
+  ine_tipo?: string
+  ine_numero: string
+  curp: string
+  rfc?: string
+  // Domicilio
+  dom_calle: string
+  dom_no_exterior: string
+  dom_no_interior?: string
+  dom_colonia: string
+  dom_municipio: string
+  dom_estado: string
+  dom_codigo_postal: string
+  dom_tipo_vivienda?: string
+  dom_monto_renta?: number
+  // Negocio
+  negocio_nombre: string
+  negocio_giro: string
+  negocio_antiguedad: string
+  negocio_direccion?: string
+  negocio_tipo_local?: string
+  negocio_monto_renta?: number
+  negocio_horarios?: string
+  // Finanzas
+  ingresos_semanales?: number
+  gastos_semanales?: number
+  gastos_renta?: number
+  gastos_otros?: number
+  // Referencias
+  ref1_nombre: string
+  ref1_telefono: string
+  ref1_parentesco: string
+  ref2_nombre: string
+  ref2_telefono: string
+  ref2_parentesco: string
+  // Aval
+  aval_nombre?: string
+  aval_telefono?: string
+  aval_direccion?: string
+  aval_identificacion?: string
+  // Relaciones
+  asesor?: AsesorInfo
+  sucursal: SucursalInfo
+  activo: boolean
+  estado_cliente: EstadoCliente
+  tiene_credito_activo: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ClienteCreateRequest {
+  nombre: string
+  apellido_paterno: string
+  apellido_materno?: string
+  fecha_nacimiento: string
+  genero?: string
+  estado_civil: EstadoCivil
+  nombre_conyuge?: string
+  telefono_fijo?: string
+  celular: string
+  ine_tipo?: string
+  ine_numero: string
+  curp: string
+  rfc?: string
+  dom_calle: string
+  dom_no_exterior: string
+  dom_no_interior?: string
+  dom_colonia: string
+  dom_municipio: string
+  dom_estado: string
+  dom_codigo_postal: string
+  dom_tipo_vivienda?: string
+  dom_monto_renta?: number
+  negocio_nombre: string
+  negocio_giro: string
+  negocio_antiguedad: string
+  negocio_direccion?: string
+  negocio_tipo_local?: string
+  negocio_monto_renta?: number
+  negocio_horarios?: string
+  ingresos_semanales?: number
+  gastos_semanales?: number
+  gastos_renta?: number
+  gastos_otros?: number
+  ref1_nombre: string
+  ref1_telefono: string
+  ref1_parentesco: string
+  ref2_nombre: string
+  ref2_telefono: string
+  ref2_parentesco: string
+  aval_nombre?: string
+  aval_telefono?: string
+  aval_direccion?: string
+  aval_identificacion?: string
+  asesor_id?: number
+  sucursal_id: number
+}
+
+export interface ClienteUpdateRequest extends Partial<ClienteCreateRequest> {}
+
 export interface Cliente {
   id: number
   nombre: string
@@ -217,10 +371,13 @@ export interface Gasto {
 // ------------------------------------------------------------------
 export interface Page<T> {
   content: T[]
-  totalElements: number
-  totalPages: number
+  total_elements: number
+  total_pages: number
   number: number
   size: number
+  // camelCase aliases (backwards compat)
+  totalElements?: number
+  totalPages?: number
 }
 
 // ------------------------------------------------------------------

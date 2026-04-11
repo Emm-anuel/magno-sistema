@@ -1,7 +1,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { authService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -16,6 +16,7 @@ type FormData = z.infer<typeof schema>
 
 export default function LoginPage() {
   const login = useAuthStore((s) => s.login)
+  const queryClient = useQueryClient()
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -24,6 +25,7 @@ export default function LoginPage() {
   const mutation = useMutation({
     mutationFn: (data: FormData) => authService.login(data.email, data.password),
     onSuccess: ({ token, usuario }) => {
+      queryClient.clear()
       login(token, usuario)
     },
     onError: (err: ApiError) => {

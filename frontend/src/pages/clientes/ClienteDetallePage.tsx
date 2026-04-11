@@ -1,0 +1,355 @@
+import { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { ArrowLeft, Pencil, Power, FileText, User, Briefcase, Users } from 'lucide-react'
+import { clienteService } from '@/services/api'
+import { useAuthStore } from '@/hooks/useAuthStore'
+import { ESTADO_CIVIL_LABELS } from '@/types'
+import type { EstadoCliente, EstadoCivil } from '@/types'
+
+// ── Badge de estado ───────────────────────────────────────────────
+const ESTADO_CONFIG: Record<EstadoCliente, { label: string; cls: string }> = {
+  ACTIVO:      { label: 'Activo',      cls: 'badge-verde' },
+  EN_MORA:     { label: 'En mora',     cls: 'badge-rojo' },
+  SIN_CREDITO: { label: 'Sin crédito', cls: 'badge-amarillo' },
+  INACTIVO:    { label: 'Inactivo',    cls: 'badge-gris' },
+}
+
+function EstadoBadge({ estado }: { estado: EstadoCliente }) {
+  const cfg = ESTADO_CONFIG[estado] ?? { label: estado, cls: 'badge-gris' }
+  return <span className={`badge ${cfg.cls}`}>{cfg.label}</span>
+}
+
+// ── Helpers de formato ────────────────────────────────────────────
+function fmtMoney(v?: number | null) {
+  if (v == null) return '—'
+  return `$${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+}
+
+function fmtDate(v?: string) {
+  if (!v) return '—'
+  return new Date(v).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+}
+
+function Row({ label, value }: { label: string; value?: string | number | null }) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start gap-0.5 sm:gap-3 py-1.5 border-b border-[#f1f3f5] last:border-0">
+      <span className="text-[11px] font-medium text-[#adb5bd] sm:w-36 shrink-0">{label}</span>
+      <span className="text-[13px] text-[#212529]">{value ?? '—'}</span>
+    </div>
+  )
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────
+type Tab = 'datos' | 'referencias' | 'historial'
+
+export default function ClienteDetallePage() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const { usuario } = useAuthStore()
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<Tab>('datos')
+
+  const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const puedeEditar = true // todos los roles pueden editar clientes
+
+  const { data: cliente, isLoading, error } = useQuery({
+    queryKey: ['cliente', usuario?.id, Number(id)],
+    queryFn: () => clienteService.obtener(Number(id)),
+    enabled: !!id && !!usuario?.id,
+  })
+
+  const { data: historial = [] } = useQuery({
+    queryKey: ['cliente-historial', usuario?.id, Number(id)],
+    queryFn: () => clienteService.historial(Number(id)),
+    enabled: !!id && !!usuario?.id,
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ activo }: { activo: boolean }) =>
+      clienteService.cambiarEstado(Number(id), activo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cliente', Number(id)] })
+      qc.invalidateQueries({ queryKey: ['clientes'] })
+      toast.success('Estado actualizado')
+    },
+    onError: (e: any) => toast.error(e.message ?? 'Error al cambiar estado'),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <p className="text-[#adb5bd] text-[13px]">Cargando...</p>
+      </div>
+    )
+  }
+
+  if (error || !cliente) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-[#dc2626] text-[14px]">Cliente no encontrado</p>
+        <button className="btn mt-4" onClick={() => navigate('/clientes')}>
+          <ArrowLeft className="w-4 h-4" /> Volver
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Encabezado ── */}
+      <div className="flex items-start gap-3">
+        <button
+          onClick={() => navigate('/clientes')}
+          className="btn btn-sm mt-0.5 shrink-0"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span className="hidden sm:inline">Volver</span>
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-[20px] font-semibold text-[#212529] leading-tight">
+              {cliente.nombre_completo}
+            </h1>
+            <EstadoBadge estado={cliente.estado_cliente} />
+          </div>
+          <p className="text-[13px] text-[#6c757d] mt-0.5">
+            {cliente.celular}
+            {cliente.asesor && <> · Asesor: {cliente.asesor.nombre_completo}</>}
+            {' · '}{cliente.sucursal.nombre}
+          </p>
+        </div>
+
+        <div className="flex gap-2 shrink-0">
+          {puedeEditar && (
+            <button
+              className="btn btn-sm"
+              onClick={() => navigate(`/clientes/${id}/editar`)}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Editar</span>
+            </button>
+          )}
+          {esAdmin && (
+            <button
+              className="btn btn-sm"
+              onClick={() => toggleMutation.mutate({ activo: !cliente.activo })}
+              disabled={toggleMutation.isPending}
+              title={cliente.activo ? 'Desactivar' : 'Activar'}
+            >
+              <Power className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{cliente.activo ? 'Desactivar' : 'Activar'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Card: Crédito Activo ── */}
+      {cliente.tiene_credito_activo ? (
+        <div className="card border-l-4 border-l-[#3d6b35]">
+          <div className="p-4">
+            <p className="text-[12px] font-medium text-[#3d6b35] uppercase tracking-wide mb-1">
+              Crédito Activo
+            </p>
+            <p className="text-[13px] text-[#495057]">
+              Información del crédito disponible al implementar el Módulo 3 de Créditos.
+            </p>
+            <button
+              className="btn-primary mt-3"
+              onClick={() => navigate('/cobros')}
+            >
+              Registrar pago
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card bg-[#f8f9fa]">
+          <div className="p-4 flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-[13px] font-medium text-[#495057]">Sin crédito activo</p>
+              <p className="text-[12px] text-[#adb5bd] mt-0.5">Este cliente no tiene un crédito vigente.</p>
+            </div>
+            <button
+              className="btn-primary"
+              onClick={() => navigate('/creditos-nuevos')}
+            >
+              Nueva solicitud de crédito
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabs ── */}
+      <div className="card">
+        {/* Tab nav — scrollable en móvil */}
+        <div className="flex overflow-x-auto border-b border-[#e9ecef]">
+          {([
+            { key: 'datos',       label: 'Datos Personales', icon: User },
+            { key: 'referencias', label: 'Referencias y Aval', icon: Users },
+            { key: 'historial',   label: 'Historial de Créditos', icon: FileText },
+          ] as const).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
+                tab === key
+                  ? 'border-[#3d6b35] text-[#3d6b35]'
+                  : 'border-transparent text-[#6c757d] hover:text-[#495057]'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-4 sm:p-5">
+
+          {/* ── Tab: Datos Personales ── */}
+          {tab === 'datos' && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                  Datos Personales
+                </p>
+                <div>
+                  <Row label="Nombre completo" value={cliente.nombre_completo} />
+                  <Row label="Fecha nacimiento" value={fmtDate(cliente.fecha_nacimiento)} />
+                  <Row label="Estado civil" value={ESTADO_CIVIL_LABELS[cliente.estado_civil as EstadoCivil] ?? cliente.estado_civil} />
+                  <Row label="Cónyuge" value={cliente.nombre_conyuge} />
+                  <Row label="Celular" value={cliente.celular} />
+                  <Row label="Teléfono fijo" value={cliente.telefono_fijo} />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                  Identificación
+                </p>
+                <div>
+                  <Row label="INE" value={cliente.ine_numero} />
+                  <Row label="CURP" value={cliente.curp} />
+                  <Row label="RFC" value={cliente.rfc} />
+                  <Row label="Tipo ID" value={cliente.ine_tipo} />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                  Domicilio
+                </p>
+                <div>
+                  <Row
+                    label="Dirección"
+                    value={`${cliente.dom_calle} ${cliente.dom_no_exterior}${cliente.dom_no_interior ? ' Int. ' + cliente.dom_no_interior : ''}`}
+                  />
+                  <Row label="Colonia" value={cliente.dom_colonia} />
+                  <Row label="Municipio / Estado" value={`${cliente.dom_municipio}, ${cliente.dom_estado} CP ${cliente.dom_codigo_postal}`} />
+                  <Row label="Tipo de vivienda" value={cliente.dom_tipo_vivienda} />
+                  <Row label="Renta mensual" value={fmtMoney(cliente.dom_monto_renta)} />
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                  <Briefcase className="w-3.5 h-3.5 inline mr-1" />
+                  Datos del Negocio
+                </p>
+                <div>
+                  <Row label="Negocio" value={cliente.negocio_nombre} />
+                  <Row label="Giro" value={cliente.negocio_giro} />
+                  <Row label="Antigüedad" value={cliente.negocio_antiguedad} />
+                  <Row label="Dirección" value={cliente.negocio_direccion} />
+                  <Row label="Tipo de local" value={cliente.negocio_tipo_local} />
+                  <Row label="Renta del local" value={fmtMoney(cliente.negocio_monto_renta)} />
+                  <Row label="Horarios" value={cliente.negocio_horarios} />
+                  <Row label="Ingresos semanales" value={fmtMoney(cliente.ingresos_semanales)} />
+                  <Row label="Gastos semanales" value={fmtMoney(cliente.gastos_semanales)} />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Tab: Referencias y Aval ── */}
+          {tab === 'referencias' && (
+            <div className="space-y-5">
+              <div>
+                <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                  Referencia 1
+                </p>
+                <div>
+                  <Row label="Nombre" value={cliente.ref1_nombre} />
+                  <Row label="Teléfono" value={cliente.ref1_telefono} />
+                  <Row label="Parentesco" value={cliente.ref1_parentesco} />
+                </div>
+              </div>
+              <div>
+                <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                  Referencia 2
+                </p>
+                <div>
+                  <Row label="Nombre" value={cliente.ref2_nombre} />
+                  <Row label="Teléfono" value={cliente.ref2_telefono} />
+                  <Row label="Parentesco" value={cliente.ref2_parentesco} />
+                </div>
+              </div>
+              {(cliente.aval_nombre || cliente.aval_telefono) && (
+                <div>
+                  <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                    Aval
+                  </p>
+                  <div>
+                    <Row label="Nombre" value={cliente.aval_nombre} />
+                    <Row label="Teléfono" value={cliente.aval_telefono} />
+                    <Row label="Dirección" value={cliente.aval_direccion} />
+                    <Row label="Identificación" value={cliente.aval_identificacion} />
+                  </div>
+                </div>
+              )}
+              {!cliente.aval_nombre && !cliente.aval_telefono && (
+                <p className="text-[13px] text-[#adb5bd]">Sin aval registrado.</p>
+              )}
+            </div>
+          )}
+
+          {/* ── Tab: Historial de Créditos ── */}
+          {tab === 'historial' && (
+            <div>
+              {historial.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="w-8 h-8 text-[#dee2e6] mx-auto mb-2" />
+                  <p className="text-[13px] text-[#adb5bd]">Sin historial de créditos anteriores.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="tabla">
+                    <thead>
+                      <tr>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Estado</th>
+                        <th>Pagos cumplidos</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historial.map((h: any) => (
+                        <tr key={h.id}>
+                          <td>{fmtDate(h.fecha_inicio)}</td>
+                          <td>{fmtMoney(h.monto_capital)}</td>
+                          <td>{h.estado}</td>
+                          <td>{h.pagos_realizados ?? '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

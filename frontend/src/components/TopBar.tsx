@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Menu } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { format } from 'date-fns'
@@ -28,6 +28,7 @@ interface TopBarProps {
 
 export default function TopBar({ onMenuClick }: TopBarProps) {
   const { logout } = useAuthStore()
+  const queryClient = useQueryClient()
   const location = useLocation()
 
   const title = PAGE_TITLES[location.pathname] ?? 'MAGNO'
@@ -35,7 +36,10 @@ export default function TopBar({ onMenuClick }: TopBarProps) {
 
   const mutation = useMutation({
     mutationFn: authService.logout,
-    onSettled: logout,
+    onSettled: () => {
+      queryClient.clear()
+      logout()
+    },
   })
 
   return (
