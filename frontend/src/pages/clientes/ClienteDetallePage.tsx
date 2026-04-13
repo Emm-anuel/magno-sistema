@@ -10,7 +10,7 @@ import { ESTADO_CIVIL_LABELS } from '@/types'
 import type { EstadoCliente, EstadoCivil } from '@/types'
 import { creditoService } from '@/services/creditoService'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
-import type { CreditoResumen, EstadoCredito } from '@/types'
+import type { CreditoResumen } from '@/types'
 
 // ── Badge de estado ───────────────────────────────────────────────
 const ESTADO_CONFIG: Record<EstadoCliente, { label: string; cls: string }> = {
@@ -49,32 +49,32 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 type Tab = 'datos' | 'referencias' | 'historial'
 
 // ── CreditoActivoCard ──────────────────────────────────────────────
+function safeNC(v: unknown): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : 0
+}
+function fmtC(n: number) {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 0,
+  }).format(n)
+}
+function fmtD(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
 interface CreditoActivoCardProps {
   credito: CreditoResumen
   onNavigate: (path: string) => void
 }
 
 function CreditoActivoCard({ credito, onNavigate }: CreditoActivoCardProps) {
-  function safeNC(v: unknown): number {
-    const n = Number(v)
-    return Number.isFinite(n) ? n : 0
-  }
-  function fmtC(n: number) {
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: 'MXN',
-      minimumFractionDigits: 0,
-    }).format(n)
-  }
-  function fmtD(iso: string | null | undefined) {
-    if (!iso) return '—'
-    return new Date(iso).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    })
-  }
-
   const monto = safeNC(credito.montoAprobado ?? credito.montoCapital)
   const pagoPeriodico = safeNC(credito.pagoPeriodico)
   const totalPagos = safeNC(credito.totalPagos ?? credito.plazoDias)
@@ -185,20 +185,20 @@ export default function ClienteDetallePage() {
   const { data: asesores = [] } = useQuery({
     queryKey: ['asesores-list', usuario?.id, usuario?.rol],
     queryFn: () => api.get<{ id: number; nombre_completo: string }[]>('/clientes/asesores').then((r) => r.data),
-    enabled: !!usuario?.id,
+    enabled: !!usuario?.id && usuario?.rol !== 'ASESOR_COBRADOR',
   })
 
   const { data: sucursales = [] } = useQuery({
     queryKey: ['sucursales-list', usuario?.id],
     queryFn: () => api.get<{ id: number; nombre: string }[]>('/sucursales').then((r) => r.data),
-    enabled: !!usuario?.id,
+    enabled: !!usuario?.id && usuario?.rol !== 'ASESOR_COBRADOR',
   })
 
   const toggleMutation = useMutation({
     mutationFn: ({ activo }: { activo: boolean }) =>
       clienteService.cambiarEstado(Number(id), activo),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cliente', Number(id)] })
+      qc.invalidateQueries({ queryKey: ['cliente', usuario?.id, Number(id)] })
       qc.invalidateQueries({ queryKey: ['clientes'] })
       toast.success('Estado actualizado')
     },
@@ -217,7 +217,7 @@ export default function ClienteDetallePage() {
     return (
       <div className="text-center py-20">
         <p className="text-[#dc2626] text-[14px]">Cliente no encontrado</p>
-        <button className="btn mt-4" onClick={() => navigate('/clientes')}>
+        <button type="button" className="btn mt-4" onClick={() => navigate('/clientes')}>
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
       </div>
@@ -231,6 +231,7 @@ export default function ClienteDetallePage() {
       {/* ── Encabezado ── */}
       <div className="flex items-start gap-3">
         <button
+          type="button"
           onClick={() => navigate('/clientes')}
           className="btn btn-sm mt-0.5 shrink-0"
         >
@@ -255,6 +256,7 @@ export default function ClienteDetallePage() {
         <div className="flex gap-2 shrink-0">
           {puedeEditar && (
             <button
+              type="button"
               className="btn btn-sm"
               onClick={() => setEditOpen(true)}
             >
@@ -264,6 +266,7 @@ export default function ClienteDetallePage() {
           )}
           {esAdmin && (
             <button
+              type="button"
               className="btn btn-sm"
               onClick={() => toggleMutation.mutate({ activo: !cliente.activo })}
               disabled={toggleMutation.isPending}
@@ -293,7 +296,7 @@ export default function ClienteDetallePage() {
                   minimumFractionDigits: 0,
                 }).format(Number(creditoEnProceso.montoAprobado ?? creditoEnProceso.montoCapital))}
               </span>
-              <CreditoEstadoBadge estado={creditoEnProceso.estado as EstadoCredito} size="sm" />
+              <CreditoEstadoBadge estado={creditoEnProceso.estado} size="sm" />
             </div>
           </div>
           <button
@@ -334,6 +337,7 @@ export default function ClienteDetallePage() {
             { key: 'historial',   label: 'Historial de Créditos', icon: FileText },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button
+              type="button"
               key={key}
               onClick={() => setTab(key)}
               className={`flex items-center gap-1.5 px-4 py-3 text-[13px] font-medium whitespace-nowrap border-b-2 transition-colors ${
@@ -504,7 +508,7 @@ export default function ClienteDetallePage() {
                           </td>
                           <td>
                             <CreditoEstadoBadge
-                              estado={c.estado as EstadoCredito}
+                              estado={c.estado}
                               size="sm"
                             />
                           </td>
