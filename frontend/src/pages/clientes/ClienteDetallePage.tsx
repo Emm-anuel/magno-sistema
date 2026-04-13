@@ -3,10 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Pencil, Power, FileText, User, Briefcase, Users } from 'lucide-react'
-import { clienteService } from '@/services/api'
+import { api, clienteService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
+import { ClienteModal } from './ClientesPage'
 import { ESTADO_CIVIL_LABELS } from '@/types'
 import type { EstadoCliente, EstadoCivil } from '@/types'
+import { creditoService } from '@/services/creditoService'
+import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
+import type { CreditoResumen, EstadoCredito } from '@/types'
 
 // ── Badge de estado ───────────────────────────────────────────────
 const ESTADO_CONFIG: Record<EstadoCliente, { label: string; cls: string }> = {
@@ -44,15 +48,122 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 // ── Tabs ──────────────────────────────────────────────────────────
 type Tab = 'datos' | 'referencias' | 'historial'
 
+// ── CreditoActivoCard ──────────────────────────────────────────────
+interface CreditoActivoCardProps {
+  credito: CreditoResumen
+  onNavigate: (path: string) => void
+}
+
+function CreditoActivoCard({ credito, onNavigate }: CreditoActivoCardProps) {
+  function safeNC(v: unknown): number {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : 0
+  }
+  function fmtC(n: number) {
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      minimumFractionDigits: 0,
+    }).format(n)
+  }
+  function fmtD(iso: string | null | undefined) {
+    if (!iso) return '—'
+    return new Date(iso).toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
+  }
+
+  const monto = safeNC(credito.montoAprobado ?? credito.montoCapital)
+  const pagoPeriodico = safeNC(credito.pagoPeriodico)
+  const totalPagos = safeNC(credito.totalPagos ?? credito.plazoDias)
+  const pagosRealizados = safeNC(credito.pagosRealizados)
+  const progreso = totalPagos > 0 ? (pagosRealizados / totalPagos) * 100 : 0
+
+  return (
+    <div className="card border-l-4 border-l-[#3d6b35]">
+      <div className="p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[12px] font-medium text-[#3d6b35] uppercase tracking-wide">
+            Crédito Activo
+          </p>
+          <CreditoEstadoBadge estado="ACTIVO" size="sm" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+          <div>
+            <span className="text-xs text-gray-400">Monto</span>
+            <div className="font-semibold text-gray-800">{fmtC(monto)}</div>
+          </div>
+          <div>
+            <span className="text-xs text-gray-400">Pago diario</span>
+            <div className="font-semibold text-gray-800">{fmtC(pagoPeriodico)}</div>
+          </div>
+          <div>
+            <span className="text-xs text-gray-400">Progreso</span>
+            <div className="font-medium text-gray-700">
+              Pago {pagosRealizados} de {totalPagos}
+            </div>
+          </div>
+          <div>
+            <span className="text-xs text-gray-400">Vence</span>
+            <div className="font-medium text-gray-700">
+              {fmtD(credito.fechaVencimiento)}
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div>
+          <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+            <div
+              className="h-2 rounded-full bg-[#3d6b35] transition-all"
+              style={{ width: `${Math.min(100, progreso)}%` }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            {pagosRealizados} de {totalPagos} pagos completados
+          </p>
+        </div>
+
+        <div className="flex gap-2 pt-1">
+          <button
+            type="button"
+            className="btn flex-1 py-2 text-sm"
+            onClick={() => onNavigate('/cobros')}
+          >
+            Registrar Pago
+          </button>
+          <button
+            type="button"
+            className="btn-primary flex-1 py-2 text-sm"
+            onClick={() => onNavigate(`/creditos/${credito.id}`)}
+          >
+            Ver crédito
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ClienteDetallePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { usuario } = useAuthStore()
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('datos')
+  const [editOpen, setEditOpen] = useState(false)
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
-  const puedeEditar = true // todos los roles pueden editar clientes
+  const esAsesor = usuario?.rol === 'ASESOR_COBRADOR'
+  const puedeAsignarAsesor =
+    usuario?.rol === 'ADMINISTRADOR' ||
+    usuario?.rol === 'SUPERVISOR' ||
+    usuario?.rol === 'SUPERVISOR_CAMPO'
+  const puedeAsignarSucursal =
+    usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
 
   const { data: cliente, isLoading, error } = useQuery({
     queryKey: ['cliente', usuario?.id, Number(id)],
@@ -60,10 +171,27 @@ export default function ClienteDetallePage() {
     enabled: !!id && !!usuario?.id,
   })
 
-  const { data: historial = [] } = useQuery({
-    queryKey: ['cliente-historial', usuario?.id, Number(id)],
-    queryFn: () => clienteService.historial(Number(id)),
+  const { data: creditosData } = useQuery({
+    queryKey: ['creditos-cliente', Number(id)],
+    queryFn: () => creditoService.getCreditosCliente(Number(id)),
     enabled: !!id && !!usuario?.id,
+  })
+
+  const creditoActivo = creditosData?.find((c) => c.estado === 'ACTIVO') ?? null
+  const creditoEnProceso = creditosData?.find(
+    (c) => c.estado === 'SOLICITADO' || c.estado === 'APROBADO'
+  ) ?? null
+
+  const { data: asesores = [] } = useQuery({
+    queryKey: ['asesores-list', usuario?.id, usuario?.rol],
+    queryFn: () => api.get<{ id: number; nombre_completo: string }[]>('/clientes/asesores').then((r) => r.data),
+    enabled: !!usuario?.id,
+  })
+
+  const { data: sucursales = [] } = useQuery({
+    queryKey: ['sucursales-list', usuario?.id],
+    queryFn: () => api.get<{ id: number; nombre: string }[]>('/sucursales').then((r) => r.data),
+    enabled: !!usuario?.id,
   })
 
   const toggleMutation = useMutation({
@@ -96,6 +224,8 @@ export default function ClienteDetallePage() {
     )
   }
 
+  const puedeEditar = !esAsesor || cliente.estado_cliente === 'SIN_CREDITO'
+
   return (
     <div className="space-y-4">
       {/* ── Encabezado ── */}
@@ -126,7 +256,7 @@ export default function ClienteDetallePage() {
           {puedeEditar && (
             <button
               className="btn btn-sm"
-              onClick={() => navigate(`/clientes/${id}/editar`)}
+              onClick={() => setEditOpen(true)}
             >
               <Pencil className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Editar</span>
@@ -146,32 +276,45 @@ export default function ClienteDetallePage() {
         </div>
       </div>
 
-      {/* ── Card: Crédito Activo ── */}
-      {cliente.tiene_credito_activo ? (
-        <div className="card border-l-4 border-l-[#3d6b35]">
-          <div className="p-4">
-            <p className="text-[12px] font-medium text-[#3d6b35] uppercase tracking-wide mb-1">
-              Crédito Activo
+      {/* ── Card: Crédito ── */}
+      {creditoActivo ? (
+        <CreditoActivoCard credito={creditoActivo} onNavigate={navigate} />
+      ) : creditoEnProceso ? (
+        <div className="card border-l-4 border-l-amber-400 p-4 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="text-xs font-medium text-amber-700 uppercase tracking-wide mb-0.5">
+              Crédito en proceso
             </p>
-            <p className="text-[13px] text-[#495057]">
-              Información del crédito disponible al implementar el Módulo 3 de Créditos.
-            </p>
-            <button
-              className="btn-primary mt-3"
-              onClick={() => navigate('/cobros')}
-            >
-              Registrar pago
-            </button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-gray-800">
+                {new Intl.NumberFormat('es-MX', {
+                  style: 'currency',
+                  currency: 'MXN',
+                  minimumFractionDigits: 0,
+                }).format(Number(creditoEnProceso.montoAprobado ?? creditoEnProceso.montoCapital))}
+              </span>
+              <CreditoEstadoBadge estado={creditoEnProceso.estado as EstadoCredito} size="sm" />
+            </div>
           </div>
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => navigate(`/creditos/${creditoEnProceso.id}`)}
+          >
+            Ver solicitud
+          </button>
         </div>
       ) : (
         <div className="card bg-[#f8f9fa]">
           <div className="p-4 flex items-center justify-between flex-wrap gap-3">
             <div>
               <p className="text-[13px] font-medium text-[#495057]">Sin crédito activo</p>
-              <p className="text-[12px] text-[#adb5bd] mt-0.5">Este cliente no tiene un crédito vigente.</p>
+              <p className="text-[12px] text-[#adb5bd] mt-0.5">
+                Este cliente no tiene un crédito vigente.
+              </p>
             </div>
             <button
+              type="button"
               className="btn-primary"
               onClick={() => navigate('/creditos-nuevos')}
             >
@@ -261,7 +404,11 @@ export default function ClienteDetallePage() {
                   <Row label="Negocio" value={cliente.negocio_nombre} />
                   <Row label="Giro" value={cliente.negocio_giro} />
                   <Row label="Antigüedad" value={cliente.negocio_antiguedad} />
-                  <Row label="Dirección" value={cliente.negocio_direccion} />
+                  <Row label="Dirección" value={
+                    cliente.negocio_calle
+                      ? `${cliente.negocio_calle} ${cliente.negocio_no_exterior}${cliente.negocio_no_interior ? ' Int. ' + cliente.negocio_no_interior : ''}, Col. ${cliente.negocio_colonia}, ${cliente.negocio_municipio}, ${cliente.negocio_estado} ${cliente.negocio_cp}`
+                      : cliente.negocio_direccion
+                  } />
                   <Row label="Tipo de local" value={cliente.negocio_tipo_local} />
                   <Row label="Renta del local" value={fmtMoney(cliente.negocio_monto_renta)} />
                   <Row label="Horarios" value={cliente.negocio_horarios} />
@@ -317,7 +464,7 @@ export default function ClienteDetallePage() {
           {/* ── Tab: Historial de Créditos ── */}
           {tab === 'historial' && (
             <div>
-              {historial.length === 0 ? (
+              {!creditosData || creditosData.length === 0 ? (
                 <div className="text-center py-8">
                   <FileText className="w-8 h-8 text-[#dee2e6] mx-auto mb-2" />
                   <p className="text-[13px] text-[#adb5bd]">Sin historial de créditos anteriores.</p>
@@ -331,15 +478,48 @@ export default function ClienteDetallePage() {
                         <th>Monto</th>
                         <th>Estado</th>
                         <th>Pagos cumplidos</th>
+                        <th>Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {historial.map((h: any) => (
-                        <tr key={h.id}>
-                          <td>{fmtDate(h.fecha_inicio)}</td>
-                          <td>{fmtMoney(h.monto_capital)}</td>
-                          <td>{h.estado}</td>
-                          <td>{h.pagos_realizados ?? '—'}</td>
+                      {creditosData.map((c) => (
+                        <tr key={c.id}>
+                          <td>
+                            {c.fechaInicio
+                              ? new Date(c.fechaInicio).toLocaleDateString('es-MX', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })
+                              : '—'}
+                          </td>
+                          <td>
+                            {new Intl.NumberFormat('es-MX', {
+                              style: 'currency',
+                              currency: 'MXN',
+                              minimumFractionDigits: 2,
+                            }).format(
+                              Number(c.montoAprobado ?? c.montoCapital)
+                            )}
+                          </td>
+                          <td>
+                            <CreditoEstadoBadge
+                              estado={c.estado as EstadoCredito}
+                              size="sm"
+                            />
+                          </td>
+                          <td>
+                            {c.pagosRealizados ?? '—'} / {c.totalPagos ?? c.plazoDias}
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/creditos/${c.id}`)}
+                              className="btn btn-sm text-xs"
+                            >
+                              Ver
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -350,6 +530,22 @@ export default function ClienteDetallePage() {
           )}
         </div>
       </div>
+
+      {editOpen && (
+        <ClienteModal
+          cliente={cliente}
+          sucursales={sucursales}
+          asesores={asesores}
+          puedeAsignarAsesor={puedeAsignarAsesor}
+          puedeAsignarSucursal={puedeAsignarSucursal}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            setEditOpen(false)
+            qc.invalidateQueries({ queryKey: ['cliente', usuario?.id, Number(id)] })
+            qc.invalidateQueries({ queryKey: ['clientes'] })
+          }}
+        />
+      )}
     </div>
   )
 }
