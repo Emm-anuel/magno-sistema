@@ -1,13 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { X } from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import TabSolicitudes from './TabSolicitudes'
 import TabNuevaSolicitud from './TabNuevaSolicitud'
+import TabEvaluacion from './TabEvaluacion'
+import TabDesembolso from './TabDesembolso'
 
 type Tab = 'solicitudes' | 'nueva' | 'evaluacion' | 'desembolso'
 
 const ALL_TABS: { id: Tab; label: string }[] = [
   { id: 'solicitudes', label: 'Solicitudes' },
-  { id: 'nueva', label: 'Nueva Solicitud' },
   { id: 'evaluacion', label: 'Evaluación' },
   { id: 'desembolso', label: 'Desembolso' },
 ]
@@ -18,6 +20,8 @@ const FIELD_TABS: Tab[] = ['solicitudes', 'nueva']
 export default function CreditosNuevosPage() {
   const { usuario } = useAuthStore()
   const [activeTab, setActiveTab] = useState<Tab>('solicitudes')
+  const [nuevaSolicitudOpen, setNuevaSolicitudOpen] = useState(false)
+  const [selectedCreditoId, setSelectedCreditoId] = useState<number | undefined>()
 
   const isFieldRole =
     usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
@@ -26,11 +30,26 @@ export default function CreditosNuevosPage() {
     (t) => !isFieldRole || FIELD_TABS.includes(t.id),
   )
 
-  function handleEvaluar(_id: number) {
+  useEffect(() => {
+    if (!nuevaSolicitudOpen) return
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setNuevaSolicitudOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [nuevaSolicitudOpen])
+
+  function handleEvaluar(id: number) {
+    setSelectedCreditoId(id)
     setActiveTab('evaluacion')
   }
 
-  function handleDesembolsar(_id: number) {
+  function handleDesembolsar(id: number) {
+    setSelectedCreditoId(id)
     setActiveTab('desembolso')
   }
 
@@ -67,19 +86,54 @@ export default function CreditosNuevosPage() {
 
       {/* Tab content */}
       {activeTab === 'solicitudes' && (
-        <TabSolicitudes onEvaluar={handleEvaluar} onDesembolsar={handleDesembolsar} />
-      )}
-      {activeTab === 'nueva' && (
-        <TabNuevaSolicitud onSuccess={() => setActiveTab('solicitudes')} />
+        <TabSolicitudes
+          onEvaluar={handleEvaluar}
+          onDesembolsar={handleDesembolsar}
+          onNuevaSolicitud={() => setNuevaSolicitudOpen(true)}
+        />
       )}
       {activeTab === 'evaluacion' && (
-        <div className="card p-8 text-center text-gray-500">
-          En construcción — Evaluación
-        </div>
+        <TabEvaluacion initialCreditoId={selectedCreditoId} />
       )}
       {activeTab === 'desembolso' && (
-        <div className="card p-8 text-center text-gray-500">
-          En construcción — Desembolso
+        <TabDesembolso initialCreditoId={selectedCreditoId} />
+      )}
+
+      {nuevaSolicitudOpen && (
+        <div
+          className="fixed inset-0 z-[2000] bg-black/60 flex items-start justify-center overflow-y-auto px-3 py-4"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setNuevaSolicitudOpen(false)
+            }
+          }}
+        >
+          <div className="bg-white rounded-xl w-full max-w-4xl shadow-[0_20px_60px_rgba(0,0,0,0.25)] my-auto">
+            <div className="modal-header">
+              <div>
+                <h3 className="font-semibold text-[15px] text-[#212529]">
+                  Nueva Solicitud
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Captura los datos del crédito desde este formulario
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNuevaSolicitudOpen(false)}
+                className="text-[#adb5bd] hover:text-[#495057] p-1"
+                aria-label="Cerrar modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="px-4 sm:px-5 py-4 max-h-[85vh] overflow-y-auto">
+              <TabNuevaSolicitud
+                onSuccess={() => setNuevaSolicitudOpen(false)}
+              />
+            </div>
+          </div>
         </div>
       )}
     </div>
