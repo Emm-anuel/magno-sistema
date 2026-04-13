@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -220,10 +220,10 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado }: Calenda
               const isFirst = idx === 0
               const isLast = idx === fechas.length - 1
               const nota = isFirst ? 'Pago adelantado' : isLast ? 'Último pago' : ''
-              const montoFila = isFirst ? safeN(pagoAdelantado) || pago : pago
+              const montoFila = isFirst ? (safeN(pagoAdelantado) > 0 ? safeN(pagoAdelantado) : pago) : pago
 
               return (
-                <tr key={idx} className={isFirst ? 'bg-green-50' : ''}>
+                <tr key={fecha.toISOString()} className={isFirst ? 'bg-green-50' : ''}>
                   <td className="px-3 py-1.5 text-gray-700">{idx + 1}</td>
                   <td className="px-3 py-1.5 text-gray-700">{fmtDate(fecha)}</td>
                   <td className="px-3 py-1.5 text-right text-gray-700">{fmt(montoFila)}</td>
@@ -257,19 +257,12 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
     usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
 
   // ── State ──────────────────────────────────────────────────────
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(initialCreditoId ?? null)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
 
-  // Pre-select on mount
-  useEffect(() => {
-    if (initialCreditoId && initialCreditoId > 0) {
-      setSelectedId(initialCreditoId)
-    }
-  }, [initialCreditoId])
-
   // ── Queries ────────────────────────────────────────────────────
-  const { data: listData, isLoading: listLoading } = useQuery({
+  const { data: listData, isLoading: listLoading, isError: listError } = useQuery({
     queryKey: ['creditos-aprobados'],
     queryFn: () => creditoService.listar({ estado: 'APROBADO', size: 50 }),
     enabled: isAuthorized,
@@ -277,7 +270,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
 
   const aprobados = listData?.content ?? []
 
-  const { data: detalle, isLoading: detalleLoading } = useQuery({
+  const { data: detalle, isLoading: detalleLoading, isError: detalleError } = useQuery({
     queryKey: ['credito-detalle', selectedId],
     queryFn: () => creditoService.obtener(selectedId!),
     enabled: selectedId !== null,
@@ -301,7 +294,6 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
     },
     onError: () => {
       toast.error('Error al activar el crédito')
-      setShowModal(false)
     },
   })
 
@@ -329,6 +321,9 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
         <div className="card divide-y divide-gray-100 overflow-hidden">
           {listLoading && (
             <div className="p-6 text-center text-gray-400 text-sm">Cargando...</div>
+          )}
+          {listError && (
+            <div className="p-6 text-center text-sm text-red-600">Error al cargar créditos</div>
           )}
           {!listLoading && aprobados.length === 0 && (
             <div className="p-8 text-center text-gray-400 text-sm">
@@ -361,6 +356,9 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
           <div className="space-y-4">
             {detalleLoading && (
               <div className="card p-8 text-center text-gray-400">Cargando detalle...</div>
+            )}
+            {selectedId && detalleError && (
+              <div className="card p-8 text-center text-red-600 text-sm">Error al cargar detalle del crédito</div>
             )}
 
             {detalle && !detalleLoading && (
@@ -461,7 +459,8 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
                 <button
                   type="button"
                   onClick={() => setShowModal(true)}
-                  className="w-full py-3 px-4 rounded-lg bg-[#3d6b35] text-white font-semibold text-base hover:bg-[#5a8f50] transition-colors"
+                  disabled={activarMutation.isPending}
+                  className="w-full py-3 px-4 rounded-lg bg-[#3d6b35] text-white font-semibold text-base hover:bg-[#5a8f50] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Confirmar desembolso y activar crédito
                 </button>
