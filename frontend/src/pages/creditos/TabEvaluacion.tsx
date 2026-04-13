@@ -56,7 +56,7 @@ function RejectModal({ credito, onClose, onConfirm, loading }: RejectModalProps)
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-800">Rechazar solicitud</h3>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-gray-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -111,7 +111,7 @@ function ApproveModal({ credito, calculo, montoAprobado, onClose, onConfirm, loa
       <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-800">Confirmar aprobación</h3>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600 p-1">
+          <button type="button" onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-gray-600 p-1">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -164,7 +164,7 @@ function ApproveModal({ credito, calculo, montoAprobado, onClose, onConfirm, loa
 // ── Historial crediticio sub-card ─────────────────────────────────
 
 function HistorialCrediticio({ clienteId }: { clienteId: number }) {
-  const { data: creditos, isLoading } = useQuery({
+  const { data: creditos, isLoading, isError } = useQuery({
     queryKey: ['creditos-cliente', clienteId],
     queryFn: () => creditoService.getCreditosCliente(clienteId),
     enabled: clienteId > 0,
@@ -173,6 +173,8 @@ function HistorialCrediticio({ clienteId }: { clienteId: number }) {
   if (isLoading) {
     return <div className="text-sm text-gray-400 animate-pulse">Cargando historial...</div>
   }
+
+  if (isError) return <p className="text-xs text-red-500">Error al cargar historial</p>
 
   if (!creditos || creditos.length === 0) {
     return (
@@ -249,7 +251,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
     enabled: isAuthorized,
   })
 
-  const solicitudes = (listData?.content ?? []).filter((c) => c.estado === 'SOLICITADO')
+  const solicitudes = listData?.content ?? []
 
   const filtered = buscar.trim()
     ? solicitudes.filter((c) =>
@@ -346,12 +348,6 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
     }
   }, [detalle, triggerCalculo])
 
-  // When initialCreditoId changes, also trigger calculo once detalle is loaded
-  useEffect(() => {
-    if (initialCreditoId && detalle && detalle.id === initialCreditoId) {
-      triggerCalculo(String(safeN(detalle.montoCapital)))
-    }
-  }, [initialCreditoId, detalle, triggerCalculo])
 
   // ── Role guard ─────────────────────────────────────────────────
   if (!isAuthorized) {
@@ -496,9 +492,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
                     </label>
                     <input
                       type="number"
-                      min={1000}
-                      max={50000}
-                      step={1000}
+                      step={1}
                       value={montoAprobado}
                       onChange={(e) => {
                         setMontoAprobado(e.target.value)
@@ -617,7 +611,7 @@ function SolicitudItem({ credito: c, isSelected, onSelect }: SolicitudItemProps)
       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
         <span className="text-sm text-gray-600">{fmt(safeN(c.montoCapital))}</span>
         <span className="text-xs text-gray-400">·</span>
-        <span className="text-xs text-gray-400">{diasDesde(c.createdAt)}</span>
+        <span className="text-xs text-gray-400">{c.createdAt ? diasDesde(c.createdAt) : '—'}</span>
       </div>
       <div className="text-xs text-gray-400 mt-0.5">{c.asesor.nombreCompleto}</div>
     </button>
