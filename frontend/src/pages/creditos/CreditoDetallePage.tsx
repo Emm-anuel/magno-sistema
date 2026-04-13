@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -38,6 +38,17 @@ function Row({ label, value, valueClass }: { label: string; value?: string | num
       <span className={`text-[13px] text-[#212529] ${valueClass ?? ''}`}>{value ?? '—'}</span>
     </div>
   )
+}
+
+// ── Estado labels ────────────────────────────────────────────────────────────
+
+const ESTADO_LABELS: Record<string, string> = {
+  SOLICITADO: 'Solicitado',
+  APROBADO: 'Aprobado',
+  ACTIVO: 'Activo',
+  PAGADO: 'Pagado',
+  RENOVADO: 'Renovado',
+  CANCELADO: 'Cancelado',
 }
 
 // ── Tipo de pestaña ───────────────────────────────────────────────────────────
@@ -105,8 +116,11 @@ export default function CreditoDetallePage() {
 
   // ── Helpers de estado de calendario ──────────────────────────────
 
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
+  const hoy = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
 
   function esVencido(fechaProgramada: string, estado: string) {
     return estado === 'PENDIENTE' && new Date(fechaProgramada) < hoy
@@ -115,8 +129,9 @@ export default function CreditoDetallePage() {
   // ── Stats ─────────────────────────────────────────────────────────
 
   const { estadisticas: stats } = credito
+  // Uses montoEsperado as approximation for PARCIAL (montoRecibido not available in list view)
   const totalPagado = credito.calendario
-    .filter((p) => p.estado === 'PAGADO' || p.estado === 'ADELANTADO')
+    .filter((p) => ['PAGADO', 'ADELANTADO', 'PARCIAL'].includes(p.estado))
     .reduce((sum, p) => sum + p.montoEsperado, 0)
   const saldoRestante = credito.totalAPagar - totalPagado
 
@@ -152,7 +167,7 @@ export default function CreditoDetallePage() {
           {credito.estado === 'SOLICITADO' && esAdminSupervisor && (
             <button
               className="btn-primary btn btn-sm"
-              onClick={() => navigate('/creditos-nuevos')}
+              onClick={() => navigate('/creditos-nuevos', { state: { initialTab: 'evaluacion', initialCreditoId: credito.id } })}
             >
               Evaluar
             </button>
@@ -160,7 +175,7 @@ export default function CreditoDetallePage() {
           {credito.estado === 'APROBADO' && esAdminSupervisor && (
             <button
               className="btn-primary btn btn-sm"
-              onClick={() => navigate('/creditos-nuevos')}
+              onClick={() => navigate('/creditos-nuevos', { state: { initialTab: 'desembolso', initialCreditoId: credito.id } })}
             >
               Desembolsar
             </button>
@@ -262,7 +277,7 @@ export default function CreditoDetallePage() {
                     Proceso
                   </h2>
                   <div className="space-y-0.5">
-                    <Row label="Estado" value={credito.estado} />
+                    <Row label="Estado" value={ESTADO_LABELS[credito.estado] ?? credito.estado} />
                     <Row label="Asesor" value={credito.asesor.nombreCompleto} />
                     <Row label="Sucursal" value={credito.sucursal.nombre} />
                     <Row label="Fecha solicitud" value={fmtDate(credito.createdAt)} />
@@ -435,6 +450,8 @@ export default function CreditoDetallePage() {
                       return (
                         <button
                           key={idx}
+                          type="button"
+                          aria-label={`Abrir video de evidencia ${idx + 1}`}
                           onClick={() => window.open(url, '_blank')}
                           className="relative aspect-square bg-gray-900 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity"
                         >
@@ -448,6 +465,8 @@ export default function CreditoDetallePage() {
                     return (
                       <button
                         key={idx}
+                        type="button"
+                        aria-label={`Ver imagen de evidencia ${idx + 1}`}
                         onClick={() => {
                           setPreviewUrl(url)
                           setPreviewTitle(`Evidencia ${idx + 1}`)

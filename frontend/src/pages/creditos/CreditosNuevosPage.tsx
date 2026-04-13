@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import TabSolicitudes from './TabSolicitudes'
@@ -19,9 +20,18 @@ const FIELD_TABS: Tab[] = ['solicitudes', 'nueva']
 
 export default function CreditosNuevosPage() {
   const { usuario } = useAuthStore()
+  const location = useLocation()
   const [activeTab, setActiveTab] = useState<Tab>('solicitudes')
   const [nuevaSolicitudOpen, setNuevaSolicitudOpen] = useState(false)
   const [selectedCreditoId, setSelectedCreditoId] = useState<number | undefined>()
+
+  useEffect(() => {
+    const state = location.state as { initialTab?: string; initialCreditoId?: number } | null
+    if (state?.initialTab === 'evaluacion' || state?.initialTab === 'desembolso') {
+      setActiveTab(state.initialTab as Tab)
+      if (state.initialCreditoId) setSelectedCreditoId(state.initialCreditoId)
+    }
+  }, []) // intentionally empty deps — read state only once on mount
 
   const isFieldRole =
     usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
