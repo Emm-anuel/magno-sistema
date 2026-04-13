@@ -9,6 +9,8 @@ import UsuariosPage from '@/pages/usuarios/UsuariosPage'
 import UsuarioDetallePage from '@/pages/usuarios/UsuarioDetallePage'
 import ClientesPage from '@/pages/clientes/ClientesPage'
 import ClienteDetallePage from '@/pages/clientes/ClienteDetallePage'
+import CreditosNuevosPage from '@/pages/creditos/CreditosNuevosPage'
+import CreditoDetallePage from '@/pages/creditos/CreditoDetallePage'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import {
   ALL_ROLES,
@@ -36,9 +38,10 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/cobros" element={<ModulePlaceholderPage />} />
 
-            {/* Supervisor de Campo + superiores */}
-            <Route element={<ProtectedRoute allowedRoles={FIELD_ROLES} />}>
-              <Route path="/creditos-nuevos" element={<ModulePlaceholderPage />} />
+            {/* Todos los roles operativos — Créditos, Renovaciones, Historial */}
+            <Route element={<ProtectedRoute allowedRoles={ALL_ROLES} />}>
+              <Route path="/creditos-nuevos" element={<CreditosNuevosPage />} />
+              <Route path="/creditos/:id" element={<CreditoDetallePage />} />
               <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
               <Route path="/historial" element={<ModulePlaceholderPage />} />
             </Route>
