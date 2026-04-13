@@ -5,13 +5,19 @@
 export type Rol = 'ADMINISTRADOR' | 'SUPERVISOR' | 'SUPERVISOR_CAMPO' | 'ASESOR_COBRADOR'
 
 export const ROL_LABELS: Record<Rol, string> = {
-  ADMINISTRADOR:    'Administrador',
-  SUPERVISOR:       'Supervisor',
-  SUPERVISOR_CAMPO: 'Supervisor de Campo',
-  ASESOR_COBRADOR:  'Asesor/Cobrador',
+  ADMINISTRADOR:    'Gerente General',
+  SUPERVISOR:       'Gerente de Sucursal',
+  SUPERVISOR_CAMPO: 'Supervisor',
+  ASESOR_COBRADOR:  'Asesor',
 }
 
-export type EstadoCredito = 'ACTIVO' | 'PAGADO' | 'RENOVADO' | 'CANCELADO'
+export type EstadoCredito =
+  | 'SOLICITADO'
+  | 'APROBADO'
+  | 'ACTIVO'
+  | 'PAGADO'
+  | 'RENOVADO'
+  | 'CANCELADO'
 export type EstadoPago    = 'PENDIENTE' | 'PAGADO' | 'NO_PAGADO' | 'PARCIAL' | 'ADELANTADO'
 export type TipoPago      = 'DIARIO' | 'SEMANAL'
 export type Modalidad     = 'CAJA' | 'RUTA'
@@ -203,6 +209,14 @@ export interface ClienteDetalle {
   negocio_giro: string
   negocio_antiguedad: string
   negocio_direccion?: string
+  // Dirección del negocio en campos separados
+  negocio_calle?: string
+  negocio_no_exterior?: string
+  negocio_no_interior?: string
+  negocio_colonia?: string
+  negocio_municipio?: string
+  negocio_estado?: string
+  negocio_cp?: string
   negocio_tipo_local?: string
   negocio_monto_renta?: number
   negocio_horarios?: string
@@ -260,6 +274,13 @@ export interface ClienteCreateRequest {
   negocio_giro: string
   negocio_antiguedad: string
   negocio_direccion?: string
+  negocio_calle: string
+  negocio_no_exterior: string
+  negocio_no_interior?: string
+  negocio_colonia: string
+  negocio_municipio: string
+  negocio_estado: string
+  negocio_cp: string
   negocio_tipo_local?: string
   negocio_monto_renta?: number
   negocio_horarios?: string
@@ -293,10 +314,11 @@ export interface Cliente {
   asesor?: Usuario
   sucursal: Sucursal
   activo: boolean
-  credito_activo?: CreditoResumen
+  credito_activo?: CreditoResumenInline
 }
 
-export interface CreditoResumen {
+// CreditoResumenInline — lightweight type used inside Cliente.credito_activo
+export interface CreditoResumenInline {
   id: number
   monto_capital: number
   total_a_pagar: number
@@ -309,7 +331,7 @@ export interface CreditoResumen {
   pagos_realizados: number
 }
 
-export interface Credito extends CreditoResumen {
+export interface Credito extends CreditoResumenInline {
   cliente: Cliente
   asesor: Usuario
   sucursal: Sucursal
@@ -387,4 +409,85 @@ export interface ApiError {
   status: number
   message: string
   timestamp: string
+}
+
+// ------------------------------------------------------------------
+// Créditos Nuevos
+// ------------------------------------------------------------------
+
+export interface ProductoCalculo {
+  capital: number
+  plazo: number
+  tasa: number
+  cargoFinanciero: number
+  totalAPagar: number
+  pagoPeriodico: number
+  pagoAdelantado: number
+  descripcionProducto?: string
+}
+
+export interface CalendarioPagoDetalle {
+  id: number
+  numeroPago: number
+  fechaProgramada: string
+  montoEsperado: number
+  estado: EstadoPago
+}
+
+// Shape returned by GET /api/creditos (list) — camelCase from Spring Boot
+export interface CreditoResumen {
+  id: number
+  cliente: { id: number; nombreCompleto: string; celular: string }
+  asesor: { id: number; nombreCompleto: string }
+  sucursal: { id: number; nombre: string }
+  montoCapital: number
+  montoAprobado: number | null
+  pagoPeriodico: number
+  plazoDias: number
+  tipoPago: TipoPago
+  estado: EstadoCredito
+  fechaInicio: string | null
+  fechaVencimiento: string | null
+  pagosRealizados: number
+  totalPagos: number
+  tieneVideoEntrega: boolean
+  createdAt: string
+}
+
+// Shape returned by GET /api/creditos/:id
+export interface CreditoDetalle {
+  id: number
+  cliente: { id: number; nombreCompleto: string; celular: string }
+  asesor: { id: number; nombreCompleto: string }
+  sucursal: { id: number; nombre: string }
+  montoCapital: number
+  tasaInteres: number
+  cargoFinanciero: number
+  totalAPagar: number
+  pagoPeriodico: number
+  plazoDias: number
+  tipoPago: TipoPago
+  fechaInicio: string | null
+  fechaVencimiento: string | null
+  pagoAdelantado: number
+  garantiaDescripcion: string | null
+  evidenciaUrls: string[]
+  lugar: string | null
+  estado: EstadoCredito
+  montoAprobado: number | null
+  observaciones: string | null
+  fechaAprobacion: string | null
+  aprobadoPor: { id: number; nombreCompleto: string } | null
+  fechaDesembolso: string | null
+  videoEntregaUrl: string | null
+  createdAt: string
+  updatedAt: string
+  calendario: CalendarioPagoDetalle[]
+  estadisticas: {
+    pagosRealizados: number
+    pagosPendientes: number
+    pagosVencidos: number
+    multasPendientes: number
+    elegibleRenovacion: boolean
+  }
 }
