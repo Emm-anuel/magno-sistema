@@ -15,7 +15,6 @@ import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
-  FIELD_ROLES,
   ADMIN_ONLY_ROLES,
   CLIENTES_ROLES,
 } from '@/utils/roles'

@@ -10,6 +10,7 @@ import { api, clienteService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import type {
   EstadoCliente,
+  ClienteResumen,
   ClienteDetalle, ClienteCreateRequest, ClienteUpdateRequest,
 } from '@/types'
 
@@ -49,10 +50,17 @@ const clienteSchema = z.object({
   dom_codigo_postal:   z.string().min(4, 'Requerido'),
   dom_tipo_vivienda:   z.string().optional(),
   dom_monto_renta:     z.coerce.number().optional(),
-  negocio_nombre:      z.string().min(1, 'Requerido'),
-  negocio_giro:        z.string().min(1, 'Requerido'),
-  negocio_antiguedad:  z.string().min(1, 'Requerido'),
-  negocio_direccion:   z.string().optional(),
+  negocio_nombre:         z.string().min(1, 'Requerido'),
+  negocio_giro:           z.string().min(1, 'Requerido'),
+  negocio_antiguedad:     z.string().min(1, 'Requerido'),
+  negocio_direccion:      z.string().optional(),
+  negocio_calle:          z.string().min(1, 'Requerido'),
+  negocio_no_exterior:    z.string().min(1, 'Requerido'),
+  negocio_no_interior:    z.string().optional(),
+  negocio_colonia:        z.string().min(1, 'Requerido'),
+  negocio_municipio:      z.string().min(1, 'Requerido'),
+  negocio_estado:         z.string().min(1, 'Requerido'),
+  negocio_cp:             z.string().min(4, 'Requerido'),
   negocio_tipo_local:  z.string().optional(),
   negocio_monto_renta: z.coerce.number().optional(),
   negocio_horarios:    z.string().optional(),
@@ -487,10 +495,17 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
       dom_codigo_postal:   cliente.dom_codigo_postal,
       dom_tipo_vivienda:   cliente.dom_tipo_vivienda ?? '',
       dom_monto_renta:     cliente.dom_monto_renta,
-      negocio_nombre:      cliente.negocio_nombre,
-      negocio_giro:        cliente.negocio_giro,
-      negocio_antiguedad:  cliente.negocio_antiguedad,
-      negocio_direccion:   cliente.negocio_direccion ?? '',
+      negocio_nombre:         cliente.negocio_nombre,
+      negocio_giro:           cliente.negocio_giro,
+      negocio_antiguedad:     cliente.negocio_antiguedad,
+      negocio_direccion:      cliente.negocio_direccion ?? '',
+      negocio_calle:          cliente.negocio_calle ?? '',
+      negocio_no_exterior:    cliente.negocio_no_exterior ?? '',
+      negocio_no_interior:    cliente.negocio_no_interior ?? '',
+      negocio_colonia:        cliente.negocio_colonia ?? '',
+      negocio_municipio:      cliente.negocio_municipio ?? '',
+      negocio_estado:         cliente.negocio_estado ?? '',
+      negocio_cp:             cliente.negocio_cp ?? '',
       negocio_tipo_local:  cliente.negocio_tipo_local ?? '',
       negocio_monto_renta: cliente.negocio_monto_renta,
       negocio_horarios:    cliente.negocio_horarios ?? '',
@@ -633,6 +648,9 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
                   </div>
                   {celularStatus === 'taken' && <p className="text-[#dc2626] text-[11px] mt-0.5">Celular ya registrado</p>}
                 </Field>
+                <Field label="Teléfono fijo">
+                  <input {...register('telefono_fijo')} className="input" placeholder="Opcional" />
+                </Field>
                 <Field label="Estado Civil *" error={errors.estado_civil?.message}>
                   <select {...register('estado_civil')} className={`input ${errors.estado_civil ? 'input-error' : ''}`}>
                     <option value="">Seleccionar</option>
@@ -640,9 +658,6 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
                     <option value="CASADO">Casado(a)</option>
                     <option value="UNION_LIBRE">Unión libre</option>
                   </select>
-                </Field>
-                <Field label="Teléfono fijo">
-                  <input {...register('telefono_fijo')} className="input" placeholder="Opcional" />
                 </Field>
                 <Field label="Nombre del cónyuge">
                   <input {...register('nombre_conyuge')} className="input" placeholder="Si aplica" />
@@ -723,7 +738,7 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
             {/* ── SECCIÓN 4: Datos del Negocio ── */}
             <section>
               <p className="sec-title">Datos del Negocio</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Field label="Nombre del Negocio *" error={errors.negocio_nombre?.message}>
                   <input {...register('negocio_nombre')} className={`input ${errors.negocio_nombre ? 'input-error' : ''}`} placeholder="Nombre del negocio" />
                 </Field>
@@ -733,9 +748,39 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
                 <Field label="Antigüedad *" error={errors.negocio_antiguedad?.message}>
                   <input {...register('negocio_antiguedad')} className={`input ${errors.negocio_antiguedad ? 'input-error' : ''}`} placeholder="Ej. 3 años" />
                 </Field>
-                <Field label="Dirección del negocio">
-                  <input {...register('negocio_direccion')} className="input" placeholder="Opcional" />
+              </div>
+
+              {/* Dirección del negocio — obligatoria y en campos separados */}
+              <p className="text-[11px] font-semibold text-[#6c757d] uppercase tracking-wide mt-4 mb-2">
+                Dirección del Negocio
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <Field label="Calle *" error={errors.negocio_calle?.message}>
+                  <input {...register('negocio_calle')} className={`input ${errors.negocio_calle ? 'input-error' : ''}`} placeholder="Nombre de la calle" />
                 </Field>
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="No. Exterior *" error={errors.negocio_no_exterior?.message}>
+                    <input {...register('negocio_no_exterior')} className={`input ${errors.negocio_no_exterior ? 'input-error' : ''}`} placeholder="Ext." />
+                  </Field>
+                  <Field label="No. Interior">
+                    <input {...register('negocio_no_interior')} className="input" placeholder="Int." />
+                  </Field>
+                </div>
+                <Field label="Colonia *" error={errors.negocio_colonia?.message}>
+                  <input {...register('negocio_colonia')} className={`input ${errors.negocio_colonia ? 'input-error' : ''}`} placeholder="Colonia" />
+                </Field>
+                <Field label="Municipio *" error={errors.negocio_municipio?.message}>
+                  <input {...register('negocio_municipio')} className={`input ${errors.negocio_municipio ? 'input-error' : ''}`} placeholder="Municipio / Alcaldía" />
+                </Field>
+                <Field label="Estado *" error={errors.negocio_estado?.message}>
+                  <input {...register('negocio_estado')} className={`input ${errors.negocio_estado ? 'input-error' : ''}`} placeholder="Estado" />
+                </Field>
+                <Field label="C.P. *" error={errors.negocio_cp?.message}>
+                  <input {...register('negocio_cp')} className={`input ${errors.negocio_cp ? 'input-error' : ''}`} placeholder="00000" maxLength={5} />
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                 <Field label="Tipo de local">
                   <select {...register('negocio_tipo_local')} className="input">
                     <option value="">Seleccionar</option>
