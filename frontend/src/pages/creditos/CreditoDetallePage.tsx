@@ -14,7 +14,9 @@ import ImagePreviewModal from '@/components/ImagePreviewModal'
 
 function fmtMoney(v?: number | null): string {
   if (v == null) return '—'
-  return `$${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
 }
 
 function fmtDate(v?: string | null): string {
@@ -68,6 +70,12 @@ export default function CreditoDetallePage() {
   const [previewTitle, setPreviewTitle] = useState('')
   const [cambiandoVideo, setCambiandoVideo] = useState(false)
 
+  const hoy = useMemo(() => {
+    const d = new Date()
+    d.setHours(0, 0, 0, 0)
+    return d
+  }, [])
+
   const numId = Number(id)
 
   const { data: credito, isLoading, isError } = useQuery({
@@ -116,12 +124,6 @@ export default function CreditoDetallePage() {
 
   // ── Helpers de estado de calendario ──────────────────────────────
 
-  const hoy = useMemo(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  }, [])
-
   function esVencido(fechaProgramada: string, estado: string) {
     return estado === 'PENDIENTE' && new Date(fechaProgramada) < hoy
   }
@@ -129,11 +131,16 @@ export default function CreditoDetallePage() {
   // ── Stats ─────────────────────────────────────────────────────────
 
   const { estadisticas: stats } = credito
+  const calendario = credito.calendario ?? []
+  const evidenciaUrls = credito.evidenciaUrls ?? []
+  const totalAPagarCredito =
+    credito.totalAPagar ??
+    ((credito.montoCapital ?? 0) + (credito.cargoFinanciero ?? 0))
   // Uses montoEsperado as approximation for PARCIAL (montoRecibido not available in list view)
-  const totalPagado = credito.calendario
+  const totalPagado = calendario
     .filter((p) => ['PAGADO', 'ADELANTADO', 'PARCIAL'].includes(p.estado))
     .reduce((sum, p) => sum + p.montoEsperado, 0)
-  const saldoRestante = credito.totalAPagar - totalPagado
+  const saldoRestante = totalAPagarCredito - totalPagado
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -255,7 +262,7 @@ export default function CreditoDetallePage() {
                     <Row label="Monto aprobado" value={fmtMoney(credito.montoAprobado)} />
                     <Row label="Tasa de interés" value={fmtPct(credito.tasaInteres)} />
                     <Row label="Cargo financiero" value={fmtMoney(credito.cargoFinanciero)} />
-                    <Row label="Total a pagar" value={fmtMoney(credito.totalAPagar)} />
+                    <Row label="Total a pagar" value={fmtMoney(totalAPagarCredito)} />
                     <Row label="Pago diario" value={fmtMoney(credito.pagoPeriodico)} />
                     <Row label="Pago adelantado" value={fmtMoney(credito.pagoAdelantado)} />
                     <Row
@@ -359,7 +366,7 @@ export default function CreditoDetallePage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {credito.calendario.map((pago) => {
+                    {calendario.map((pago) => {
                       const vencido = esVencido(pago.fechaProgramada, pago.estado)
 
                       let rowClass = ''
@@ -438,13 +445,13 @@ export default function CreditoDetallePage() {
           {/* ── Tab 3: Evidencia ───────────────────────────────────── */}
           {tab === 'evidencia' && (
             <div>
-              {credito.evidenciaUrls.length === 0 ? (
+              {evidenciaUrls.length === 0 ? (
                 <div className="py-16 text-center text-gray-400">
                   <p className="text-sm">Sin evidencia adjunta</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {credito.evidenciaUrls.map((url, idx) => {
+                  {evidenciaUrls.map((url, idx) => {
                     const isVideo = /\.(mp4|mov|webm)(\?|$)/i.test(url)
                     if (isVideo) {
                       return (

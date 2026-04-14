@@ -31,15 +31,15 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Operación',
     items: [
       { label: 'Cobros',          to: '/cobros',          icon: Wallet,     roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
-      { label: 'Créditos Nuevos', to: '/creditos-nuevos', icon: CreditCard, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO'] },
-      { label: 'Renovaciones',    to: '/renovaciones',    icon: RefreshCw,  roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO'] },
+      { label: 'Créditos Nuevos', to: '/creditos-nuevos', icon: CreditCard, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
+      { label: 'Renovaciones',    to: '/renovaciones',    icon: RefreshCw,  roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
     ],
   },
   {
     label: 'Clientes',
     items: [
       { label: 'Clientes',  to: '/clientes',  icon: Users,   roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
-      { label: 'Historial', to: '/historial', icon: History, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO'] },
+      { label: 'Historial', to: '/historial', icon: History, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
     ],
   },
   {

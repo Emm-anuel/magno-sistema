@@ -28,7 +28,9 @@ function EstadoBadge({ estado }: { estado: EstadoCliente }) {
 // ── Helpers de formato ────────────────────────────────────────────
 function fmtMoney(v?: number | null) {
   if (v == null) return '—'
-  return `$${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  return `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
 }
 
 function fmtDate(v?: string) {
@@ -53,12 +55,35 @@ function safeNC(v: unknown): number {
   const n = Number(v)
   return Number.isFinite(n) ? n : 0
 }
+
+function asFiniteOrNull(v: unknown): number | null {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
 function fmtC(n: number) {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
     minimumFractionDigits: 0,
   }).format(n)
+}
+
+function fmtCurrencyOrDash(v: unknown, minimumFractionDigits = 0): string {
+  const n = asFiniteOrNull(v)
+  if (n == null) return '—'
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits,
+  }).format(n)
+}
+
+function fmtPagosCumplidos(realizados: unknown, total: unknown): string {
+  const r = asFiniteOrNull(realizados)
+  const t = asFiniteOrNull(total)
+  if (r == null || t == null) return '—'
+  return `${r} / ${t}`
 }
 function fmtD(iso: string | null | undefined) {
   if (!iso) return '—'
@@ -290,11 +315,7 @@ export default function ClienteDetallePage() {
             </p>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-gray-800">
-                {new Intl.NumberFormat('es-MX', {
-                  style: 'currency',
-                  currency: 'MXN',
-                  minimumFractionDigits: 0,
-                }).format(Number(creditoEnProceso.montoAprobado ?? creditoEnProceso.montoCapital))}
+                {fmtCurrencyOrDash(creditoEnProceso.montoAprobado ?? creditoEnProceso.montoCapital)}
               </span>
               <CreditoEstadoBadge estado={creditoEnProceso.estado} size="sm" />
             </div>
@@ -498,13 +519,7 @@ export default function ClienteDetallePage() {
                               : '—'}
                           </td>
                           <td>
-                            {new Intl.NumberFormat('es-MX', {
-                              style: 'currency',
-                              currency: 'MXN',
-                              minimumFractionDigits: 2,
-                            }).format(
-                              Number(c.montoAprobado ?? c.montoCapital)
-                            )}
+                            {fmtCurrencyOrDash(c.montoAprobado ?? c.montoCapital, 2)}
                           </td>
                           <td>
                             <CreditoEstadoBadge
@@ -513,7 +528,7 @@ export default function ClienteDetallePage() {
                             />
                           </td>
                           <td>
-                            {c.pagosRealizados ?? '—'} / {c.totalPagos ?? c.plazoDias}
+                            {fmtPagosCumplidos(c.pagosRealizados, c.totalPagos ?? c.plazoDias)}
                           </td>
                           <td>
                             <button

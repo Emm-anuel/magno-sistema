@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react'
 import { UploadCloud } from 'lucide-react'
 import { compressImage } from '@/utils/imageCompressor'
 import { fileService } from '@/services/api'
+import SecurePreviewImage from './SecurePreviewImage'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -279,10 +280,11 @@ export default function FileUpload({
                 className="w-full max-h-48 rounded-lg"
               />
             ) : (
-              <img
-                src={state.url}
+              <SecurePreviewImage
+                fileUrl={state.url}
                 alt="Vista previa"
                 className="max-h-48 object-contain rounded-lg mx-auto"
+                fallbackClassName="w-full max-h-48 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-sm"
               />
             )}
             <button

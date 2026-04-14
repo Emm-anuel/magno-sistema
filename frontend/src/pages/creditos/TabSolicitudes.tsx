@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, Eye, CheckCircle, Banknote } from 'lucide-react'
+import { Search, Eye, CheckCircle, Banknote, Plus, Pencil } from 'lucide-react'
 import { creditoService } from '@/services/creditoService'
 import { usuarioService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -25,9 +25,11 @@ function fmt(n: number) {
   }).format(n)
 }
 
-function fmtDate(s: string | null) {
+function fmtDate(s: string | null | undefined) {
   if (!s) return '—'
-  return new Date(s).toLocaleDateString('es-MX', {
+  const date = new Date(s)
+  if (Number.isNaN(date.getTime())) return '—'
+  return date.toLocaleDateString('es-MX', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -37,9 +39,31 @@ function fmtDate(s: string | null) {
 interface Props {
   onEvaluar: (creditoId: number) => void
   onDesembolsar: (creditoId: number) => void
+  onNuevaSolicitud: () => void
+  onEditarSolicitud: (creditoId: number) => void
 }
 
-export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
+function safeNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 0
+}
+
+function fmtPlazoDias(value: unknown): string {
+  const dias = safeNumber(value)
+  if (dias <= 0) return '—'
+  return `${dias} días`
+}
+
+export default function TabSolicitudes({
+  onEvaluar,
+  onDesembolsar,
+  onNuevaSolicitud,
+  onEditarSolicitud,
+}: Props) {
   const navigate = useNavigate()
   const { usuario } = useAuthStore()
   const isAdminOrSup =
@@ -67,7 +91,9 @@ export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
   // Client-side filter by name
   const filtered = buscar.trim()
     ? creditos.filter((c) =>
-        c.cliente.nombreCompleto.toLowerCase().includes(buscar.toLowerCase()),
+        (c.cliente.nombreCompleto ?? (c.cliente as { nombre_completo?: string }).nombre_completo ?? '')
+          .toLowerCase()
+          .includes(buscar.toLowerCase()),
       )
     : creditos
 
@@ -156,6 +182,16 @@ export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
       {/* Desktop table */}
       {!isLoading && !isError && (
         <>
+          <div className="flex items-center justify-end">
+            <button
+              type="button"
+              onClick={onNuevaSolicitud}
+              className="btn-primary inline-flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Nueva Solicitud
+            </button>
+          </div>
+
           <div className="card hidden lg:block overflow-x-auto">
             <table className="tabla w-full">
               <thead>
@@ -166,7 +202,7 @@ export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
                   <th>Plazo</th>
                   <th>Estado</th>
                   <th>Asesor</th>
-                  <th>Fecha</th>
+                  <th>Fecha de solicitud</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -181,30 +217,67 @@ export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
                   filtered.map((c) => (
                     <tr key={c.id}>
                       <td>
+                        {/** Soporta ambos formatos del backend */}
                         <div className="font-medium text-gray-800">
-                          {c.cliente.nombreCompleto}
+                          {c.cliente.nombreCompleto ??
+                            (c.cliente as { nombre_completo?: string }).nombre_completo}
                         </div>
-                        <div className="text-xs text-gray-500">{c.cliente.celular}</div>
+                        <div className="text-xs text-gray-500">
+                          {c.cliente.celular}
+                        </div>
                       </td>
                       <td>
-                        <div>{fmt(c.montoCapital)}</div>
-                        {c.montoAprobado !== null &&
-                          c.montoAprobado !== c.montoCapital && (
-                            <div className="text-xs text-green-700">
-                              Aprobado: {fmt(c.montoAprobado)}
-                            </div>
-                          )}
+                        {(() => {
+                          const montoCapital = safeNumber(
+                            c.montoCapital ??
+                              (c as { monto_capital?: number | string }).monto_capital,
+                          )
+                          const montoAprobado =
+                            c.montoAprobado == null ? null : safeNumber(c.montoAprobado)
+
+                          return (
+                            <>
+                              <div>{fmt(montoCapital)}</div>
+                              {montoAprobado !== null &&
+                                montoAprobado > 0 &&
+                                (c.estado === 'APROBADO' || c.estado === 'ACTIVO') && (
+                                  <div className="text-xs text-green-700">
+                                    Aprobado: {fmt(montoAprobado)}
+                                  </div>
+                                )}
+                            </>
+                          )
+                        })()}
                       </td>
-                      <td>{fmt(c.pagoPeriodico)}</td>
-                      <td>{c.plazoDias} días</td>
+                      <td>
+                        {fmt(
+                          safeNumber(
+                            c.pagoPeriodico ??
+                              (c as { pago_periodico?: number | string }).pago_periodico,
+                          ),
+                        )}
+                      </td>
+                      <td>
+                        {fmtPlazoDias(
+                          c.plazoDias ?? (c as { plazo_dias?: number | string }).plazo_dias,
+                        )}
+                      </td>
                       <td>
                         <CreditoEstadoBadge
                           estado={c.estado as EstadoCredito}
                           size="sm"
                         />
                       </td>
-                      <td className="text-sm">{c.asesor.nombreCompleto}</td>
-                      <td className="text-sm text-gray-500">{fmtDate(c.createdAt)}</td>
+                      <td className="text-sm">
+                        {c.asesor.nombreCompleto ??
+                          (c.asesor as { nombre_completo?: string }).nombre_completo}
+                      </td>
+                      <td className="text-sm text-gray-500">
+                        {fmtDate(
+                          c.createdAt ??
+                            (c as { created_at?: string | null }).created_at,
+                        )}
+                      </td>
                       <td>
                         <div className="flex gap-1">
                           <button
@@ -215,6 +288,16 @@ export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
+                          {isAdminOrSup && c.estado === 'SOLICITADO' && (
+                            <button
+                              type="button"
+                              onClick={() => onEditarSolicitud(c.id)}
+                              className="btn btn-sm"
+                              title="Editar solicitud"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           {isAdminOrSup && c.estado === 'SOLICITADO' && (
                             <button
                               type="button"
@@ -257,6 +340,7 @@ export default function TabSolicitudes({ onEvaluar, onDesembolsar }: Props) {
                 onVer={() => navigate(`/creditos/${c.id}`)}
                 onEvaluar={() => onEvaluar(c.id)}
                 onDesembolsar={() => onDesembolsar(c.id)}
+                onEditarSolicitud={() => onEditarSolicitud(c.id)}
               />
             ))}
           </div>
@@ -299,6 +383,7 @@ interface MobileCardProps {
   onVer: () => void
   onEvaluar: () => void
   onDesembolsar: () => void
+  onEditarSolicitud: () => void
 }
 
 function MobileCard({
@@ -307,6 +392,7 @@ function MobileCard({
   onVer,
   onEvaluar,
   onDesembolsar,
+  onEditarSolicitud,
 }: MobileCardProps) {
   function fmtM(n: number) {
     return new Intl.NumberFormat('es-MX', {
@@ -320,7 +406,10 @@ function MobileCard({
     <div className="card p-4 space-y-3">
       <div className="flex items-start justify-between">
         <div>
-          <div className="font-semibold text-gray-800">{c.cliente.nombreCompleto}</div>
+          <div className="font-semibold text-gray-800">
+            {c.cliente.nombreCompleto ??
+              (c.cliente as { nombre_completo?: string }).nombre_completo}
+          </div>
           <div className="text-sm text-gray-500">{c.cliente.celular}</div>
         </div>
         <CreditoEstadoBadge estado={c.estado as EstadoCredito} size="sm" />
@@ -329,19 +418,39 @@ function MobileCard({
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div>
           <div className="text-gray-500 text-xs">Monto</div>
-          <div className="font-medium">{fmtM(c.montoCapital)}</div>
+          <div className="font-medium">
+            {fmtM(
+              safeNumber(
+                c.montoCapital ?? (c as { monto_capital?: number | string }).monto_capital,
+              ),
+            )}
+          </div>
         </div>
         <div>
           <div className="text-gray-500 text-xs">Pago/día</div>
-          <div className="font-medium">{fmtM(c.pagoPeriodico)}</div>
+          <div className="font-medium">
+            {fmtM(
+              safeNumber(
+                c.pagoPeriodico ??
+                  (c as { pago_periodico?: number | string }).pago_periodico,
+              ),
+            )}
+          </div>
         </div>
         <div>
-          <div className="text-gray-500 text-xs">Plazo</div>
-          <div className="font-medium">{c.plazoDias}d</div>
+          <div className="text-gray-500 text-xs">Total días</div>
+          <div className="font-medium">
+            {fmtPlazoDias(
+              c.plazoDias ?? (c as { plazo_dias?: number | string }).plazo_dias,
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="text-xs text-gray-500">Asesor: {c.asesor.nombreCompleto}</div>
+      <div className="text-xs text-gray-500">
+        Asesor: {c.asesor.nombreCompleto ??
+          (c.asesor as { nombre_completo?: string }).nombre_completo}
+      </div>
 
       <div className="flex gap-2">
         <button
@@ -351,6 +460,15 @@ function MobileCard({
         >
           <Eye className="w-3.5 h-3.5" /> Ver
         </button>
+        {isAdminOrSup && c.estado === 'SOLICITADO' && (
+          <button
+            type="button"
+            onClick={onEditarSolicitud}
+            className="btn flex-1 py-2 text-sm"
+          >
+            Editar
+          </button>
+        )}
         {isAdminOrSup && c.estado === 'SOLICITADO' && (
           <button
             type="button"

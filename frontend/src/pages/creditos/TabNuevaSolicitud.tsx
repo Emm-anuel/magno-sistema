@@ -15,10 +15,13 @@ import { clienteService, usuarioService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import ProductoCalculoCard from '@/components/ProductoCalculoCard'
 import MultiFileUpload from '@/components/MultiFileUpload'
+import SecurePreviewImage from '@/components/SecurePreviewImage'
+import ProcessingOverlay from '@/components/ProcessingOverlay'
 import type { ClienteResumen, ProductoCalculo } from '@/types'
 
 interface Props {
   onSuccess?: () => void
+  initialCreditoId?: number
 }
 
 type Step = 1 | 2
@@ -62,12 +65,22 @@ function Stepper({ current }: { current: Step }) {
   )
 }
 
+function safeNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 0
+}
+
 // ── Main Component ─────────────────────────────────────────────────
 
-export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
+export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCreditoId }: Props) {
   const navigate = useNavigate()
   const { usuario } = useAuthStore()
   const queryClient = useQueryClient()
+  const isEditMode = typeof initialCreditoId === 'number'
 
   const [step, setStep] = useState<Step>(1)
 
@@ -82,6 +95,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
   // Calc state
   const [calculo, setCalculo] = useState<ProductoCalculo | null>(null)
   const [calculoLoading, setCalculoLoading] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
   const calcDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Client search state
@@ -95,6 +109,51 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
     usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const isFieldUser =
     usuario?.rol === 'ASESOR_COBRADOR' || usuario?.rol === 'SUPERVISOR_CAMPO'
+
+  const { data: creditoInicial, isLoading: creditoInicialLoading } = useQuery({
+    queryKey: ['credito', initialCreditoId],
+    queryFn: () => creditoService.obtener(initialCreditoId as number),
+    enabled: isEditMode,
+  })
+
+  const creditoInicialRaw = creditoInicial as (typeof creditoInicial & {
+    monto_capital?: number | string | null
+    tipo_pago?: string | null
+    garantia_descripcion?: string | null
+    evidencia_urls?: string[] | null
+    lugar?: string | null
+    cliente?: { id?: number; nombreCompleto?: string; nombre_completo?: string; celular?: string }
+    asesor?: { id?: number }
+  }) | undefined
+
+  const prefillDoneRef = useRef(false)
+
+  useEffect(() => {
+    if (!isEditMode || !creditoInicial || prefillDoneRef.current) return
+
+    prefillDoneRef.current = true
+
+    const montoInicial = safeNumber(creditoInicial.montoCapital ?? creditoInicialRaw?.monto_capital)
+    if (montoInicial > 0) {
+      setMontoStr(String(montoInicial))
+      setCalculoLoading(true)
+      creditoService
+        .calcularProducto(montoInicial)
+        .then((result) => setCalculo(result))
+        .catch(() => setCalculo(null))
+        .finally(() => setCalculoLoading(false))
+    }
+
+    const tipoPagoInicial = (creditoInicial.tipoPago ?? creditoInicialRaw?.tipo_pago ?? 'DIARIO') as 'DIARIO' | 'SEMANAL'
+    const asesorInicialId = creditoInicial.asesor?.id ?? creditoInicialRaw?.asesor?.id
+    const garantiaInicial = creditoInicial.garantiaDescripcion ?? creditoInicialRaw?.garantia_descripcion ?? ''
+    const evidenciaInicial = creditoInicial.evidenciaUrls ?? creditoInicialRaw?.evidencia_urls ?? []
+
+    setTipoPago(tipoPagoInicial)
+    if (asesorInicialId != null) setAsesorId(asesorInicialId)
+    setGarantiaDescripcion(garantiaInicial)
+    setEvidenciaUrls(Array.isArray(evidenciaInicial) ? evidenciaInicial : [])
+  }, [isEditMode, creditoInicial, creditoInicialRaw])
 
   // Pre-fill asesorId for field users
   useEffect(() => {
@@ -182,10 +241,16 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
 
   const monto = parseFloat(montoStr)
   const montoValido = !isNaN(monto) && monto >= 1000 && monto <= 50000
-  const tieneCredito = clienteSeleccionado?.tiene_credito_activo ?? false
+  const tieneCredito = isEditMode ? false : (clienteSeleccionado?.tiene_credito_activo ?? false)
+  const clienteIdSeleccionado = isEditMode ? (creditoInicial?.cliente?.id ?? creditoInicialRaw?.cliente?.id) : clienteSeleccionado?.id
+  const nombreCliente = isEditMode
+    ? (creditoInicial?.cliente?.nombreCompleto ?? creditoInicialRaw?.cliente?.nombre_completo)
+    : clienteSeleccionado?.nombre_completo
+  const celularCliente = isEditMode ? (creditoInicial?.cliente?.celular ?? creditoInicialRaw?.cliente?.celular) : clienteSeleccionado?.celular
+  const carpetaEvidencia = clienteIdSeleccionado ? `evidencia-negocio/${clienteIdSeleccionado}` : 'evidencia-negocio'
 
   const canContinue =
-    clienteSeleccionado !== null &&
+    clienteIdSeleccionado != null &&
     !tieneCredito &&
     montoValido &&
     calculo !== null &&
@@ -195,8 +260,19 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
   // ── Submit ───────────────────────────────────────────────────────
 
   const mutation = useMutation({
-    mutationFn: () =>
-      creditoService.crearSolicitud({
+    mutationFn: () => {
+      if (isEditMode) {
+        return creditoService.actualizarSolicitud(initialCreditoId as number, {
+          asesorId: Number(asesorId),
+          montoSolicitado: monto,
+          tipoPago,
+          garantiaDescripcion: garantiaDescripcion.trim() || undefined,
+          evidenciaUrls,
+          lugar: creditoInicial?.lugar ?? undefined,
+        })
+      }
+
+      return creditoService.crearSolicitud({
         clienteId: clienteSeleccionado!.id,
         asesorId: Number(asesorId),
         sucursalId: usuario!.sucursal.id,
@@ -204,10 +280,16 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
         tipoPago,
         garantiaDescripcion: garantiaDescripcion.trim() || undefined,
         evidenciaUrls,
-      }),
+      })
+    },
     onSuccess: (data) => {
-      toast.success('Solicitud enviada correctamente')
+      toast.success(isEditMode ? 'Solicitud actualizada correctamente' : 'Solicitud enviada correctamente')
       queryClient.invalidateQueries({ queryKey: ['creditos'] })
+      if (isEditMode) {
+        queryClient.invalidateQueries({ queryKey: ['credito', initialCreditoId] })
+        _onSuccess?.()
+        return
+      }
       navigate(`/creditos/${data.id}`)
     },
     onError: (err: unknown) => {
@@ -223,10 +305,10 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
 
   if (step === 1) {
     return (
-      <div className="max-w-2xl">
+      <div className="w-full">
         <Stepper current={1} />
 
-        <div className="card p-6 space-y-6">
+        <div className="card p-6 space-y-6 w-full">
 
           {/* Cliente */}
           <div>
@@ -234,7 +316,32 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
               Cliente <span className="text-red-500">*</span>
             </label>
 
-            {clienteSeleccionado ? (
+            {isEditMode && creditoInicialLoading && (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
+                Cargando datos de la solicitud...
+              </div>
+            )}
+
+            {isEditMode && creditoInicial && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 flex items-start justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="font-semibold text-gray-800">
+                      {creditoInicial.cliente.nombreCompleto}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 pl-5">
+                    📱 {creditoInicial.cliente.celular}
+                  </div>
+                  <div className="text-xs text-gray-500 pl-5">
+                    Cliente bloqueado durante edición de solicitud
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!isEditMode && clienteSeleccionado ? (
               <div className="rounded-xl border border-green-300 bg-green-50 p-3 flex items-start justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-1.5">
@@ -261,7 +368,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
                   Cambiar
                 </button>
               </div>
-            ) : (
+            ) : !isEditMode ? (
               <div className="relative" ref={searchRef}>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -302,7 +409,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
                   </div>
                 )}
               </div>
-            )}
+            ) : null}
 
             {/* Active credit warning */}
             {tieneCredito && (
@@ -421,11 +528,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
             <MultiFileUpload
               value={evidenciaUrls}
               onChange={setEvidenciaUrls}
-              folder={
-                clienteSeleccionado
-                  ? `evidencia-negocio/${clienteSeleccionado.id}`
-                  : 'evidencia-negocio'
-              }
+              folder={carpetaEvidencia}
               accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"
               label="Arrastra fotos/videos del negocio o haz clic para seleccionar"
               required
@@ -455,7 +558,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
     : asesoresData?.content.find((u) => u.id === asesorId)?.nombre_completo ?? '—'
 
   return (
-    <div className="max-w-2xl">
+    <div className="w-full">
       <Stepper current={2} />
 
       <div className="space-y-4">
@@ -464,10 +567,9 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Cliente</h3>
           <div className="space-y-1 text-sm">
             <div className="font-medium text-gray-800">
-              {clienteSeleccionado?.nombre_completo}
+              {nombreCliente ?? '—'}
             </div>
-            <div className="text-gray-500">📱 {clienteSeleccionado?.celular}</div>
-            <div className="text-gray-500">🏪 {clienteSeleccionado?.negocio_nombre}</div>
+            <div className="text-gray-500">📱 {celularCliente ?? '—'}</div>
           </div>
         </div>
 
@@ -480,17 +582,17 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
             <div className="space-y-1.5 text-sm">
               {[
                 ['Monto solicitado', `$${monto.toLocaleString('es-MX')}`],
-                ['Plazo', `${calculo.plazo} días`],
-                ['Tasa de interés', `${(calculo.tasa * 100).toFixed(0)}%`],
+                ['Plazo', `${safeNumber(calculo.plazo ?? (calculo as { plazo_dias?: number | string }).plazo_dias)} días`],
+                ['Tasa de interés', `${(safeNumber(calculo.tasa ?? (calculo as { tasa_interes?: number | string }).tasa_interes) * 100).toFixed(0)}%`],
                 [
                   'Cargo financiero',
-                  `$${calculo.cargoFinanciero.toLocaleString('es-MX')}`,
+                  `$${safeNumber(calculo.cargoFinanciero ?? (calculo as { cargo_financiero?: number | string }).cargo_financiero).toLocaleString('es-MX')}`,
                 ],
-                ['Total a pagar', `$${calculo.totalAPagar.toLocaleString('es-MX')}`],
-                ['Pago diario', `$${calculo.pagoPeriodico.toLocaleString('es-MX')}`],
+                ['Total a pagar', `$${safeNumber(calculo.totalAPagar ?? (calculo as { total_apagar?: number | string }).total_apagar).toLocaleString('es-MX')}`],
+                ['Pago diario', `$${safeNumber(calculo.pagoPeriodico ?? (calculo as { pago_periodico?: number | string }).pago_periodico).toLocaleString('es-MX')}`],
                 [
                   'Pago adelantado',
-                  `$${calculo.pagoAdelantado.toLocaleString('es-MX')} (se cobra al desembolsar)`,
+                  `$${safeNumber(calculo.pagoAdelantado ?? (calculo as { pago_adelantado?: number | string }).pago_adelantado).toLocaleString('es-MX')} (se cobra al desembolsar)`,
                 ],
                 ['Forma de pago', tipoPago === 'DIARIO' ? 'Diario' : 'Semanal'],
               ].map(([label, value]) => (
@@ -517,8 +619,8 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
                 {/\.(mp4|mov|webm)/i.test(url) ? (
                   <span className="text-xl">🎥</span>
                 ) : (
-                  <img
-                    src={url}
+                  <SecurePreviewImage
+                    fileUrl={url}
                     alt={`Evidencia ${i + 1}`}
                     className="w-full h-full object-cover"
                   />
@@ -560,23 +662,36 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess }: Props) {
           </button>
           <button
             type="button"
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            onClick={async () => {
+              setIsProcessing(true)
+              try {
+                await mutation.mutateAsync()
+              } finally {
+                setIsProcessing(false)
+              }
+            }}
+            disabled={mutation.isPending || isProcessing}
             className="btn-primary flex items-center gap-2 justify-center flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {mutation.isPending ? (
+            {mutation.isPending || isProcessing ? (
               <>
                 <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 Enviando...
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" /> Enviar Solicitud
+                <Send className="w-4 h-4" /> {isEditMode ? 'Guardar Cambios' : 'Enviar Solicitud'}
               </>
             )}
           </button>
         </div>
       </div>
+
+      <ProcessingOverlay
+        visible={mutation.isPending || isProcessing}
+        title={isEditMode ? 'Guardando solicitud' : 'Enviando solicitud'}
+        message="Estamos procesando los datos y los archivos adjuntos. No hagas clic otra vez."
+      />
     </div>
   )
 }

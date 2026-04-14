@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { X, FileVideo } from 'lucide-react'
 import FileUpload from './FileUpload'
+import SecurePreviewImage from './SecurePreviewImage'
 
 interface Props {
   value: string[]
@@ -25,13 +26,10 @@ function Thumbnail({ url, onRemove }: { url: string; onRemove: () => void }) {
           <FileVideo className="w-6 h-6 text-gray-400" />
         </div>
       ) : (
-        <img
-          src={url}
+        <SecurePreviewImage
+          fileUrl={url}
           alt="Evidencia"
           className="w-full h-full object-cover"
-          onError={(e) => {
-            ;(e.target as HTMLImageElement).style.display = 'none'
-          }}
         />
       )}
       <button

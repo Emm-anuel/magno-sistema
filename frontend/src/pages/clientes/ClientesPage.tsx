@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { Plus, Search, Eye, Pencil, Power, X, ChevronLeft, ChevronRight, User } from 'lucide-react'
 import { api, clienteService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
+import ProcessingOverlay from '@/components/ProcessingOverlay'
 import type {
   EstadoCliente,
   ClienteResumen,
@@ -92,6 +93,7 @@ function initials(name: string) {
 // ── Componente principal ──────────────────────────────────────────
 export default function ClientesPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { usuario } = useAuthStore()
 
   const [buscar, setBuscar] = useState('')
@@ -102,8 +104,10 @@ export default function ClientesPage() {
   const [modal, setModal] = useState<{ open: boolean; cliente: ClienteDetalle | null }>({
     open: false, cliente: null,
   })
+  const [returnToPath, setReturnToPath] = useState<string | null>(null)
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const esAsesor = usuario?.rol === 'ASESOR_COBRADOR'
   const puedeCrear = true // todos los roles pueden crear clientes
   const puedeAsignarAsesor =
     usuario?.rol === 'ADMINISTRADOR' ||
@@ -163,13 +167,37 @@ export default function ClientesPage() {
   const sinCredito  = clientes.filter((c) => c.estado_cliente === 'SIN_CREDITO').length
 
   const openModal = async (cliente: ClienteResumen) => {
+    const puedeEditarCliente = !esAsesor || cliente.estado_cliente === 'SIN_CREDITO'
+    if (!puedeEditarCliente) return
+
     try {
+      setReturnToPath(null)
       const detalle = await clienteService.obtener(cliente.id)
       setModal({ open: true, cliente: detalle })
     } catch {
       toast.error('Error al cargar datos del cliente')
     }
   }
+
+  useEffect(() => {
+    const state = location.state as { editClienteId?: number; returnToPath?: string } | null
+    const editClienteId = state?.editClienteId
+
+    if (!editClienteId) return
+
+    setReturnToPath(state?.returnToPath ?? null)
+
+    clienteService
+      .obtener(editClienteId)
+      .then((detalle) => setModal({ open: true, cliente: detalle }))
+      .catch(() => toast.error('Error al cargar datos del cliente'))
+      .finally(() => {
+        navigate('/clientes', { replace: true, state: null })
+      })
+  }, [location.state, navigate])
+
+  const canEditCliente = (estadoCliente: EstadoCliente) =>
+    !esAsesor || estadoCliente === 'SIN_CREDITO'
 
   return (
     <div>
@@ -328,7 +356,7 @@ export default function ClientesPage() {
                               <Eye className="w-3.5 h-3.5" />
                               Ver
                             </button>
-                            {puedeCrear && (
+                            {puedeCrear && canEditCliente(c.estado_cliente) && (
                               <button
                                 className="btn btn-sm"
                                 onClick={() => openModal(c)}
@@ -384,7 +412,7 @@ export default function ClientesPage() {
                         <Eye className="w-4 h-4" />
                         Ver
                       </button>
-                      {puedeCrear && (
+                      {puedeCrear && canEditCliente(c.estado_cliente) && (
                         <button
                           className="btn btn-sm flex-1 justify-center py-2.5"
                           onClick={() => openModal(c)}
@@ -435,10 +463,22 @@ export default function ClientesPage() {
           asesores={asesores ?? []}
           puedeAsignarAsesor={puedeAsignarAsesor}
           puedeAsignarSucursal={puedeAsignarSucursal}
-          onClose={() => setModal({ open: false, cliente: null })}
+          onClose={() => {
+            setModal({ open: false, cliente: null })
+            if (returnToPath) {
+              const destination = returnToPath
+              setReturnToPath(null)
+              navigate(destination)
+            }
+          }}
           onSaved={() => {
             setModal({ open: false, cliente: null })
             qc.invalidateQueries({ queryKey: ['clientes'] })
+            if (returnToPath) {
+              const destination = returnToPath
+              setReturnToPath(null)
+              navigate(destination)
+            }
           }}
         />
       )}
@@ -457,9 +497,10 @@ interface ModalProps {
   onSaved: () => void
 }
 
-function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, onClose, onSaved }: ModalProps) {
+export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, onClose, onSaved }: ModalProps) {
   const isEdit = !!cliente
   const { usuario: authUsuario } = useAuthStore()
+  const [isProcessing, setIsProcessing] = useState(false)
   const [avalOpen, setAvalOpen] = useState(!!cliente?.aval_nombre)
   const [curpStatus, setCurpStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
   const [celularStatus, setCelularStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
@@ -573,7 +614,7 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
     }, 400)
   }, [isEdit, cliente])
 
-  const onSubmit = (data: ClienteForm) => {
+  const onSubmit = async (data: ClienteForm) => {
     if (curpStatus === 'taken') { toast.error('El CURP ya está registrado'); return }
     if (celularStatus === 'taken') { toast.error('El celular ya está registrado'); return }
 
@@ -591,10 +632,16 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
       sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : authUsuario!.sucursal.id,
     }
 
-    if (isEdit) {
-      editMutation.mutate({ id: cliente!.id, data: payload })
-    } else {
-      createMutation.mutate(payload)
+    setIsProcessing(true)
+
+    try {
+      if (isEdit) {
+        await editMutation.mutateAsync({ id: cliente!.id, data: payload })
+      } else {
+        await createMutation.mutateAsync(payload)
+      }
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -896,6 +943,12 @@ function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puede
           </div>
         </form>
       </div>
+
+      <ProcessingOverlay
+        visible={isProcessing || isPending}
+        title={isEdit ? 'Actualizando cliente' : 'Creando cliente'}
+        message="Estamos guardando la información. Este proceso puede tardar unos segundos."
+      />
     </div>
   )
 }

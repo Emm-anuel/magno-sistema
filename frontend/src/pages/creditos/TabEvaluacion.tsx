@@ -8,6 +8,7 @@ import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import ProductoCalculoCard from '@/components/ProductoCalculoCard'
 import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
+import ProcessingOverlay from '@/components/ProcessingOverlay'
 import type { CreditoResumen, CreditoDetalle, ProductoCalculo } from '@/types'
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -53,7 +54,7 @@ function RejectModal({ credito, onClose, onConfirm, loading }: RejectModalProps)
 
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl relative z-[2001]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-800">Rechazar solicitud</h3>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-gray-600 p-1">
@@ -92,6 +93,11 @@ function RejectModal({ credito, onClose, onConfirm, loading }: RejectModalProps)
           </div>
         </div>
       </div>
+      <ProcessingOverlay
+        visible={loading}
+        title="Rechazando solicitud"
+        message="Estamos guardando el rechazo y actualizando la información. No hagas clic otra vez."
+      />
     </div>
   )
 }
@@ -108,7 +114,7 @@ interface ApproveModalProps {
 function ApproveModal({ credito, calculo, montoAprobado, onClose, onConfirm, loading }: ApproveModalProps) {
   return (
     <div className="fixed inset-0 z-[2000] bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl">
+      <div className="bg-white rounded-xl w-full max-w-md shadow-2xl relative z-[2001]">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
           <h3 className="font-semibold text-gray-800">Confirmar aprobación</h3>
           <button type="button" onClick={onClose} aria-label="Cerrar" className="text-gray-400 hover:text-gray-600 p-1">
@@ -157,6 +163,11 @@ function ApproveModal({ credito, calculo, montoAprobado, onClose, onConfirm, loa
           </div>
         </div>
       </div>
+      <ProcessingOverlay
+        visible={loading}
+        title="Aprobando crédito"
+        message="Estamos procesando la aprobación y generando los cambios necesarios. No hagas clic otra vez."
+      />
     </div>
   )
 }

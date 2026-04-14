@@ -10,6 +10,7 @@ import { api, usuarioService, fileService } from '@/services/api'
 import { ROL_LABELS } from '@/types'
 import type { Rol, Usuario, UsuarioCreateRequest, UsuarioUpdateRequest } from '@/types'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
+import ProcessingOverlay from '@/components/ProcessingOverlay'
 
 // ── Tipos ─────────────────────────────────────────────────────────
 const ROLES: Rol[] = ['ADMINISTRADOR', 'SUPERVISOR', 'SUPERVISOR_CAMPO', 'ASESOR_COBRADOR']
@@ -339,6 +340,7 @@ interface ModalProps {
 function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
   const isEdit = !!usuario
   const qc = useQueryClient()
+  const [isProcessing, setIsProcessing] = useState(false)
   const [ineFile, setIneFile] = useState<File | null>(null)
   const [inePreview, setInePreview] = useState<string>(usuario?.ine_imagen_url ?? '')
   const [ineImgSrc, setIneImgSrc] = useState<string>(usuario?.ine_imagen_url ?? '')
@@ -432,28 +434,36 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
   }
 
   const onSubmit = async (formData: CreateForm) => {
-    let ineUrl = formData.ine_imagen_url ?? ''
+    setIsProcessing(true)
 
-    // 1. Subir imagen si hay una nueva seleccionada
-    if (ineFile) {
-      try {
-        ineUrl = await fileService.upload(ineFile, 'usuarios-ine')
+    try {
+      let ineUrl = formData.ine_imagen_url ?? ''
+
+      // 1. Subir imagen si hay una nueva seleccionada
+      if (ineFile) {
+        try {
+          ineUrl = await fileService.upload(ineFile, 'usuarios-ine')
+        } catch {
+          toast.error('Error al subir imagen INE')
+          return
+        }
         setValue('ine_imagen_url', ineUrl)
-      } catch {
-        toast.error('Error al subir imagen INE')
-        return
       }
-    }
 
-    const payload = { ...formData, ine_imagen_url: ineUrl }
+      const payload = { ...formData, ine_imagen_url: ineUrl }
 
-    if (isEdit) {
-      if (!passwordModified || !payload.password) {
-        delete (payload as any).password
+      if (isEdit) {
+        if (!passwordModified || !payload.password) {
+          delete (payload as any).password
+        }
+        await editMutation.mutateAsync({ id: usuario!.id, data: payload as UsuarioUpdateRequest })
+      } else {
+        await createMutation.mutateAsync(payload as UsuarioCreateRequest)
       }
-      editMutation.mutate({ id: usuario!.id, data: payload as UsuarioUpdateRequest })
-    } else {
-      createMutation.mutate(payload as UsuarioCreateRequest)
+    } catch {
+      return
+    } finally {
+      setIsProcessing(false)
     }
   }
 
@@ -683,6 +693,12 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
           </div>
         </form>
       </div>
+
+      <ProcessingOverlay
+        visible={isProcessing || isPending}
+        title={isEdit ? 'Actualizando usuario' : 'Creando usuario'}
+        message="Estamos procesando la solicitud y subiendo los archivos. No hagas clic de nuevo."
+      />
     </div>
   )
 }

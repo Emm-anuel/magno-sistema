@@ -23,6 +23,7 @@ export default function CreditosNuevosPage() {
   const location = useLocation()
   const [activeTab, setActiveTab] = useState<Tab>('solicitudes')
   const [nuevaSolicitudOpen, setNuevaSolicitudOpen] = useState(false)
+  const [editingSolicitudId, setEditingSolicitudId] = useState<number | undefined>()
   const [selectedCreditoId, setSelectedCreditoId] = useState<number | undefined>()
 
   useEffect(() => {
@@ -63,6 +64,11 @@ export default function CreditosNuevosPage() {
     setActiveTab('desembolso')
   }
 
+  function handleEditarSolicitud(id: number) {
+    setEditingSolicitudId(id)
+    setNuevaSolicitudOpen(true)
+  }
+
   return (
     <div>
       <div className="mb-4">
@@ -100,6 +106,7 @@ export default function CreditosNuevosPage() {
           onEvaluar={handleEvaluar}
           onDesembolsar={handleDesembolsar}
           onNuevaSolicitud={() => setNuevaSolicitudOpen(true)}
+          onEditarSolicitud={handleEditarSolicitud}
         />
       )}
       {activeTab === 'evaluacion' && (
@@ -122,15 +129,20 @@ export default function CreditosNuevosPage() {
             <div className="modal-header">
               <div>
                 <h3 className="font-semibold text-[15px] text-[#212529]">
-                  Nueva Solicitud
+                  {editingSolicitudId ? 'Editar Solicitud' : 'Nueva Solicitud'}
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Captura los datos del crédito desde este formulario
+                  {editingSolicitudId
+                    ? 'Actualiza los datos de la solicitud en estado Solicitado'
+                    : 'Captura los datos del crédito desde este formulario'}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => setNuevaSolicitudOpen(false)}
+                onClick={() => {
+                  setNuevaSolicitudOpen(false)
+                  setEditingSolicitudId(undefined)
+                }}
                 className="text-[#adb5bd] hover:text-[#495057] p-1"
                 aria-label="Cerrar modal"
               >
@@ -140,7 +152,11 @@ export default function CreditosNuevosPage() {
 
             <div className="px-4 sm:px-5 py-4 max-h-[85vh] overflow-y-auto">
               <TabNuevaSolicitud
-                onSuccess={() => setNuevaSolicitudOpen(false)}
+                initialCreditoId={editingSolicitudId}
+                onSuccess={() => {
+                  setNuevaSolicitudOpen(false)
+                  setEditingSolicitudId(undefined)
+                }}
               />
             </div>
           </div>

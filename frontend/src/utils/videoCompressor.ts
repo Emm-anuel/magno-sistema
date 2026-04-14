@@ -6,6 +6,24 @@ export interface VideoCompressOptions {
   crf?: number                     // 23–35, default: 28
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`Timeout al ${label}`))
+    }, ms)
+
+    promise
+      .then((value) => {
+        clearTimeout(timer)
+        resolve(value)
+      })
+      .catch((error) => {
+        clearTimeout(timer)
+        reject(error)
+      })
+  })
+}
+
 export async function compressVideo(
   file: File,
   onProgress: (percent: number) => void,
@@ -22,16 +40,20 @@ export async function compressVideo(
   const ffmpeg = new FFmpeg()
 
   try {
-    await ffmpeg.load({
-      coreURL: new URL('/ffmpeg/ffmpeg-core.js', window.location.origin).href,
-      wasmURL: new URL('/ffmpeg/ffmpeg-core.wasm', window.location.origin).href,
-    })
+    await withTimeout(
+      ffmpeg.load({
+        coreURL: new URL('/ffmpeg/ffmpeg-core.js', window.location.origin).href,
+        wasmURL: new URL('/ffmpeg/ffmpeg-core.wasm', window.location.origin).href,
+      }),
+      30_000,
+      'cargar FFmpeg',
+    )
 
     ffmpeg.on('progress', ({ progress }) => {
       onProgress(Math.round(progress * 100))
     })
 
-    await ffmpeg.writeFile('input.mp4', await fetchFile(file))
+    await withTimeout(ffmpeg.writeFile('input.mp4', await fetchFile(file)), 20_000, 'escribir archivo de entrada')
 
     const audioOptions =
       resolution === '720p'
@@ -51,9 +73,9 @@ export async function compressVideo(
       'output.mp4',
     ]
 
-    await ffmpeg.exec(args)
+    await withTimeout(ffmpeg.exec(args), 180_000, 'optimizar video')
 
-    const data = await ffmpeg.readFile('output.mp4')
+    const data = await withTimeout(ffmpeg.readFile('output.mp4'), 20_000, 'leer archivo optimizado')
 
     let blob: Blob
     if (data instanceof Uint8Array) {
@@ -85,7 +107,7 @@ export async function compressVideo(
 
     return compressedFile
   } catch (err) {
-    console.warn('videoCompressor: ffmpeg failed, returning original file', err)
+    console.warn('videoCompressor: ffmpeg failed or timeout, returning original file', err)
     return file
   } finally {
     try {

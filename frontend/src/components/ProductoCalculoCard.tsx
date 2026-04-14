@@ -13,6 +13,36 @@ function fmt(n: number) {
   }).format(n)
 }
 
+function safeNumber(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return 0
+}
+
+function getCalculoValue(calculo: ProductoCalculo, key: keyof ProductoCalculo, fallbackKey?: string) {
+  const direct = calculo[key]
+  if (typeof direct === 'number' || typeof direct === 'string') return direct
+  const calculoRecord = calculo as unknown as Record<string, unknown>
+  if (fallbackKey && fallbackKey in calculoRecord) {
+    return calculoRecord[fallbackKey]
+  }
+  return 0
+}
+
+function getTotalAPagar(calculo: ProductoCalculo): number {
+  const raw = getCalculoValue(calculo, 'totalAPagar', 'total_a_pagar')
+  const total = safeNumber(raw)
+  if (total > 0) return total
+
+  // Fallback defensivo por si el backend omite total_a_pagar en alguna respuesta.
+  const capital = safeNumber(getCalculoValue(calculo, 'capital'))
+  const intereses = safeNumber(getCalculoValue(calculo, 'cargoFinanciero', 'cargo_financiero'))
+  return capital + intereses
+}
+
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <div className="flex justify-between items-center py-0.5">
@@ -48,15 +78,15 @@ export default function ProductoCalculoCard({ calculo, loading }: Props) {
         <span className="text-sm font-semibold text-[#3d6b35]">Producto detectado</span>
       </div>
       <div className="text-xs text-gray-500 mb-2">
-        Plazo: <strong>{calculo.plazo} días</strong> &nbsp;|&nbsp; Tasa:{' '}
-        <strong>{(calculo.tasa * 100).toFixed(0)}%</strong>
+        Plazo: <strong>{safeNumber(getCalculoValue(calculo, 'plazo', 'plazo_dias'))} días</strong> &nbsp;|&nbsp; Tasa:{' '}
+        <strong>{(safeNumber(getCalculoValue(calculo, 'tasa', 'tasa_interes')) * 100).toFixed(0)}%</strong>
       </div>
-      <Row label="Capital:" value={fmt(calculo.capital)} />
-      <Row label="Intereses:" value={fmt(calculo.cargoFinanciero)} />
-      <Row label="Total a pagar:" value={fmt(calculo.totalAPagar)} />
+      <Row label="Capital:" value={fmt(safeNumber(getCalculoValue(calculo, 'capital')))} />
+      <Row label="Intereses:" value={fmt(safeNumber(getCalculoValue(calculo, 'cargoFinanciero', 'cargo_financiero')))} />
+      <Row label="Total a pagar:" value={fmt(getTotalAPagar(calculo))} />
       <hr className="border-green-200 my-1" />
-      <Row label="Pago diario:" value={fmt(calculo.pagoPeriodico)} bold />
-      <Row label="Pago adelantado:" value={fmt(calculo.pagoAdelantado)} />
+      <Row label="Pago diario:" value={fmt(safeNumber(getCalculoValue(calculo, 'pagoPeriodico', 'pago_periodico')))} bold />
+      <Row label="Pago adelantado:" value={fmt(safeNumber(getCalculoValue(calculo, 'pagoAdelantado', 'pago_adelantado')))} />
     </div>
   )
 }
