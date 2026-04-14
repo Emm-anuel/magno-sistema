@@ -2,8 +2,8 @@ package com.magno.controller;
 
 import com.magno.dto.credito.*;
 import com.magno.model.EstadoCredito;
-import com.magno.model.TipoPago;
 import com.magno.security.JwtPrincipal;
+import com.magno.security.SecurityHelper;
 import com.magno.service.CreditoCalculoService;
 import com.magno.service.CreditoService;
 import jakarta.validation.Valid;
@@ -27,11 +27,14 @@ public class CreditoController {
 
     private final CreditoService creditoService;
     private final CreditoCalculoService calculoService;
+    private final SecurityHelper securityHelper;
 
     public CreditoController(CreditoService creditoService,
-            CreditoCalculoService calculoService) {
+            CreditoCalculoService calculoService,
+            SecurityHelper securityHelper) {
         this.creditoService = creditoService;
         this.calculoService = calculoService;
+        this.securityHelper = securityHelper;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -62,13 +65,10 @@ public class CreditoController {
         EstadoCredito estadoEnum = parseEstado(estado);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        // Filtrado por rol
+        // Filtrado por rol — aplicar restricciones de sucursal/asesor según rol
         switch (p.rol()) {
             case "ASESOR_COBRADOR" -> asesorId = p.userId();
-            case "SUPERVISOR_CAMPO" -> {
-                if (sucursalId == null)
-                    sucursalId = p.sucursalId();
-            }
+            case "SUPERVISOR_CAMPO" -> sucursalId = p.sucursalId(); // Forzar siempre su sucursal
         }
 
         return ResponseEntity.ok(
@@ -140,9 +140,12 @@ public class CreditoController {
     // ────────────────────────────────────────────────────────────────────
     // PATCH /api/creditos/{id}/activar
     // ────────────────────────────────────────────────────────────────────
-
+    /**
+     * Activar crédito aprobado: genera calendario de pagos y desembolsa.
+     * Solo ADMINISTRADOR y SUPERVISOR pueden activar créditos.
+     */
     @PatchMapping("/{id}/activar")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
     public ResponseEntity<CreditoDetalleDTO> activar(
             @PathVariable Long id,
             Authentication auth) {
@@ -154,31 +157,51 @@ public class CreditoController {
     // ────────────────────────────────────────────────────────────────────
     // PATCH /api/creditos/{id}/video-entrega
     // ────────────────────────────────────────────────────────────────────
-
+    /**
+     * Subir video de entrega de dinero del crédito.
+     * Validación de acceso: ASESOR_COBRADOR → solo sus créditos,
+     * SUPERVISOR_CAMPO → solo su sucursal, ADMINISTRADOR/SUPERVISOR → todos.
+     */
     @PatchMapping("/{id}/video-entrega")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<CreditoDetalleDTO> subirVideo(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            Authentication auth) {
 
         String url = body.get("videoEntregaUrl");
         if (url == null || url.isBlank()) {
             return ResponseEntity.badRequest().build();
         }
+
+        // Verificar acceso al crédito
+        CreditoDetalleDTO dto = creditoService.obtenerDetalle(id);
+        JwtPrincipal p = principal(auth);
+        verificarAcceso(dto, p);
+
         return ResponseEntity.ok(creditoService.subirVideoEntrega(id, url));
     }
 
     // ────────────────────────────────────────────────────────────────────
     // PATCH /api/creditos/{id}/cancelar
     // ────────────────────────────────────────────────────────────────────
-
+    /**
+     * Cancelar crédito. Solo ADMINISTRADOR y SUPERVISOR pueden cancelar.
+     */
     @PatchMapping("/{id}/cancelar")
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
     public ResponseEntity<CreditoDetalleDTO> cancelar(
             @PathVariable Long id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            Authentication auth) {
 
         String motivo = body.getOrDefault("motivo", "");
+
+        // Verificar acceso adicional (aunque el rol ya lo restringe)
+        CreditoDetalleDTO dto = creditoService.obtenerDetalle(id);
+        JwtPrincipal p = principal(auth);
+        verificarAcceso(dto, p);
+
         return ResponseEntity.ok(creditoService.cancelarCredito(id, motivo));
     }
 
@@ -195,13 +218,18 @@ public class CreditoController {
     // ────────────────────────────────────────────────────────────────────
     // GET /api/creditos/cliente/{clienteId}
     // ────────────────────────────────────────────────────────────────────
-
+    /**
+     * Historial de créditos de un cliente.
+     * Validación de acceso: ASESOR_COBRADOR → solo sus clientes,
+     * SUPERVISOR_CAMPO → solo su sucursal, ADMINISTRADOR/SUPERVISOR → todos.
+     */
     @GetMapping("/cliente/{clienteId}")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<CreditoResumenDTO>> porCliente(
             @PathVariable Long clienteId,
             Authentication auth) {
 
+        securityHelper.esMiCliente(clienteId, auth);
         return ResponseEntity.ok(creditoService.getCreditosCliente(clienteId));
     }
 
