@@ -81,6 +81,28 @@ public record ClienteCreateRequest(
         String negocioAntiguedad,
 
         String negocioDireccion,
+
+        // Dirección del negocio en campos separados (obligatorios)
+        @NotBlank(message = "negocioCalle no debe estar vacía")
+        String negocioCalle,
+
+        @NotBlank(message = "negocioNoExterior no debe estar vacío")
+        String negocioNoExterior,
+
+        String negocioNoInterior,
+
+        @NotBlank(message = "negocioColonia no debe estar vacía")
+        String negocioColonia,
+
+        @NotBlank(message = "negocioMunicipio no debe estar vacío")
+        String negocioMunicipio,
+
+        @NotBlank(message = "negocioEstado no debe estar vacío")
+        String negocioEstado,
+
+        @NotBlank(message = "negocioCp no debe estar vacío")
+        String negocioCp,
+
         String negocioTipoLocal,
         BigDecimal negocioMontoRenta,
         String negocioHorarios,

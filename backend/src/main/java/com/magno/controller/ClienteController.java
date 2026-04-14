@@ -176,6 +176,10 @@ public class ClienteController {
      * - ASESOR_COBRADOR: fuerza su propio id como asesorId y su sucursal como sucursalId.
      * - SUPERVISOR_CAMPO: puede elegir asesor, pero sucursalId queda fijo al suyo.
      * - ADMINISTRADOR / SUPERVISOR: sin restricciones.
+     *
+     * Patrón de filtrado por rol (aplicar en todos los módulos futuros):
+     * ADMINISTRADOR y SUPERVISOR → ven todo
+     * SUPERVISOR_CAMPO y ASESOR_COBRADOR → solo sus clientes
      */
     private ClienteCreateRequest normalizarCreate(ClienteCreateRequest req, JwtPrincipal p) {
         return switch (p.rol()) {
@@ -188,7 +192,10 @@ public class ClienteController {
                     req.domColonia(), req.domMunicipio(), req.domEstado(),
                     req.domCodigoPostal(), req.domTipoVivienda(), req.domMontoRenta(),
                     req.negocioNombre(), req.negocioGiro(), req.negocioAntiguedad(),
-                    req.negocioDireccion(), req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioDireccion(),
+                    req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
+                    req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
+                    req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
@@ -205,7 +212,10 @@ public class ClienteController {
                     req.domColonia(), req.domMunicipio(), req.domEstado(),
                     req.domCodigoPostal(), req.domTipoVivienda(), req.domMontoRenta(),
                     req.negocioNombre(), req.negocioGiro(), req.negocioAntiguedad(),
-                    req.negocioDireccion(), req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioDireccion(),
+                    req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
+                    req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
+                    req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
@@ -232,7 +242,10 @@ public class ClienteController {
                     req.domColonia(), req.domMunicipio(), req.domEstado(),
                     req.domCodigoPostal(), req.domTipoVivienda(), req.domMontoRenta(),
                     req.negocioNombre(), req.negocioGiro(), req.negocioAntiguedad(),
-                    req.negocioDireccion(), req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioDireccion(),
+                    req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
+                    req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
+                    req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
@@ -249,7 +262,10 @@ public class ClienteController {
                     req.domColonia(), req.domMunicipio(), req.domEstado(),
                     req.domCodigoPostal(), req.domTipoVivienda(), req.domMontoRenta(),
                     req.negocioNombre(), req.negocioGiro(), req.negocioAntiguedad(),
-                    req.negocioDireccion(), req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioDireccion(),
+                    req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
+                    req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
+                    req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),

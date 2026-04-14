@@ -147,6 +147,13 @@ public class ClienteService {
                 .negocioGiro(req.negocioGiro())
                 .negocioAntiguedad(req.negocioAntiguedad())
                 .negocioDireccion(req.negocioDireccion())
+                .negocioCalle(req.negocioCalle())
+                .negocioNoExterior(req.negocioNoExterior())
+                .negocioNoInterior(req.negocioNoInterior())
+                .negocioColonia(req.negocioColonia())
+                .negocioMunicipio(req.negocioMunicipio())
+                .negocioEstado(req.negocioEstado())
+                .negocioCp(req.negocioCp())
                 .negocioTipoLocal(req.negocioTipoLocal())
                 .negocioMontoRenta(req.negocioMontoRenta())
                 .negocioHorarios(req.negocioHorarios())
@@ -218,6 +225,13 @@ public class ClienteService {
         if (req.negocioGiro() != null)        c.setNegocioGiro(req.negocioGiro());
         if (req.negocioAntiguedad() != null)  c.setNegocioAntiguedad(req.negocioAntiguedad());
         if (req.negocioDireccion() != null)   c.setNegocioDireccion(req.negocioDireccion());
+        if (req.negocioCalle() != null)       c.setNegocioCalle(req.negocioCalle());
+        if (req.negocioNoExterior() != null)  c.setNegocioNoExterior(req.negocioNoExterior());
+        if (req.negocioNoInterior() != null)  c.setNegocioNoInterior(req.negocioNoInterior());
+        if (req.negocioColonia() != null)     c.setNegocioColonia(req.negocioColonia());
+        if (req.negocioMunicipio() != null)   c.setNegocioMunicipio(req.negocioMunicipio());
+        if (req.negocioEstado() != null)      c.setNegocioEstado(req.negocioEstado());
+        if (req.negocioCp() != null)          c.setNegocioCp(req.negocioCp());
         if (req.negocioTipoLocal() != null)   c.setNegocioTipoLocal(req.negocioTipoLocal());
         if (req.negocioMontoRenta() != null)  c.setNegocioMontoRenta(req.negocioMontoRenta());
         if (req.negocioHorarios() != null)    c.setNegocioHorarios(req.negocioHorarios());

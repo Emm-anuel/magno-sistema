@@ -1,13 +1,9 @@
 package com.magno.config;
 
-import com.magno.model.Cliente;
-import com.magno.model.Rol;
-import com.magno.model.Sucursal;
-import com.magno.model.Usuario;
-import com.magno.repository.ClienteRepository;
-import com.magno.repository.RolRepository;
-import com.magno.repository.SucursalRepository;
-import com.magno.repository.UsuarioRepository;
+import com.magno.model.*;
+import com.magno.repository.*;
+import com.magno.service.CreditoCalculoService;
+import com.magno.service.CreditoCalculoService.ResumenCalculo;
 import jakarta.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -31,17 +27,26 @@ public class DataSeeder {
     private final SucursalRepository sucursalRepo;
     private final UsuarioRepository usuarioRepo;
     private final ClienteRepository clienteRepo;
+    private final CreditoRepository creditoRepo;
+    private final CalendarioPagoRepository calendarioPagoRepo;
+    private final CreditoCalculoService calculoService;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(RolRepository rolRepo,
                       SucursalRepository sucursalRepo,
                       UsuarioRepository usuarioRepo,
                       ClienteRepository clienteRepo,
+                      CreditoRepository creditoRepo,
+                      CalendarioPagoRepository calendarioPagoRepo,
+                      CreditoCalculoService calculoService,
                       PasswordEncoder passwordEncoder) {
         this.rolRepo = rolRepo;
         this.sucursalRepo = sucursalRepo;
         this.usuarioRepo = usuarioRepo;
         this.clienteRepo = clienteRepo;
+        this.creditoRepo = creditoRepo;
+        this.calendarioPagoRepo = calendarioPagoRepo;
+        this.calculoService = calculoService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -53,6 +58,7 @@ public class DataSeeder {
         seedAdminUser();
         seedAsesor();
         seedClientes();
+        seedCreditos();
     }
 
     private void seedRoles() {
@@ -240,6 +246,114 @@ public class DataSeeder {
 
         clienteRepo.saveAll(clientes);
         log.info("5 clientes de prueba creados");
+    }
+
+    private void seedCreditos() {
+        if (creditoRepo.count() > 0) {
+            log.info("Créditos ya existen, omitiendo seeder");
+            return;
+        }
+
+        List<Cliente> clientes = clienteRepo.findAll();
+        if (clientes.size() < 3) {
+            log.info("No hay suficientes clientes para seeder de créditos");
+            return;
+        }
+
+        Sucursal sucursal = sucursalRepo.findAll().get(0);
+        Usuario asesor = usuarioRepo.findByEmail("asesor1@magno.com")
+                .orElse(usuarioRepo.findAll().get(0));
+        Usuario admin  = usuarioRepo.findByEmail("admin@magno.com")
+                .orElse(usuarioRepo.findAll().get(0));
+
+        // ── Crédito 1: $2,000 ACTIVO, calendario desde hace 30 días ──────────
+        ResumenCalculo c1 = calculoService.calcularCredito(new BigDecimal("2000.00"));
+
+        Credito credito1 = Credito.builder()
+                .cliente(clientes.get(0))
+                .asesor(asesor)
+                .sucursal(sucursal)
+                .montoCapital(c1.capital())
+                .tasaInteres(c1.tasa())
+                .cargoFinanciero(c1.cargoFinanciero())
+                .totalAPagar(c1.totalAPagar())
+                .pagoPeriodico(c1.pagoPeriodico())
+                .plazoDias(c1.plazo())
+                .tipoPago(TipoPago.DIARIO)
+                .pagoAdelantado(c1.pagoAdelantado())
+                .estado(EstadoCredito.APROBADO)   // necesita APROBADO antes de activar
+                .montoAprobado(c1.capital())
+                .fechaAprobacion(java.time.OffsetDateTime.now().minusDays(31))
+                .aprobadoPor(admin)
+                .createdBy(admin)
+                .build();
+        creditoRepo.save(credito1);
+
+        // Generar calendario desde hace 30 días y marcar primeros pagos
+        java.time.LocalDate fechaInicio1 = java.time.LocalDate.now().minusDays(30);
+        calculoService.generarCalendario(credito1, fechaInicio1, c1.plazo(), c1, sucursal.getId());
+
+        credito1.setFechaInicio(fechaInicio1);
+        credito1.setFechaDesembolso(java.time.OffsetDateTime.now().minusDays(30));
+        credito1.setEstado(EstadoCredito.ACTIVO);
+        creditoRepo.save(credito1);
+
+        // Marcar pago #1 como ADELANTADO ya está hecho por generarCalendario.
+        // Marcar pagos #2 a #10 como PAGADO.
+        List<CalendarioPago> pagos1 = calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(credito1.getId());
+        for (CalendarioPago cp : pagos1) {
+            if (cp.getNumeroPago() >= 2 && cp.getNumeroPago() <= 10) {
+                cp.setEstado(EstadoCalendarioPago.PAGADO);
+                calendarioPagoRepo.save(cp);
+            }
+        }
+        log.info("Crédito 1 creado: $2,000 ACTIVO — " + pagos1.size() + " pagos generados");
+
+        // ── Crédito 2: $8,000 SOLICITADO ─────────────────────────────────────
+        ResumenCalculo c2 = calculoService.calcularCredito(new BigDecimal("8000.00"));
+
+        Credito credito2 = Credito.builder()
+                .cliente(clientes.get(1))
+                .asesor(asesor)
+                .sucursal(sucursal)
+                .montoCapital(c2.capital())
+                .tasaInteres(c2.tasa())
+                .cargoFinanciero(c2.cargoFinanciero())
+                .totalAPagar(c2.totalAPagar())
+                .pagoPeriodico(c2.pagoPeriodico())
+                .plazoDias(c2.plazo())
+                .tipoPago(TipoPago.DIARIO)
+                .pagoAdelantado(c2.pagoAdelantado())
+                .estado(EstadoCredito.SOLICITADO)
+                .createdBy(asesor)
+                .build();
+        creditoRepo.save(credito2);
+        log.info("Crédito 2 creado: $8,000 SOLICITADO");
+
+        // ── Crédito 3: $20,000 APROBADO ──────────────────────────────────────
+        ResumenCalculo c3 = calculoService.calcularCredito(new BigDecimal("20000.00"));
+
+        Credito credito3 = Credito.builder()
+                .cliente(clientes.get(2))
+                .asesor(asesor)
+                .sucursal(sucursal)
+                .montoCapital(c3.capital())
+                .tasaInteres(c3.tasa())
+                .cargoFinanciero(c3.cargoFinanciero())
+                .totalAPagar(c3.totalAPagar())
+                .pagoPeriodico(c3.pagoPeriodico())
+                .plazoDias(c3.plazo())
+                .tipoPago(TipoPago.DIARIO)
+                .pagoAdelantado(c3.pagoAdelantado())
+                .estado(EstadoCredito.APROBADO)
+                .montoAprobado(new BigDecimal("20000.00"))
+                .fechaAprobacion(java.time.OffsetDateTime.now().minusDays(1))
+                .aprobadoPor(admin)
+                .observaciones("Aprobado por Gerente General. Cliente con historial limpio.")
+                .createdBy(asesor)
+                .build();
+        creditoRepo.save(credito3);
+        log.info("Crédito 3 creado: $20,000 APROBADO");
     }
 }
 

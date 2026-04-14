@@ -106,6 +106,28 @@ public class Cliente {
     @Column(name = "negocio_direccion", length = 255)
     private String negocioDireccion;
 
+    // Dirección del negocio en campos separados (V2)
+    @Column(name = "negocio_calle", length = 255)
+    private String negocioCalle;
+
+    @Column(name = "negocio_no_exterior", length = 20)
+    private String negocioNoExterior;
+
+    @Column(name = "negocio_no_interior", length = 20)
+    private String negocioNoInterior;
+
+    @Column(name = "negocio_colonia", length = 255)
+    private String negocioColonia;
+
+    @Column(name = "negocio_municipio", length = 255)
+    private String negocioMunicipio;
+
+    @Column(name = "negocio_estado", length = 100)
+    private String negocioEstado;
+
+    @Column(name = "negocio_cp", length = 10)
+    private String negocioCp;
+
     @Column(name = "negocio_tipo_local", length = 50)
     private String negocioTipoLocal;
 

@@ -49,8 +49,25 @@ public class FileController {
     }
 
     /**
+     * GET /api/files/preview?url={s3Url}
+     * Proxies an S3 file through the backend for inline browser preview.
+     * Requires authentication. Only accepts URLs that belong to this bucket.
+     */
+    @GetMapping("/preview")
+    public void preview(
+            @RequestParam String url,
+            HttpServletResponse response) throws IOException {
+        try {
+            fileService.serveFile(url, response, false);
+        } catch (IllegalArgumentException e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    /**
      * GET /api/files/download?url={s3Url}
-     * Proxies an S3 file through the backend so the browser can download it cross-origin.
+     * Proxies an S3 file through the backend so the browser can download it
+     * cross-origin.
      * Requires authentication. Only accepts URLs that belong to this bucket.
      */
     @GetMapping("/download")

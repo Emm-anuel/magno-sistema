@@ -1,4 +1,4 @@
-# MAGNO Sistema de Cobros — Contexto del Proyecto v3.2
+# MAGNO Sistema de Cobros — Contexto del Proyecto v3.4
 
 > Fuentes: Arquitectura v3.0 (docx) + Mock v3 (HTML) + Documentación física del cliente
 > Última revisión: Abril 2026
@@ -77,24 +77,46 @@ magno-sistema/
 ## 3. Roles y Permisos — 4 ROLES (no 5)
 
 > ⚠️ El sistema tiene exactamente 4 roles. "Cajero" NO existe como rol separado.
-> El mock y la arquitectura v3 documentan: Administrador, Supervisor, Supervisor de Campo, Asesor/Cobrador.
+> Nombres actualizados en revisión con cliente — Abril 2026.
 
-| Rol                     | Key en BD          | Descripción                                                                                                 | Restricciones clave                                                                                      |
-| ----------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| **Administrador**       | `ADMINISTRADOR`    | Acceso total al sistema. Gestión de usuarios, sucursales, configuración, reportes y caja.                   | Sin restricciones                                                                                        |
-| **Supervisor**          | `SUPERVISOR`       | Operación completa + reportes. Puede ver y aprobar créditos y renovaciones. Acceso a corte de caja.         | NO puede gestionar usuarios ni configuración del sistema                                                 |
-| **Supervisor de Campo** | `SUPERVISOR_CAMPO` | Cobros, registro de pagos, historial, colocaciones. Similar a Supervisor pero sin acceso a admin ni dinero. | NO puede aperturar ni cerrar caja. Sin acceso a configuración ni gestión de usuarios                     |
-| **Asesor / Cobrador**   | `ASESOR_COBRADOR`  | Solo su ruta de cobros, registro de pagos de sus clientes y consulta de historial                           | Solo ve sus propios clientes y cobros. Sin caja, sin reportes generales, sin usuarios, sin configuración |
+| Nombre en UI            | Key en BD          | Descripción                                                                                         | Restricciones clave                                                                             |
+| ----------------------- | ------------------ | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **Gerente General**     | `ADMINISTRADOR`    | Acceso total al sistema. Gestión de usuarios, sucursales, configuración, reportes y caja.           | Sin restricciones                                                                               |
+| **Gerente de Sucursal** | `SUPERVISOR`       | Operación completa + reportes. Puede ver y aprobar créditos y renovaciones. Acceso a corte de caja. | NO puede gestionar usuarios ni configuración del sistema                                        |
+| **Supervisor**          | `SUPERVISOR_CAMPO` | Cobros, créditos nuevos, renovaciones, historial (solo sus clientes), consulta de clientes.         | NO puede aperturar ni cerrar caja. Sin acceso a configuración ni gestión de usuarios            |
+| **Asesor**              | `ASESOR_COBRADOR`  | Cobros, créditos nuevos, renovaciones, historial (solo sus clientes), consulta de clientes.         | Solo ve sus propios clientes. Sin caja, sin reportes generales, sin usuarios, sin configuración |
 
-**En la UI el rol se muestra como:**
+> ⚠️ IMPORTANTE — Las keys en BD (`ADMINISTRADOR`, `SUPERVISOR`, etc.) NO cambian.
+> Solo cambia el nombre visible en la UI. Esto evita migraciones de datos en la tabla `roles`
+> y mantiene toda la lógica de autorización intacta.
 
-- "Administrador"
-- "Supervisor"
-- "Supervisor de Campo" (abreviado "Sup. de Campo" en la tabla de usuarios)
-- "Asesor/Cobrador"
+**Nombre abreviado en tablas (cuando el espacio es limitado):**
 
-**Apertura/cierre de caja permitida:** Administrador y Supervisor únicamente.
-**Supervisor de Campo y Asesor/Cobrador NO pueden abrir ni cerrar caja.**
+- Gerente General → "Gte. General"
+- Gerente de Sucursal → "Gte. Sucursal"
+- Supervisor → "Supervisor"
+- Asesor → "Asesor"
+
+**Apertura/cierre de caja permitida:** Gerente General y Gerente de Sucursal únicamente.
+**Supervisor y Asesor NO pueden abrir ni cerrar caja.**
+
+**Módulos accesibles por rol (actualizado):**
+
+| Módulo            | Gerente General | Gerente de Sucursal |   Supervisor    |     Asesor      |
+| ----------------- | :-------------: | :-----------------: | :-------------: | :-------------: |
+| Dashboard         |       ✅        |         ✅          |       ✅        |       ✅        |
+| Cobros            |       ✅        |         ✅          |       ✅        |       ✅        |
+| Créditos Nuevos   |       ✅        |         ✅          |       ✅        |       ✅        |
+| Renovaciones      |       ✅        |         ✅          |       ✅        |       ✅        |
+| Clientes          |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |
+| Historial de Pago |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |
+| Caja              |       ✅        |         ✅          |       ❌        |       ❌        |
+| Gastos            |       ✅        |         ✅          |       ❌        |       ❌        |
+| Reportes          |       ✅        |         ✅          |       ❌        |       ❌        |
+| Sucursales        |       ✅        |         ❌          |       ❌        |       ❌        |
+| Usuarios          |       ✅        |         ❌          |       ❌        |       ❌        |
+| Bitácora          |       ✅        |         ✅          |       ❌        |       ❌        |
+| Administración    |       ✅        |         ❌          |       ❌        |       ❌        |
 
 ---
 
@@ -105,11 +127,13 @@ magno-sistema/
 
 ### 4.1 Todos los puntos de upload en el sistema
 
-| Módulo              | Sección         | Campo                    | Tipo de archivo                                                                          | Obligatorio | Columna en BD                             |
-| ------------------- | --------------- | ------------------------ | ---------------------------------------------------------------------------------------- | ----------- | ----------------------------------------- |
-| **Créditos Nuevos** | Nueva Solicitud | Evidencia del Negocio    | Fotos y/o videos del negocio                                                             | ✅ Sí       | `creditos.evidencia_urls` (array)         |
-| **Usuarios**        | Alta de Usuario | Imagen INE               | Foto o escaneo de INE (imagen)                                                           | ✅ Sí       | `usuarios.ine_imagen_url`                 |
-| **Gastos**          | Registrar Gasto | Comprobante / Referencia | ⚠️ Campo de TEXTO libre (no es upload de archivo) — folio, número de ticket, descripción | ❌ No       | `gastos.comprobante_referencia` (VARCHAR) |
+| Módulo              | Sección               | Campo                      | Tipo de archivo                                        | Obligatorio | Columna en BD                            |
+| ------------------- | --------------------- | -------------------------- | ------------------------------------------------------ | ----------- | ---------------------------------------- |
+| **Créditos Nuevos** | Nueva Solicitud       | Evidencia del Negocio      | Fotos y/o videos del negocio                           | ✅ Sí       | `creditos.evidencia_urls TEXT[]`         |
+| **Créditos Nuevos** | Aprobación/Desembolso | Video de entrega de dinero | Video grabado al entregar el efectivo al cliente       | ✅ Sí       | `creditos.video_entrega_url VARCHAR`     |
+| **Renovaciones**    | Nueva Renovación      | Video de entrega de dinero | Video grabado al entregar el efectivo en la renovación | ✅ Sí       | `renovaciones.video_entrega_url VARCHAR` |
+| **Usuarios**        | Alta de Usuario       | Imagen INE                 | Foto o escaneo de INE (imagen)                         | ✅ Sí       | `usuarios.ine_imagen_url VARCHAR`        |
+| **Gastos**          | Registrar Gasto       | Comprobante / Referencia   | ⚠️ Campo de TEXTO libre — folio, número de ticket      | ❌ No       | `gastos.comprobante_referencia VARCHAR`  |
 
 > **Nota importante sobre Gastos:** El mock implementa el comprobante como `<input type="text" placeholder="Folio, foto, o referencia del comprobante">`. Es un campo de texto, NO una zona de upload. Captura el folio o descripción del comprobante físico, no el archivo en sí.
 
@@ -201,17 +225,25 @@ Bucket: magno-files/
 
 ### 6.1 Productos de Crédito
 
-| Rango de monto    | Plazo   | Tasa |
-| ----------------- | ------- | ---- |
-| $1,000 – $14,000  | 25 días | 30%  |
-| $15,000           | 25 días | 24%  |
-| $20,000 – $50,000 | 30 días | 24%  |
+| Rango de monto    | Plazo   | Tasa | Notas                       |
+| ----------------- | ------- | ---- | --------------------------- |
+| $1,000 – $14,000  | 25 días | 30%  | —                           |
+| $15,000 – $19,999 | 25 días | 24%  | Zona confirmada con cliente |
+| $20,000 – $50,000 | 30 días | 24%  | —                           |
 
-- Sistema **autodetecta** plazo y tasa según monto: < $20k → 25 días, ≥ $20k → 30 días.
-- Fórmula: `pago_diario = (Capital + Intereses) / plazo_dias`
+- La tabla de referencia del cliente solo muestra ejemplos representativos.
+  Para cualquier monto la fórmula es: `cargo_financiero = capital * tasa`
+- Sistema **autodetecta** plazo y tasa según monto:
+  - `capital < $15,000` → plazo=25 días, tasa=30%
+  - `$15,000 ≤ capital < $20,000` → plazo=25 días, tasa=24%
+  - `capital ≥ $20,000` → plazo=30 días, tasa=24%
+- Fórmula universal: `pago_diario = (capital + cargo_financiero) / plazo_dias`
 - Cobros de **lunes a viernes**.
-- Días festivos → **INHÁBIL**: no se cobra, no genera multa, no cuenta como día de pago. Configurables por sucursal.
-- Modalidad: **diario** (más común) o **semanal** (tasa menor, casos especiales). ⚠️ Confirmar cálculo semanal.
+- Calendario: se generan exactamente N días hábiles (sin contar sábados,
+  domingos ni días festivos configurados). Opción C confirmada con cliente.
+- Un cliente solo puede tener **UN crédito activo** a la vez. El sistema
+  bloquea nuevas solicitudes si ya existe uno en estado ACTIVO.
+- Modalidad: **diario** (más común) o **semanal** (casos especiales). ⚠️ Confirmar cálculo semanal.
 - IVA = $0.00
 
 ### Tabla de Pagos Diarios Completa
@@ -339,42 +371,50 @@ Nómina: **NO es módulo del sistema** — excluida por el cliente.
 
 ---
 
-## 7. Alta de Cliente — Campos Completos (según mock)
-
-El modal en el mock tiene estas secciones con estos campos exactos:
+## 7. Alta de Cliente — Campos Completos (actualizado en revisión cliente Abril 2026)
 
 ### Sección 1: Datos del Solicitante
 
 - Nombre(s) _, Apellido Paterno _, Apellido Materno \*
-- Fecha de Nacimiento _, Celular _
+- Fecha de Nacimiento _, Celular _, **Teléfono fijo** (opcional)
+  > ⚠️ Teléfono fijo va DESPUÉS del celular y ANTES del estado civil
+  > para que quede claro que es del cliente y no del cónyuge
 - Estado Civil \* (Soltero(a) / Casado(a) / Unión libre)
-- Teléfono fijo, Nombre del cónyuge (opcionales)
+- Nombre del cónyuge (opcional, visible siempre al final de la sección)
 
 ### Sección 2: Identificación
 
 - No. de INE _, CURP _
-- RFC (opcional)
-- Tipo de identificación
-  > ⚠️ El mock de Alta de Cliente NO incluye upload de imagen de INE en este modal simplificado. La imagen de INE del cliente podría agregarse en una iteración futura — por ahora solo texto.
+- RFC (opcional), Tipo de identificación
 
-### Sección 3: Domicilio
+### Sección 3: Domicilio del Cliente
 
 - Calle _, No. Exterior _, No. Interior (opcional)
 - Colonia _, Municipio _, Estado _, C.P. _
-- Tipo de vivienda, Monto de renta si aplica
+- Tipo de vivienda (Propia / Rentada), Monto de renta si aplica
 
 ### Sección 4: Datos del Negocio
 
 - Nombre del Negocio _, Giro _, Antigüedad \*
-- Dirección del negocio, Tipo de local, Monto de renta, Horarios
+- **Dirección del negocio — OBLIGATORIA y dividida en campos separados:**
+  - Calle _, No. Exterior _, No. Interior (opcional)
+  - Colonia _, Municipio _, Estado _, C.P. _
+- Tipo de local (Propio / Rentado), Monto de renta si aplica
+- Horarios del negocio
 
-### Sección 5: Referencias Personales (2 obligatorias)
+### Sección 5: Ingresos y Gastos del Negocio
+
+- Ingresos promedio semanales
+- Gastos: Renta | Servicios | Empleados | Proveedores
+
+### Sección 6: Referencias Personales (2 obligatorias)
 
 - Nombre Ref. 1 _, Teléfono _, Parentesco \*
+- Dirección (de la referencia), Años de conocerlo
 - Nombre Ref. 2 _, Teléfono _, Parentesco \*
-- (Dirección de la referencia y años de conocerlo — del formulario físico, confirmar si va en el sistema)
+- Dirección (de la referencia), Años de conocerlo
 
-### Sección adicional: Aval (opcional en arquitectura)
+### Sección Aval (colapsable, opcional)
 
 - Nombre, Teléfono, Dirección, No. de identificación
 
@@ -386,9 +426,15 @@ El modal en el mock tiene estas secciones con estos campos exactos:
 - Monto Solicitado _, Forma de Pago _ (Diario/Semanal)
 - Plazo (autocalculado y deshabilitado)
 - Garantía Material (texto opcional)
-- **Evidencia del Negocio \*** → upload de fotos/videos (ver sección 4.2)
+- **Evidencia del Negocio \*** → upload de fotos/videos (ver sección 4)
 - Monto Aprobado \* (en pestaña Evaluación)
 - Observaciones (en pestaña Evaluación)
+- **Video de Entrega de Dinero** → upload de video grabado al momento
+  de entregar el efectivo al cliente. Se sube en el paso de desembolso
+  o posteriormente desde la ficha del crédito.
+  **NO es obligatorio para activar el crédito** — el crédito pasa a ACTIVO
+  al ser aprobado y desembolsado. El video puede subirse después.
+  Ver sección 4 para detalles de almacenamiento.
 
 ---
 
@@ -449,7 +495,7 @@ Convenciones:
 | `sucursales`       | nombre, direccion, telefono, responsable_id, multa_base, activa                                                                                                                                                                                                                                                                   |
 | `roles`            | nombre (`ADMINISTRADOR`\|`SUPERVISOR`\|`SUPERVISOR_CAMPO`\|`ASESOR_COBRADOR`)                                                                                                                                                                                                                                                     |
 | `usuarios`         | nombre*completo, email, password_hash, telefono, rol_id, sucursal_id, domicilio*_, ine*numero, **ine_imagen_url** (S3), ref1*_, ref2\_\*, activo                                                                                                                                                                                  |
-| `clientes`         | nombre*completo, apellido_paterno, apellido_materno, fecha_nacimiento, genero, estado_civil, nombre_conyuge, telefono_fijo, celular, ine_tipo, ine_numero, curp, rfc, domicilio*\_, negocio\__, ingresos*semanales, gastos*_, ref1\_\_, ref2*\*, aval*\*, asesor_id, sucursal_id, activo                                          |
+| `clientes`         | nombre*completo, apellido_paterno, apellido_materno, fecha_nacimiento, genero, estado_civil, nombre_conyuge, telefono_fijo, celular, ine_tipo, ine_numero, curp, rfc, domicilio*_, negocio\__, ingresos*semanales, gastos*_, ref1\__, ref2*\*, aval*\*, asesor_id, sucursal_id, activo                                            |
 | `creditos`         | cliente_id, asesor_id, sucursal_id, monto_capital, tasa_interes, cargo_financiero, total_a_pagar, pago_periodico, plazo_dias, tipo_pago (`DIARIO`\|`SEMANAL`), fecha_inicio, fecha_vencimiento, pago_adelantado, garantia_descripcion, **evidencia_urls TEXT[]** (S3 array), estado (`ACTIVO`\|`PAGADO`\|`RENOVADO`\|`CANCELADO`) |
 | `calendario_pagos` | credito_id, numero_pago, fecha_programada, monto_esperado, estado (`PENDIENTE`\|`PAGADO`\|`NO_PAGADO`\|`PARCIAL`\|`ADELANTADO`)                                                                                                                                                                                                   |
 | `pagos`            | credito_id, cliente_id, asesor_id, numero_pago, fecha_pago, monto_recibido, monto_esperado, es_completo, razon_no_pago, multa_aplicada, registrado_por                                                                                                                                                                            |
@@ -477,20 +523,26 @@ Convenciones:
 
 ---
 
-## 13. Ítems Pendientes de Confirmar con Cliente
+## 13. Ítems Confirmados con Cliente
+
+| #   | Ítem                                     | Decisión                                                                                                                                                                                                                                                                   |
+| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✅  | **Calendario de pagos — días inhábiles** | Opción C: el calendario genera exactamente 25 (o 30) días hábiles corridos desde la fecha de inicio. Sábados, domingos y festivos se omiten automáticamente. El crédito siempre tiene el número exacto de pagos.                                                           |
+| ✅  | **Créditos simultáneos por cliente**     | Un solo crédito activo a la vez. El sistema debe bloquear una nueva solicitud si el cliente ya tiene uno en estado ACTIVO. Después del último pago se puede hacer una renovación.                                                                                          |
+| ✅  | **Zona $15k–$20k**                       | Sí hay montos intermedios (ej: $17,000, $18,000). Aplica la misma tabla y tasa del rango $15,000 (24% interés, 25 días). La tabla de referencia del cliente solo muestra ejemplos, no todos los montos posibles. La fórmula es la misma para cualquier monto en ese rango. |
+| ✅  | **Video de entrega**                     | NO es obligatorio para activar el crédito. Puede subirse después del desembolso. El crédito pasa a ACTIVO al ser aprobado y desembolsado, sin requerir el video. El video queda pendiente y se puede subir posteriormente desde la ficha del crédito.                      |
+
+## 13b. Ítems Pendientes de Confirmar con Cliente
 
 > ⚠️ NO asumir — preguntar antes de implementar.
 
 1. **Colocaciones**: ¿tabla almacenada en BD o reporte calculado?
-2. **Calendario de pagos**: lógica exacta de salto de festivos/fines de semana.
-3. **Base del 24%**: ¿sobre Ingreso Carteras solamente o sobre Subtotal Caja?
-4. **Pagos semanales**: tasa y forma de cálculo exacta.
-5. **Mora Activa vs Mora Parada**: criterio exacto de clasificación.
-6. **Aval**: ¿obligatorio para todos los créditos o solo ciertos montos?
-7. **Límite de créditos activos**: ¿puede un cliente tener más de uno simultáneo?
-8. **Zona $15k–$20k**: si alguien pide $17,000 ó $18,000 ¿qué producto aplica?
-9. **Tamaño máximo de archivos**: ¿límite de MB para videos de evidencia y fotos de INE?
-10. **INE del cliente**: ¿se agregará upload de imagen de INE del cliente en el alta, o solo se captura el número?
+2. **Base del 24%**: ¿sobre Ingreso Carteras solamente o sobre Subtotal Caja?
+3. **Pagos semanales**: tasa y forma de cálculo exacta.
+4. **Mora Activa vs Mora Parada**: criterio exacto de clasificación.
+5. **Aval**: ¿obligatorio para todos los créditos o solo ciertos montos?
+6. **Tamaño máximo de archivos**: ¿límite de MB para videos de evidencia?
+7. **INE del cliente**: ¿se agrega upload de imagen en el alta de cliente?
 
 ---
 

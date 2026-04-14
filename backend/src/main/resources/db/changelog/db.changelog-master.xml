@@ -13,4 +13,28 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V2-negocio-direccion-split" author="magno">
+        <sqlFile
+            path="db/changelog/V2__negocio_direccion_split.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V3-creditos-estado-y-fechas" author="magno">
+        <sqlFile
+            path="db/changelog/V3__creditos_estado_y_fechas.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V4-creditos-campos-adicionales" author="magno">
+        <sqlFile
+            path="db/changelog/V4__creditos_campos_adicionales.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

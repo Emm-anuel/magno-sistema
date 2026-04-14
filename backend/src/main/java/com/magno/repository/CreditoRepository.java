@@ -1,0 +1,41 @@
+package com.magno.repository;
+
+import com.magno.model.Credito;
+import com.magno.model.EstadoCredito;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface CreditoRepository extends JpaRepository<Credito, Long>,
+        JpaSpecificationExecutor<Credito> {
+
+    Optional<Credito> findByClienteIdAndEstado(Long clienteId, EstadoCredito estado);
+
+    boolean existsByClienteIdAndEstadoIn(Long clienteId, List<EstadoCredito> estados);
+
+    Page<Credito> findByAsesorId(Long asesorId, Pageable pageable);
+
+    Page<Credito> findByEstado(EstadoCredito estado, Pageable pageable);
+
+    Page<Credito> findBySucursalId(Long sucursalId, Pageable pageable);
+
+    List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
+
+    /**
+     * Suma de multas pendientes (no cobradas) para un crédito.
+     * Devuelve 0 si no hay multas.
+     */
+    @Query(value = "SELECT COALESCE(SUM(m.monto), 0) " +
+                   "FROM multas m " +
+                   "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL",
+           nativeQuery = true)
+    java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
+}
