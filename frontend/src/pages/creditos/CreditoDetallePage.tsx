@@ -4,11 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { ArrowLeft, ChevronRight, Play, ExternalLink, X } from 'lucide-react'
 import { creditoService } from '@/services/creditoService'
+import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import FileUpload from '@/components/FileUpload'
 import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
+import ModalModificarPago from '@/components/cobros/ModalModificarPago'
+import type { PagoCobroDTO } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -69,6 +72,8 @@ export default function CreditoDetallePage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [previewTitle, setPreviewTitle] = useState('')
   const [cambiandoVideo, setCambiandoVideo] = useState(false)
+  const [pagoModal, setPagoModal] = useState<PagoCobroDTO | null>(null)
+  const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
 
   const hoy = useMemo(() => {
     const d = new Date()
@@ -82,6 +87,13 @@ export default function CreditoDetallePage() {
     queryKey: ['credito', numId],
     queryFn: () => creditoService.obtener(numId),
     enabled: !isNaN(numId),
+  })
+
+  const { data: pagosHistorial = [] } = useQuery({
+    queryKey: ['pagos-cliente-credito', numId],
+    queryFn: () => cobrosService.getPagosPorCliente(credito!.cliente.id),
+    enabled: !!credito,
+    staleTime: 30_000,
   })
 
   const subirVideoMut = useMutation({
@@ -133,6 +145,10 @@ export default function CreditoDetallePage() {
   const { estadisticas: stats } = credito
   const calendario = credito.calendario ?? []
   const evidenciaUrls = credito.evidenciaUrls ?? []
+  const pagosVencidosVisuales = calendario.filter(
+    (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && new Date(p.fechaProgramada) < hoy,
+  ).length
+  const pagosVencidosTotales = Math.max(stats.pagosVencidos ?? 0, pagosVencidosVisuales)
   const totalAPagarCredito =
     credito.totalAPagar ??
     ((credito.montoCapital ?? 0) + (credito.cargoFinanciero ?? 0))
@@ -313,8 +329,8 @@ export default function CreditoDetallePage() {
                     <div className="text-[11px] text-gray-500 mt-0.5">Pendientes</div>
                   </div>
                   <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                    <div className={`text-xl font-bold ${stats.pagosVencidos > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
-                      {stats.pagosVencidos}
+                    <div className={`text-xl font-bold ${pagosVencidosTotales > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
+                      {pagosVencidosTotales}
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5">Vencidos</div>
                   </div>
@@ -361,26 +377,31 @@ export default function CreditoDetallePage() {
                     <tr>
                       <th className="w-12 text-center">#</th>
                       <th>Fecha</th>
-                      <th className="text-right">Monto</th>
+                      <th className="text-right">Esperado</th>
+                      <th className="text-right">Recibido</th>
                       <th>Estado</th>
+                      <th>Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
                     {calendario.map((pago) => {
                       const vencido = esVencido(pago.fechaProgramada, pago.estado)
+                      const pagoRegistrado = pagosHistorial.find(
+                        (p) => p.numeroPago === pago.numeroPago
+                      )
 
                       let rowClass = ''
-                      if (pago.estado === 'ADELANTADO') rowClass = 'bg-green-50'
-                      else if (pago.estado === 'PAGADO') rowClass = 'bg-green-50/60'
-                      else if (pago.estado === 'PARCIAL') rowClass = 'bg-amber-50'
+                      if (pago.estado === 'ADELANTADO')     rowClass = 'bg-green-50'
+                      else if (pago.estado === 'PAGADO')    rowClass = 'bg-green-50/60'
+                      else if (pago.estado === 'PARCIAL')   rowClass = 'bg-amber-50'
                       else if (pago.estado === 'NO_PAGADO') rowClass = 'bg-red-50'
-                      else if (vencido) rowClass = 'bg-red-50'
+                      else if (vencido)                     rowClass = 'bg-red-50'
 
                       let badgeCls = ''
                       let badgeLabel = ''
                       if (pago.estado === 'ADELANTADO') {
                         badgeCls = 'bg-green-100 text-green-800'
-                        badgeLabel = 'Adelantado'
+                        badgeLabel = 'Adelantado ✓'
                       } else if (pago.estado === 'PAGADO') {
                         badgeCls = 'bg-green-100 text-green-700'
                         badgeLabel = 'Pagado'
@@ -393,20 +414,55 @@ export default function CreditoDetallePage() {
                       } else if (vencido) {
                         badgeCls = 'bg-red-100 text-red-800'
                         badgeLabel = 'Vencido'
+                      } else if ((pago.estado as string) === 'INHABILL' || (pago.estado as string) === 'INHABIL') {
+                        badgeCls = 'bg-gray-100 text-gray-500'
+                        badgeLabel = 'Inhábil'
                       } else {
                         badgeCls = 'bg-gray-100 text-gray-600'
                         badgeLabel = 'Pendiente'
                       }
+
+                      const tieneRegistro = ['PAGADO', 'PARCIAL', 'NO_PAGADO', 'ADELANTADO'].includes(pago.estado)
 
                       return (
                         <tr key={pago.id} className={rowClass}>
                           <td className="text-center font-mono text-sm">{pago.numeroPago}</td>
                           <td className="text-sm">{fmtDate(pago.fechaProgramada)}</td>
                           <td className="text-right font-mono text-sm">{fmtMoney(pago.montoEsperado)}</td>
+                          <td className="text-right font-mono text-sm">
+                            {pagoRegistrado
+                              ? pagoRegistrado.razonNoPago
+                                ? <span className="text-[#dc2626] italic text-xs">No pagó</span>
+                                : fmtMoney(pagoRegistrado.montoRecibido)
+                              : <span className="text-gray-400">—</span>
+                            }
+                          </td>
                           <td>
                             <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${badgeCls}`}>
                               {badgeLabel}
                             </span>
+                          </td>
+                          <td>
+                            <div className="flex gap-1.5">
+                              {tieneRegistro && pagoRegistrado && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm text-xs py-0.5 px-2"
+                                  onClick={() => setPagoModal(pagoRegistrado)}
+                                >
+                                  Ver pago
+                                </button>
+                              )}
+                              {tieneRegistro && pagoRegistrado && esAdminSupervisor && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm text-xs py-0.5 px-2"
+                                  onClick={() => setPagoEditar(pagoRegistrado)}
+                                >
+                                  Modificar
+                                </button>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )
@@ -415,30 +471,75 @@ export default function CreditoDetallePage() {
                 </table>
               </div>
 
-              {/* Footer del calendario */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                  <div className="text-lg font-bold text-[#16a34a]">{stats.pagosRealizados}</div>
-                  <div className="text-[11px] text-gray-500">Pagados</div>
-                </div>
-                <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                  <div className="text-lg font-bold text-[#212529]">{stats.pagosPendientes}</div>
-                  <div className="text-[11px] text-gray-500">Pendientes</div>
-                </div>
-                <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                  <div className={`text-lg font-bold ${stats.pagosVencidos > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
-                    {stats.pagosVencidos}
-                  </div>
-                  <div className="text-[11px] text-gray-500">Vencidos</div>
-                </div>
-                <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                  <div className="text-lg font-bold text-[#16a34a]">{fmtMoney(totalPagado)}</div>
-                  <div className="text-[11px] text-gray-500">Total pagado</div>
-                </div>
-              </div>
-              <div className="text-right text-sm font-semibold text-gray-700">
-                Saldo restante: <span className="text-[#212529]">{fmtMoney(saldoRestante)}</span>
-              </div>
+              {/* Enhanced summary */}
+              {(() => {
+                const pagadosCount = calendario.filter(
+                  (p) => p.estado === 'PAGADO' || p.estado === 'ADELANTADO'
+                ).length
+                const parcialesCount = calendario.filter((p) => p.estado === 'PARCIAL').length
+                const noPagaronCount = calendario.filter((p) => p.estado === 'NO_PAGADO').length
+                const vencidosCount = calendario.filter(
+                  (p) =>
+                    p.estado === 'PENDIENTE' &&
+                    p.fechaProgramada != null &&
+                    new Date(p.fechaProgramada) < hoy
+                ).length
+                const pendientesCount = calendario.filter(
+                  (p) =>
+                    p.estado === 'PENDIENTE' &&
+                    p.fechaProgramada != null &&
+                    new Date(p.fechaProgramada) >= hoy
+                ).length
+                const totalCobradoCalendario = pagosHistorial.reduce(
+                  (sum, p) => sum + Number(p.montoRecibido ?? 0),
+                  0
+                )
+                const multasPend = stats.multasPendientes
+
+                return (
+                  <>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
+                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-[#16a34a]">{pagadosCount}</div>
+                        <div className="text-[11px] text-gray-500">Pagados</div>
+                      </div>
+                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-amber-600">{parcialesCount}</div>
+                        <div className="text-[11px] text-gray-500">Parciales</div>
+                      </div>
+                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                        <div className={`text-lg font-bold ${noPagaronCount > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
+                          {noPagaronCount}
+                        </div>
+                        <div className="text-[11px] text-gray-500">No pagaron</div>
+                      </div>
+                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                        <div className={`text-lg font-bold ${vencidosCount > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
+                          {vencidosCount}
+                        </div>
+                        <div className="text-[11px] text-gray-500">Vencidos</div>
+                      </div>
+                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                        <div className="text-lg font-bold text-[#212529]">{pendientesCount}</div>
+                        <div className="text-[11px] text-gray-500">Pendientes</div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
+                      <span className="text-[#16a34a] font-semibold">
+                        Total cobrado: {fmtMoney(totalCobradoCalendario)}
+                      </span>
+                      {multasPend > 0 && (
+                        <span className="text-[#dc2626] font-semibold">
+                          Multas pendientes: {fmtMoney(multasPend)}
+                        </span>
+                      )}
+                      <span className="text-gray-700 font-semibold">
+                        Saldo restante: {fmtMoney(saldoRestante)}
+                      </span>
+                    </div>
+                  </>
+                )
+              })()}
             </div>
           )}
 
@@ -551,6 +652,72 @@ export default function CreditoDetallePage() {
           )}
         </div>
       </div>
+
+      {/* Modal Ver pago */}
+      {pagoModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[2000] flex items-end sm:items-center justify-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setPagoModal(null) }}
+        >
+          <div className="bg-white w-full sm:w-[440px] sm:max-w-[95vw] rounded-t-2xl sm:rounded-xl shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef]">
+              <div>
+                <h2 className="text-[15px] font-semibold text-[#212529]">
+                  Detalle del pago #{pagoModal.numeroPago}
+                </h2>
+                <p className="text-[12px] text-[#6c757d] mt-0.5">{pagoModal.cliente.nombreCompleto}</p>
+              </div>
+              <button type="button" className="btn btn-sm p-1.5" onClick={() => setPagoModal(null)}>
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-5 space-y-3">
+              {([
+                ['Fecha',             fmtDate(pagoModal.fechaPago)],
+                ['Monto esperado',    fmtMoney(pagoModal.montoEsperado)],
+                ['Monto recibido',    pagoModal.razonNoPago ? 'No pagó' : fmtMoney(pagoModal.montoRecibido)],
+                ['Modalidad',         pagoModal.modalidad],
+                ['Razón no pago',     pagoModal.razonNoPago ?? '—'],
+                ['Registrado por',    pagoModal.registradoPor?.nombreCompleto ?? '—'],
+                ['Fecha de registro', fmtDate(pagoModal.createdAt)],
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label} className="flex justify-between text-[13px]">
+                  <span className="text-[#6c757d]">{label}</span>
+                  <span className="font-medium text-[#212529] text-right max-w-[60%]">{value}</span>
+                </div>
+              ))}
+              {pagoModal.modificadoPor && (
+                <div className="pt-2 border-t border-[#f1f3f5]">
+                  <p className="text-[11px] text-[#adb5bd] italic">
+                    Modificado por {pagoModal.modificadoPor.nombreCompleto}
+                    {pagoModal.fechaModificacion
+                      ? ` el ${fmtDate(pagoModal.fechaModificacion.slice(0, 10))}`
+                      : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-[#e9ecef] px-5 py-4">
+              <button type="button" className="btn w-full py-2.5" onClick={() => setPagoModal(null)}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modificar pago */}
+      {pagoEditar && (
+        <ModalModificarPago
+          pago={pagoEditar}
+          onClose={() => setPagoEditar(null)}
+          onSuccess={() => {
+            setPagoEditar(null)
+            qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
+            qc.invalidateQueries({ queryKey: ['credito', numId] })
+          }}
+        />
+      )}
 
       {/* Modal de previsualización de imagen */}
       <ImagePreviewModal

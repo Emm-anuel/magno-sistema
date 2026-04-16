@@ -11,6 +11,8 @@ import ClientesPage from '@/pages/clientes/ClientesPage'
 import ClienteDetallePage from '@/pages/clientes/ClienteDetallePage'
 import CreditosNuevosPage from '@/pages/creditos/CreditosNuevosPage'
 import CreditoDetallePage from '@/pages/creditos/CreditoDetallePage'
+import CobrosPage from '@/pages/cobros/CobrosPage'
+import HistorialPage from '@/pages/Historial'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import {
   ALL_ROLES,
@@ -35,14 +37,14 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/cobros" element={<ModulePlaceholderPage />} />
+            <Route path="/cobros" element={<CobrosPage />} />
 
             {/* Todos los roles operativos — Créditos, Renovaciones, Historial */}
             <Route element={<ProtectedRoute allowedRoles={ALL_ROLES} />}>
               <Route path="/creditos-nuevos" element={<CreditosNuevosPage />} />
               <Route path="/creditos/:id" element={<CreditoDetallePage />} />
               <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
-              <Route path="/historial" element={<ModulePlaceholderPage />} />
+              <Route path="/historial" element={<HistorialPage />} />
             </Route>
 
             {/* Todos los roles — Clientes */}
