@@ -56,33 +56,37 @@ public class CobrosService {
     // ────────────────────────────────────────────────────────────────────
 
     /**
-     * Devuelve todos los clientes con crédito ACTIVO del asesor, con el estado
-     * de cobro del día solicitado.
+     * Devuelve la ruta del día con créditos ACTIVO de la sucursal del solicitante,
+     * con filtro opcional por asesor y estado de cobro del día solicitado.
      */
     public RutaDiaDTO getRutaDia(Long asesorId, LocalDate fecha, String rolSolicitante,
-            Long sucursalIdSolicitante) {
-        Usuario asesor = usuarioRepo.findById(asesorId)
-                .orElseThrow(() -> new EntityNotFoundException("Asesor no encontrado: " + asesorId));
+            Long usuarioIdSolicitante, Long sucursalIdSolicitante) {
+        Long asesorIdEfectivo = resolverAsesorIdEfectivo(
+                asesorId, rolSolicitante, usuarioIdSolicitante);
 
-        // SUPERVISOR_CAMPO y ASESOR_COBRADOR solo pueden ver su propia sucursal
-        if (("ASESOR_COBRADOR".equals(rolSolicitante) || "SUPERVISOR_CAMPO".equals(rolSolicitante))
-                && !asesor.getSucursal().getId().equals(sucursalIdSolicitante)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "No puedes ver la ruta de un asesor de otra sucursal");
+        Usuario asesorEspecifico = null;
+        if (asesorIdEfectivo != null) {
+            asesorEspecifico = usuarioRepo.findById(asesorIdEfectivo)
+                    .orElseThrow(() -> new EntityNotFoundException("Asesor no encontrado: " + asesorIdEfectivo));
         }
 
-        // Obtener todos los créditos activos del asesor
-        List<Credito> creditosActivos = creditoRepo.findByAsesorIdAndEstadoAndDeletedAtIsNull(
-                asesorId,
-                EstadoCredito.ACTIVO);
+        // Obtener todos los créditos activos de la sucursal del solicitante.
+        // Para ADMIN/SUPERVISOR sin asesorId específico, no se filtra por asesor.
+        List<Credito> creditosActivos = creditoRepo.findRutaDiaCreditosActivos(
+                sucursalIdSolicitante,
+                asesorIdEfectivo,
+                EstadoCredito.ACTIVO,
+                LocalDate.now());
 
         // Obtener días festivos de la sucursal para la fecha consultada
-        Long sucursalId = asesor.getSucursal().getId();
-        List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalId);
+        List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalIdSolicitante);
         boolean esDiaInhabil = esInhabil(fecha, diasFestivos);
 
-        // Pagos ya registrados hoy para este asesor
-        List<Pago> pagosHoy = pagoRepo.findByAsesorIdAndFecha(asesorId, fecha);
+        // Pagos ya registrados hoy para la sucursal (asesor opcional)
+        List<Pago> pagosHoy = pagoRepo.findBySucursalAndAsesorIdAndFecha(
+                sucursalIdSolicitante,
+                asesorIdEfectivo,
+                fecha);
 
         List<ClienteRutaDTO> clientesRuta = new ArrayList<>();
 
@@ -153,6 +157,7 @@ public class CobrosService {
                     cliente.getNombreCompleto(),
                     cliente.getCelular(),
                     cliente.getNegocioNombre(),
+                    credito.getAsesor().getNombreCompleto(),
                     credito.getId(),
                     credito.getMontoCapital(),
                     credito.getPagoPeriodico(),
@@ -172,8 +177,12 @@ public class CobrosService {
         // Calcular resumen
         RutaDiaDTO.Resumen resumen = calcularResumen(clientesRuta, pagosHoy);
 
+        RutaDiaDTO.AsesorResumenDTO asesorResumen = asesorEspecifico != null
+                ? new RutaDiaDTO.AsesorResumenDTO(asesorEspecifico.getId(), asesorEspecifico.getNombreCompleto())
+                : new RutaDiaDTO.AsesorResumenDTO(null, "Todos los asesores");
+
         return new RutaDiaDTO(
-                new RutaDiaDTO.AsesorResumenDTO(asesor.getId(), asesor.getNombreCompleto()),
+                asesorResumen,
                 fecha,
                 clientesRuta,
                 resumen);
@@ -570,6 +579,7 @@ public class CobrosService {
                 cliente.getNombreCompleto(),
                 cliente.getCelular(),
                 cliente.getNegocioNombre(),
+                credito.getAsesor().getNombreCompleto(),
                 credito.getId(),
                 credito.getMontoCapital(),
                 credito.getPagoPeriodico(),
@@ -580,6 +590,23 @@ public class CobrosService {
                 BigDecimal.ZERO,
                 null,
                 null);
+    }
+
+    private Long resolverAsesorIdEfectivo(Long asesorId, String rolSolicitante, Long usuarioIdSolicitante) {
+        if (asesorId != null) {
+            if ("ASESOR_COBRADOR".equals(rolSolicitante)
+                    && !asesorId.equals(usuarioIdSolicitante)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "No puedes consultar la ruta de otro asesor");
+            }
+            return asesorId;
+        }
+
+        if ("ADMINISTRADOR".equals(rolSolicitante) || "SUPERVISOR".equals(rolSolicitante)) {
+            return null;
+        }
+
+        return usuarioIdSolicitante;
     }
 
     private int ordenEstado(String estado) {
