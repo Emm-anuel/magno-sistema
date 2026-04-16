@@ -56,59 +56,133 @@ public class CobrosService {
     // ────────────────────────────────────────────────────────────────────
 
     /**
-     * Devuelve todos los clientes con crédito ACTIVO del asesor, con el estado
-     * de cobro del día solicitado.
+     * Devuelve la ruta del día con créditos ACTIVO de la sucursal del solicitante,
+     * con filtro opcional por asesor y estado de cobro del día solicitado.
      */
     public RutaDiaDTO getRutaDia(Long asesorId, LocalDate fecha, String rolSolicitante,
-            Long sucursalIdSolicitante) {
-        boolean vistaGlobal = ("ADMINISTRADOR".equals(rolSolicitante) || "SUPERVISOR".equals(rolSolicitante))
-                && asesorId == null;
+            Long usuarioIdSolicitante, Long sucursalIdSolicitante) {
+        Long asesorIdEfectivo = resolverAsesorIdEfectivo(
+                asesorId, rolSolicitante, usuarioIdSolicitante);
 
-        if (vistaGlobal) {
-            List<Usuario> asesores = usuarioRepo.findBySucursalId(sucursalIdSolicitante)
+        Usuario asesorEspecifico = null;
+        if (asesorIdEfectivo != null) {
+            asesorEspecifico = usuarioRepo.findById(asesorIdEfectivo)
+                    .orElseThrow(() -> new EntityNotFoundException("Asesor no encontrado: " + asesorIdEfectivo));
+        }
+
+        // Obtener todos los créditos activos de la sucursal del solicitante.
+        // Para ADMIN/SUPERVISOR sin asesorId específico, no se filtra por asesor.
+        List<Credito> creditosActivos = creditoRepo.findRutaDiaCreditosActivos(
+                sucursalIdSolicitante,
+                asesorIdEfectivo,
+                EstadoCredito.ACTIVO,
+                LocalDate.now());
+
+        // Obtener días festivos de la sucursal para la fecha consultada
+        List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalIdSolicitante);
+        boolean esDiaInhabil = esInhabil(fecha, diasFestivos);
+
+        // Pagos ya registrados hoy para la sucursal (asesor opcional)
+        List<Pago> pagosHoy = pagoRepo.findBySucursalAndAsesorIdAndFecha(
+                sucursalIdSolicitante,
+                asesorIdEfectivo,
+                fecha);
+
+        List<ClienteRutaDTO> clientesRuta = new ArrayList<>();
+
+        for (Credito credito : creditosActivos) {
+            Cliente cliente = credito.getCliente();
+
+            // Buscar el pago del calendario correspondiente a esta fecha
+            Optional<CalendarioPago> cpOpt = calendarioPagoRepo
+                    .findByCreditoIdOrderByNumeroPago(credito.getId())
                     .stream()
-                    .filter(u -> u.getRol() != null && "ASESOR_COBRADOR".equals(u.getRol().getNombre()))
-                    .filter(Usuario::getActivo)
-                    .toList();
+                    .filter(cp -> cp.getFechaProgramada().equals(fecha))
+                    .findFirst();
 
-            List<ClienteRutaDTO> clientesRuta = new ArrayList<>();
-            List<Pago> pagosHoy = new ArrayList<>();
-
-            for (Usuario asesor : asesores) {
-                RutaDiaParcial parcial = construirRutaPorAsesor(asesor, fecha);
-                clientesRuta.addAll(parcial.clientesRuta());
-                pagosHoy.addAll(parcial.pagosHoy());
+            // Si la fecha no está en el calendario, puede ser día inhábil o fin de semana
+            if (cpOpt.isEmpty() && esDiaInhabil) {
+                clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
+                continue;
+            }
+            if (cpOpt.isEmpty()) {
+                // Fecha no programada (podría ser fin de semana)
+                if (fecha.getDayOfWeek() == DayOfWeek.SATURDAY
+                        || fecha.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                    clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
+                    continue;
+                }
+                // No tiene pago programado ese día (ya completó todos)
+                continue;
             }
 
-            clientesRuta.sort(Comparator.comparingInt(c -> ordenEstado(c.estadoHoy())));
-            RutaDiaDTO.Resumen resumen = calcularResumen(clientesRuta, pagosHoy);
+            CalendarioPago cp = cpOpt.get();
 
-            return new RutaDiaDTO(
-                    new RutaDiaDTO.AsesorResumenDTO(null, "Todos los asesores"),
-                    fecha,
-                    clientesRuta,
-                    resumen);
+            // Buscar si ya hay pago registrado hoy para este crédito
+            Optional<Pago> pagoHoyOpt = pagosHoy.stream()
+                    .filter(p -> p.getCredito().getId().equals(credito.getId()))
+                    .findFirst();
+
+            BigDecimal multasPendientes = Optional.ofNullable(
+                    multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
+                    .orElse(BigDecimal.ZERO);
+
+            String estadoHoy;
+            BigDecimal montoRecibidoHoy = BigDecimal.ZERO;
+            String razonNoPago = null;
+            Long pagoIdHoy = null;
+
+            if (esDiaInhabil) {
+                estadoHoy = "INHABIL";
+            } else if (pagoHoyOpt.isPresent()) {
+                Pago pagoHoy = pagoHoyOpt.get();
+                pagoIdHoy = pagoHoy.getId();
+                montoRecibidoHoy = Optional.ofNullable(pagoHoy.getMontoRecibido())
+                        .orElse(BigDecimal.ZERO);
+                razonNoPago = pagoHoy.getRazonNoPago();
+
+                if (pagoHoy.getRazonNoPago() != null && !pagoHoy.getRazonNoPago().isBlank()) {
+                    estadoHoy = "NO_PAGADO";
+                } else if (Boolean.TRUE.equals(pagoHoy.getEsCompleto())) {
+                    estadoHoy = "PAGADO";
+                } else {
+                    estadoHoy = "PARCIAL";
+                }
+            } else {
+                estadoHoy = "SIN_REGISTRO";
+            }
+
+            clientesRuta.add(new ClienteRutaDTO(
+                    cliente.getId(),
+                    cliente.getNombreCompleto(),
+                    cliente.getCelular(),
+                    cliente.getNegocioNombre(),
+                    credito.getAsesor().getNombreCompleto(),
+                    credito.getId(),
+                    credito.getMontoCapital(),
+                    credito.getPagoPeriodico(),
+                    cp.getNumeroPago(),
+                    credito.getPlazoDias(),
+                    estadoHoy,
+                    montoRecibidoHoy,
+                    multasPendientes,
+                    razonNoPago,
+                    pagoIdHoy));
         }
 
-        Usuario asesor = usuarioRepo.findById(asesorId)
-                .orElseThrow(() -> new EntityNotFoundException("Asesor no encontrado: " + asesorId));
-
-        // SUPERVISOR_CAMPO y ASESOR_COBRADOR solo pueden ver su propia sucursal
-        if (("ASESOR_COBRADOR".equals(rolSolicitante) || "SUPERVISOR_CAMPO".equals(rolSolicitante))
-                && !asesor.getSucursal().getId().equals(sucursalIdSolicitante)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "No puedes ver la ruta de un asesor de otra sucursal");
-        }
-
-        RutaDiaParcial parcial = construirRutaPorAsesor(asesor, fecha);
-        List<ClienteRutaDTO> clientesRuta = parcial.clientesRuta();
-        List<Pago> pagosHoy = parcial.pagosHoy();
-
+        // Ordenar: SIN_REGISTRO primero, NO_PAGADO segundo, PARCIAL tercero, PAGADO al
+        // final
         clientesRuta.sort(Comparator.comparingInt(c -> ordenEstado(c.estadoHoy())));
+
+        // Calcular resumen
         RutaDiaDTO.Resumen resumen = calcularResumen(clientesRuta, pagosHoy);
 
+        RutaDiaDTO.AsesorResumenDTO asesorResumen = asesorEspecifico != null
+                ? new RutaDiaDTO.AsesorResumenDTO(asesorEspecifico.getId(), asesorEspecifico.getNombreCompleto())
+                : new RutaDiaDTO.AsesorResumenDTO(null, "Todos los asesores");
+
         return new RutaDiaDTO(
-                new RutaDiaDTO.AsesorResumenDTO(asesor.getId(), asesor.getNombreCompleto()),
+                asesorResumen,
                 fecha,
                 clientesRuta,
                 resumen);
@@ -499,107 +573,13 @@ public class CobrosService {
         return diasFestivos.contains(fecha);
     }
 
-    private RutaDiaParcial construirRutaPorAsesor(Usuario asesor, LocalDate fecha) {
-        List<Credito> creditosActivos = creditoRepo.findByAsesorIdAndEstadoAndFechaVencimientoGreaterThanEqualAndDeletedAtIsNull(
-                asesor.getId(),
-                EstadoCredito.ACTIVO,
-                fecha);
-
-        Long sucursalId = asesor.getSucursal().getId();
-        List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalId);
-        boolean esDiaInhabil = esInhabil(fecha, diasFestivos);
-
-        List<Pago> pagosHoy = pagoRepo.findByAsesorIdAndFecha(asesor.getId(), fecha);
-        List<ClienteRutaDTO> clientesRuta = new ArrayList<>();
-
-        for (Credito credito : creditosActivos) {
-            Cliente cliente = credito.getCliente();
-
-            Optional<CalendarioPago> cpOpt = calendarioPagoRepo
-                    .findByCreditoIdOrderByNumeroPago(credito.getId())
-                    .stream()
-                    .filter(cp -> cp.getFechaProgramada().equals(fecha))
-                    .findFirst();
-
-            if (cpOpt.isEmpty() && esDiaInhabil) {
-                clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
-                continue;
-            }
-            if (cpOpt.isEmpty()) {
-                if (fecha.getDayOfWeek() == DayOfWeek.SATURDAY
-                        || fecha.getDayOfWeek() == DayOfWeek.SUNDAY) {
-                    clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
-                    continue;
-                }
-                continue;
-            }
-
-            CalendarioPago cp = cpOpt.get();
-            Optional<Pago> pagoHoyOpt = pagosHoy.stream()
-                    .filter(p -> p.getCredito().getId().equals(credito.getId()))
-                    .findFirst();
-
-            BigDecimal multasPendientes = Optional.ofNullable(
-                    multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
-                    .orElse(BigDecimal.ZERO);
-
-            String estadoHoy;
-            BigDecimal montoRecibidoHoy = BigDecimal.ZERO;
-            String razonNoPago = null;
-            Long pagoIdHoy = null;
-
-            if (esDiaInhabil) {
-                estadoHoy = "INHABIL";
-            } else if (pagoHoyOpt.isPresent()) {
-                Pago pagoHoy = pagoHoyOpt.get();
-                pagoIdHoy = pagoHoy.getId();
-                montoRecibidoHoy = Optional.ofNullable(pagoHoy.getMontoRecibido())
-                        .orElse(BigDecimal.ZERO);
-                razonNoPago = pagoHoy.getRazonNoPago();
-
-                if (pagoHoy.getRazonNoPago() != null && !pagoHoy.getRazonNoPago().isBlank()) {
-                    estadoHoy = "NO_PAGADO";
-                } else if (Boolean.TRUE.equals(pagoHoy.getEsCompleto())) {
-                    estadoHoy = "PAGADO";
-                } else {
-                    estadoHoy = "PARCIAL";
-                }
-            } else {
-                estadoHoy = "SIN_REGISTRO";
-            }
-
-            clientesRuta.add(new ClienteRutaDTO(
-                    cliente.getId(),
-                    cliente.getNombreCompleto(),
-                    cliente.getCelular(),
-                    cliente.getNegocioNombre(),
-                    asesor.getId(),
-                    asesor.getNombreCompleto(),
-                    credito.getId(),
-                    credito.getMontoCapital(),
-                    credito.getPagoPeriodico(),
-                    cp.getNumeroPago(),
-                    credito.getPlazoDias(),
-                    estadoHoy,
-                    montoRecibidoHoy,
-                    multasPendientes,
-                    razonNoPago,
-                    pagoIdHoy));
-        }
-
-        return new RutaDiaParcial(clientesRuta, pagosHoy);
-    }
-
-    private record RutaDiaParcial(List<ClienteRutaDTO> clientesRuta, List<Pago> pagosHoy) {}
-
     private ClienteRutaDTO buildClienteRutaInhabil(Cliente cliente, Credito credito) {
         return new ClienteRutaDTO(
                 cliente.getId(),
                 cliente.getNombreCompleto(),
                 cliente.getCelular(),
                 cliente.getNegocioNombre(),
-                credito.getAsesor() != null ? credito.getAsesor().getId() : null,
-                credito.getAsesor() != null ? credito.getAsesor().getNombreCompleto() : null,
+                credito.getAsesor().getNombreCompleto(),
                 credito.getId(),
                 credito.getMontoCapital(),
                 credito.getPagoPeriodico(),
@@ -610,6 +590,23 @@ public class CobrosService {
                 BigDecimal.ZERO,
                 null,
                 null);
+    }
+
+    private Long resolverAsesorIdEfectivo(Long asesorId, String rolSolicitante, Long usuarioIdSolicitante) {
+        if (asesorId != null) {
+            if ("ASESOR_COBRADOR".equals(rolSolicitante)
+                    && !asesorId.equals(usuarioIdSolicitante)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "No puedes consultar la ruta de otro asesor");
+            }
+            return asesorId;
+        }
+
+        if ("ADMINISTRADOR".equals(rolSolicitante) || "SUPERVISOR".equals(rolSolicitante)) {
+            return null;
+        }
+
+        return usuarioIdSolicitante;
     }
 
     private int ordenEstado(String estado) {

@@ -34,14 +34,15 @@ public class CobrosController {
     // ────────────────────────────────────────────────────────────────────
 
     /**
-     * Devuelve la ruta del día de un asesor.
+     * Devuelve la ruta del día por rol y alcance de asesor.
      *
      * <ul>
-     * <li>ASESOR_COBRADOR: solo su propia ruta (asesorId ignorado)</li>
-     * <li>SUPERVISOR_CAMPO: puede consultar asesores de su sucursal pasando
-     * asesorId</li>
-     * <li>ADMINISTRADOR y SUPERVISOR: pueden ver cualquier asesor pasando
-     * asesorId</li>
+     * <li>ASESOR_COBRADOR: por defecto su propia ruta; si pasa asesorId distinto,
+     * responde 403</li>
+     * <li>SUPERVISOR_CAMPO: por defecto su propia ruta; puede filtrar por
+     * asesor</li>
+     * <li>ADMINISTRADOR y SUPERVISOR: sin asesorId ven todos los asesores de su
+     * sucursal; con asesorId filtran ese asesor</li>
      * </ul>
      */
     @GetMapping("/ruta-dia")
@@ -54,22 +55,12 @@ public class CobrosController {
         JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
         LocalDate fechaEfectiva = fecha != null ? fecha : LocalDate.now();
 
-        // Resolver asesor efectivo según rol
-        Long asesorEfectivo = asesorId;
-        if (asesorId == null) {
-            if ("ADMINISTRADOR".equals(principal.rol()) || "SUPERVISOR".equals(principal.rol())) {
-                asesorEfectivo = null; // vista de sucursal completa
-            } else {
-                asesorEfectivo = principal.userId(); // asesor/supervisor_campo: solo su ruta
-            }
-        } else if ("ASESOR_COBRADOR".equals(principal.rol()) && !asesorId.equals(principal.userId())) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "No puedes consultar la ruta de otro asesor");
-        }
-
         RutaDiaDTO ruta = cobrosService.getRutaDia(
-                asesorEfectivo, fechaEfectiva,
-                principal.rol(), principal.sucursalId());
+                asesorId,
+                fechaEfectiva,
+                principal.rol(),
+                principal.userId(),
+                principal.sucursalId());
 
         return ResponseEntity.ok(ruta);
     }

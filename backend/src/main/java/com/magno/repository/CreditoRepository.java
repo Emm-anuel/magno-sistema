@@ -16,30 +16,39 @@ import java.time.LocalDate;
 
 @Repository
 public interface CreditoRepository extends JpaRepository<Credito, Long>,
-        JpaSpecificationExecutor<Credito> {
+                JpaSpecificationExecutor<Credito> {
 
-    Optional<Credito> findByClienteIdAndEstado(Long clienteId, EstadoCredito estado);
+        Optional<Credito> findByClienteIdAndEstado(Long clienteId, EstadoCredito estado);
 
-    boolean existsByClienteIdAndEstadoIn(Long clienteId, List<EstadoCredito> estados);
+        boolean existsByClienteIdAndEstadoIn(Long clienteId, List<EstadoCredito> estados);
 
-    Page<Credito> findByAsesorId(Long asesorId, Pageable pageable);
+        Page<Credito> findByAsesorId(Long asesorId, Pageable pageable);
 
-    Page<Credito> findByEstado(EstadoCredito estado, Pageable pageable);
+        Page<Credito> findByEstado(EstadoCredito estado, Pageable pageable);
 
-    Page<Credito> findBySucursalId(Long sucursalId, Pageable pageable);
+        Page<Credito> findBySucursalId(Long sucursalId, Pageable pageable);
 
-    List<Credito> findByAsesorIdAndEstadoAndDeletedAtIsNull(Long asesorId, EstadoCredito estado);
-    List<Credito> findByAsesorIdAndEstadoAndFechaVencimientoGreaterThanEqualAndDeletedAtIsNull(
-            Long asesorId, EstadoCredito estado, LocalDate fechaVencimiento);
+        List<Credito> findByAsesorIdAndEstadoAndDeletedAtIsNull(Long asesorId, EstadoCredito estado);
 
-    List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
+        @Query("SELECT cr FROM Credito cr " +
+                        "WHERE cr.estado = :estado " +
+                        "AND cr.deletedAt IS NULL " +
+                        "AND cr.sucursal.id = :sucursalId " +
+                        "AND (:asesorId IS NULL OR cr.asesor.id = :asesorId) " +
+                        "AND cr.fechaVencimiento >= :fechaMin")
+        List<Credito> findRutaDiaCreditosActivos(@Param("sucursalId") Long sucursalId,
+                        @Param("asesorId") Long asesorId,
+                        @Param("estado") EstadoCredito estado,
+                        @Param("fechaMin") java.time.LocalDate fechaMin);
 
-    /**
-     * Suma de multas pendientes (no cobradas) para un crédito.
-     * Devuelve 0 si no hay multas.
-     */
-    @Query(value = "SELECT COALESCE(SUM(m.monto), 0) " +
-            "FROM multas m " +
-            "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
-    java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
+        List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
+
+        /**
+         * Suma de multas pendientes (no cobradas) para un crédito.
+         * Devuelve 0 si no hay multas.
+         */
+        @Query(value = "SELECT COALESCE(SUM(m.monto), 0) " +
+                        "FROM multas m " +
+                        "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
+        java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
 }
