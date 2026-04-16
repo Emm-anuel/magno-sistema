@@ -132,7 +132,7 @@ export default function TabHistorialCobros() {
     { key: 'ayer',   label: 'Ayer' },
     { key: 'semana', label: 'Esta semana' },
     { key: 'mes',    label: 'Este mes' },
-    { key: 'rango',  label: 'Rango' },
+    { key: 'rango',  label: 'Rango personalizado' },
   ]
 
   return (
