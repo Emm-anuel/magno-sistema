@@ -2,6 +2,7 @@ import { useRef, useState, useCallback } from 'react'
 import { UploadCloud } from 'lucide-react'
 import { compressImage } from '@/utils/imageCompressor'
 import { fileService } from '@/services/api'
+import { bytesToMb, getMaxUploadBytesForMime } from '@/constants/uploadLimits'
 import SecurePreviewImage from './SecurePreviewImage'
 
 // ---------------------------------------------------------------------------
@@ -96,10 +97,22 @@ export default function FileUpload({
         const isVideo = isVideoFile(file)
         const isImage = isImageFile(file)
 
+        const maxBytes = getMaxUploadBytesForMime(file.type)
+        if (file.size > maxBytes) {
+          throw new Error(
+            `El archivo excede el máximo permitido de ${bytesToMb(maxBytes)} MB para este tipo.`,
+          )
+        }
+
         // 1. Compress image
         if (isImage && compress) {
           setState({ kind: 'compressing-image' })
           file = await compressImage(file)
+          if (file.size > maxBytes) {
+            throw new Error(
+              `La imagen optimizada aún excede el máximo permitido de ${bytesToMb(maxBytes)} MB.`,
+            )
+          }
         }
 
         // 2. Compress video (dynamic import to avoid loading ffmpeg/wasm eagerly)
@@ -110,6 +123,11 @@ export default function FileUpload({
           file = await compressVideo(file, (pct) => {
             setState({ kind: 'compressing-video', progress: pct })
           })
+          if (file.size > maxBytes) {
+            throw new Error(
+              `El video optimizado aún excede el máximo permitido de ${bytesToMb(maxBytes)} MB.`,
+            )
+          }
         }
 
         // 3. Upload

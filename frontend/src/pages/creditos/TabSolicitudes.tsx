@@ -82,7 +82,7 @@ export default function TabSolicitudes({
 
   const { data: asesores } = useQuery({
     queryKey: ['usuarios-asesores'],
-    queryFn: () => usuarioService.listar({ activo: true }),
+    queryFn: () => usuarioService.listar({ activo: true, rol: 'ASESOR_COBRADOR' }),
     enabled: isAdminOrSup,
   })
 

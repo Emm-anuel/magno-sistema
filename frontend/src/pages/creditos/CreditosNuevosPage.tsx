@@ -32,7 +32,7 @@ export default function CreditosNuevosPage() {
       setActiveTab(state.initialTab as Tab)
       if (state.initialCreditoId) setSelectedCreditoId(state.initialCreditoId)
     }
-  }, []) // intentionally empty deps — read state only once on mount
+  }, [location.state])
 
   const isFieldRole =
     usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'

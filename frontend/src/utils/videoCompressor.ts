@@ -45,7 +45,7 @@ export async function compressVideo(
         coreURL: new URL('/ffmpeg/ffmpeg-core.js', window.location.origin).href,
         wasmURL: new URL('/ffmpeg/ffmpeg-core.wasm', window.location.origin).href,
       }),
-      30_000,
+      60_000,
       'cargar FFmpeg',
     )
 
@@ -95,15 +95,6 @@ export async function compressVideo(
 
     await ffmpeg.deleteFile('input.mp4')
     await ffmpeg.deleteFile('output.mp4')
-
-    const originalMB = (file.size / 1024 / 1024).toFixed(2)
-    const compressedMB = (compressedFile.size / 1024 / 1024).toFixed(2)
-    const reductionPct = (
-      ((file.size - compressedFile.size) / file.size) * 100
-    ).toFixed(1)
-    console.log(
-      `Video comprimido: ${originalMB}MB → ${compressedMB}MB (-${reductionPct}%)`
-    )
 
     return compressedFile
   } catch (err) {

@@ -1,7 +1,6 @@
 package com.magno.config;
 
 import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.actuate.mail.MailHealthIndicator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -28,4 +27,3 @@ public class MailConfig {
                 .build();
     }
 }
-

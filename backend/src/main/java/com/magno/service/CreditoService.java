@@ -404,11 +404,19 @@ public class CreditoService {
                                 .findByCreditoIdOrderByNumeroPago(c.getId())
                                 .stream().map(CalendarioPagoDTO::from).toList();
 
+                LocalDate hoy = LocalDate.now();
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(), ESTADOS_REALIZADOS);
                 long pagosPendientes = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 c.getId(), List.of(EstadoCalendarioPago.PENDIENTE));
-                long pagosVencidos = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
+                long pagosVencidos = calendario.stream()
+                                .filter(p -> EstadoCalendarioPago.PENDIENTE.name().equals(p.estado())
+                                                && p.fechaProgramada() != null
+                                                && p.fechaProgramada().isBefore(hoy))
+                                .count();
+
+                long pagosNoPagados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 c.getId(), List.of(EstadoCalendarioPago.NO_PAGADO));
+                pagosVencidos += pagosNoPagados;
 
                 BigDecimal multasPendientes = creditoRepo.sumMultasPendientes(c.getId());
 

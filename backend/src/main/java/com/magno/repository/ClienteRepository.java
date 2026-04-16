@@ -29,7 +29,10 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long>,
 
     long countByActivoTrue();
 
-    /** Busca clientes que pertenecen a un asesor específico. */
+    /** Busca clientes que pertenecen a un asesor específico (lista completa para ruta del día). */
+    List<Cliente> findByAsesorIdAndActivoTrue(Long asesorId);
+
+    /** Busca clientes que pertenecen a un asesor específico (paginado). */
     Page<Cliente> findByAsesorIdAndActivoTrue(Long asesorId, Pageable pageable);
 
     /**

@@ -6,19 +6,23 @@ import com.magno.service.CreditoCalculoService;
 import com.magno.service.CreditoCalculoService.ResumenCalculo;
 import jakarta.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.logging.Logger;
 
 /**
  * Seeder idempotente. Inserta datos base solo si no existen.
- * Liquibase ya los crea via V1__init.sql; este seeder es un respaldo de seguridad.
+ * Liquibase ya los crea via V1__init.sql; este seeder es un respaldo de
+ * seguridad.
  */
 @Component
+@Profile("dev")
 public class DataSeeder {
 
     private static final Logger log = Logger.getLogger(DataSeeder.class.getName());
@@ -29,23 +33,29 @@ public class DataSeeder {
     private final ClienteRepository clienteRepo;
     private final CreditoRepository creditoRepo;
     private final CalendarioPagoRepository calendarioPagoRepo;
+    private final PagoRepository pagoRepo;
+    private final MultaRepository multaRepo;
     private final CreditoCalculoService calculoService;
     private final PasswordEncoder passwordEncoder;
 
     public DataSeeder(RolRepository rolRepo,
-                      SucursalRepository sucursalRepo,
-                      UsuarioRepository usuarioRepo,
-                      ClienteRepository clienteRepo,
-                      CreditoRepository creditoRepo,
-                      CalendarioPagoRepository calendarioPagoRepo,
-                      CreditoCalculoService calculoService,
-                      PasswordEncoder passwordEncoder) {
+            SucursalRepository sucursalRepo,
+            UsuarioRepository usuarioRepo,
+            ClienteRepository clienteRepo,
+            CreditoRepository creditoRepo,
+            CalendarioPagoRepository calendarioPagoRepo,
+            PagoRepository pagoRepo,
+            MultaRepository multaRepo,
+            CreditoCalculoService calculoService,
+            PasswordEncoder passwordEncoder) {
         this.rolRepo = rolRepo;
         this.sucursalRepo = sucursalRepo;
         this.usuarioRepo = usuarioRepo;
         this.clienteRepo = clienteRepo;
         this.creditoRepo = creditoRepo;
         this.calendarioPagoRepo = calendarioPagoRepo;
+        this.pagoRepo = pagoRepo;
+        this.multaRepo = multaRepo;
         this.calculoService = calculoService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -59,6 +69,7 @@ public class DataSeeder {
         seedAsesor();
         seedClientes();
         seedCreditos();
+        seedPagosDePrueba();
     }
 
     private void seedRoles() {
@@ -91,7 +102,8 @@ public class DataSeeder {
 
         usuarioRepo.findByEmail("admin@magno.com").ifPresentOrElse(
                 existing -> {
-                    // Siempre actualizar el hash en el seeder para garantizar que sea correcto en dev
+                    // Siempre actualizar el hash en el seeder para garantizar que sea correcto en
+                    // dev
                     existing.setPasswordHash(passwordEncoder.encode("Admin@2024"));
                     usuarioRepo.save(existing);
                     log.info("Password del admin actualizado");
@@ -121,8 +133,7 @@ public class DataSeeder {
                             .build();
                     usuarioRepo.save(admin);
                     log.info("Usuario admin creado: admin@magno.com");
-                }
-        );
+                });
     }
 
     private void seedAsesor() {
@@ -241,8 +252,7 @@ public class DataSeeder {
                         .ref1Nombre("Elena Cruz").ref1Telefono("5578901230").ref1Parentesco("Esposa")
                         .ref2Nombre("Antonio Jiménez").ref2Telefono("5578901231").ref2Parentesco("Padre")
                         .asesor(asesor).sucursal(sucursal).activo(true)
-                        .build()
-        );
+                        .build());
 
         clienteRepo.saveAll(clientes);
         log.info("5 clientes de prueba creados");
@@ -263,7 +273,7 @@ public class DataSeeder {
         Sucursal sucursal = sucursalRepo.findAll().get(0);
         Usuario asesor = usuarioRepo.findByEmail("asesor1@magno.com")
                 .orElse(usuarioRepo.findAll().get(0));
-        Usuario admin  = usuarioRepo.findByEmail("admin@magno.com")
+        Usuario admin = usuarioRepo.findByEmail("admin@magno.com")
                 .orElse(usuarioRepo.findAll().get(0));
 
         // ── Crédito 1: $2,000 ACTIVO, calendario desde hace 30 días ──────────
@@ -281,7 +291,7 @@ public class DataSeeder {
                 .plazoDias(c1.plazo())
                 .tipoPago(TipoPago.DIARIO)
                 .pagoAdelantado(c1.pagoAdelantado())
-                .estado(EstadoCredito.APROBADO)   // necesita APROBADO antes de activar
+                .estado(EstadoCredito.APROBADO) // necesita APROBADO antes de activar
                 .montoAprobado(c1.capital())
                 .fechaAprobacion(java.time.OffsetDateTime.now().minusDays(31))
                 .aprobadoPor(admin)
@@ -355,5 +365,72 @@ public class DataSeeder {
         creditoRepo.save(credito3);
         log.info("Crédito 3 creado: $20,000 APROBADO");
     }
-}
 
+    /**
+     * Crea registros en la tabla pagos para los 10 pagos marcados como PAGADO
+     * en el calendario del crédito ACTIVO ($2,000).
+     * También crea 1 multa de prueba (cobrada=false) para probar el flujo.
+     */
+    private void seedPagosDePrueba() {
+        if (pagoRepo.count() > 0) {
+            log.info("Pagos ya existen, omitiendo seeder");
+            return;
+        }
+
+        // Buscar el crédito ACTIVO de $2,000 (cliente Rosa Garcés)
+        List<Cliente> clientes = clienteRepo.findAll();
+        if (clientes.isEmpty()) return;
+
+        Usuario asesor = usuarioRepo.findByEmail("asesor1@magno.com")
+                .orElse(null);
+        if (asesor == null) return;
+
+        creditoRepo.findByClienteIdAndEstado(clientes.get(0).getId(), EstadoCredito.ACTIVO)
+                .ifPresent(credito -> {
+                    List<CalendarioPago> calendario = calendarioPagoRepo
+                            .findByCreditoIdOrderByNumeroPago(credito.getId());
+
+                    // Crear registros de pago para los pagos #2–#10 (PAGADO en calendario)
+                    String[] modalidades = {"CAJA", "RUTA", "CAJA", "RUTA", "CAJA",
+                                            "RUTA", "CAJA", "RUTA", "CAJA"};
+                    int modalIdx = 0;
+
+                    for (CalendarioPago cp : calendario) {
+                        if (cp.getNumeroPago() < 2 || cp.getNumeroPago() > 10) continue;
+
+                        Pago pago = Pago.builder()
+                                .credito(credito)
+                                .cliente(credito.getCliente())
+                                .asesor(asesor)
+                                .calendarioPago(cp)
+                                .numeroPago(cp.getNumeroPago())
+                                .fechaPago(cp.getFechaProgramada())
+                                .montoRecibido(credito.getPagoPeriodico())
+                                .montoEsperado(cp.getMontoEsperado())
+                                .esCompleto(true)
+                                .modalidad(modalidades[modalIdx % modalidades.length])
+                                .multaAplicada(BigDecimal.ZERO)
+                                .registradoPor(asesor)
+                                .build();
+
+                        pagoRepo.save(pago);
+                        modalIdx++;
+                    }
+
+                    log.info("9 pagos de prueba creados para crédito id=" + credito.getId());
+
+                    // Crear 1 multa NO_PAGO pendiente para probar el flujo de cobro con multa
+                    Multa multaPrueba = Multa.builder()
+                            .cliente(credito.getCliente())
+                            .credito(credito)
+                            .tipo("NO_PAGO")
+                            .monto(new BigDecimal("50.00"))
+                            .fecha(LocalDate.now().minusDays(2))
+                            .cobrada(false)
+                            .build();
+                    multaRepo.save(multaPrueba);
+
+                    log.info("Multa de prueba creada (cobrada=false) — crédito id=" + credito.getId());
+                });
+    }
+}

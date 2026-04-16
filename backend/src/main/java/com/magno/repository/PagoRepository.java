@@ -1,0 +1,59 @@
+package com.magno.repository;
+
+import com.magno.model.Pago;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface PagoRepository extends JpaRepository<Pago, Long> {
+
+    List<Pago> findByCreditoIdOrderByNumeroPago(Long creditoId);
+
+    Optional<Pago> findByCreditoIdAndFechaPago(Long creditoId, LocalDate fechaPago);
+
+    List<Pago> findByAsesorIdAndFechaPagoOrderByNumeroPago(Long asesorId, LocalDate fechaPago);
+
+    List<Pago> findByClienteIdOrderByFechaPagoDesc(Long clienteId);
+
+    Page<Pago> findByClienteId(Long clienteId, Pageable pageable);
+
+    boolean existsByCreditoIdAndNumeroPago(Long creditoId, Integer numeroPago);
+
+    /** Cuenta pagos incompletos (abonos) de un crédito, excluyendo los "no pagó". */
+    @Query("SELECT COUNT(p) FROM Pago p " +
+           "WHERE p.credito.id = :creditoId " +
+           "AND p.esCompleto = false " +
+           "AND (p.razonNoPago IS NULL OR p.razonNoPago = '') " +
+           "AND p.deletedAt IS NULL")
+    long countPagosIncompletosByCreditoId(@Param("creditoId") Long creditoId);
+
+    /** Pagos del día de un asesor para el resumen de ruta. */
+    @Query("SELECT p FROM Pago p " +
+           "WHERE p.asesor.id = :asesorId " +
+           "AND p.fechaPago = :fecha " +
+           "AND p.deletedAt IS NULL")
+    List<Pago> findByAsesorIdAndFecha(@Param("asesorId") Long asesorId,
+                                       @Param("fecha") LocalDate fecha);
+
+    /** Historial filtrable con Pageable. */
+    @Query("SELECT p FROM Pago p " +
+           "WHERE (:asesorId IS NULL OR p.asesor.id = :asesorId) " +
+           "AND (:clienteId IS NULL OR p.cliente.id = :clienteId) " +
+           "AND (:fechaDesde IS NULL OR p.fechaPago >= :fechaDesde) " +
+           "AND (:fechaHasta IS NULL OR p.fechaPago <= :fechaHasta) " +
+           "AND p.deletedAt IS NULL " +
+           "ORDER BY p.fechaPago DESC, p.id DESC")
+    Page<Pago> findHistorial(@Param("asesorId") Long asesorId,
+                              @Param("clienteId") Long clienteId,
+                              @Param("fechaDesde") LocalDate fechaDesde,
+                              @Param("fechaHasta") LocalDate fechaHasta,
+                              Pageable pageable);
+}

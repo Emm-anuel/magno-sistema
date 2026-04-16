@@ -27,6 +27,8 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
 
     Page<Credito> findBySucursalId(Long sucursalId, Pageable pageable);
 
+    List<Credito> findByAsesorIdAndEstadoAndDeletedAtIsNull(Long asesorId, EstadoCredito estado);
+
     List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
 
     /**
@@ -34,8 +36,7 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
      * Devuelve 0 si no hay multas.
      */
     @Query(value = "SELECT COALESCE(SUM(m.monto), 0) " +
-                   "FROM multas m " +
-                   "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL",
-           nativeQuery = true)
+            "FROM multas m " +
+            "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
     java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
 }

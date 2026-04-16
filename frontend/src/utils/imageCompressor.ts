@@ -81,14 +81,6 @@ export function compressImage(file: File, options?: CompressOptions): Promise<Fi
 
             const compressedFile = new File([blob], newFileName, { type: mimeType });
 
-            const originalMB = (file.size / 1024 / 1024).toFixed(2);
-            const compressedMB = (compressedFile.size / 1024 / 1024).toFixed(2);
-            const reductionPct = (((file.size - compressedFile.size) / file.size) * 100).toFixed(1);
-
-            console.log(
-              `Imagen comprimida: ${originalMB}MB → ${compressedMB}MB (-${reductionPct}%)`
-            );
-
             resolve(compressedFile);
           },
           mimeType,

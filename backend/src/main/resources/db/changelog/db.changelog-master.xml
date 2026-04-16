@@ -37,4 +37,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V5-pagos-campos-modificacion" author="magno">
+        <sqlFile
+            path="db/changelog/V5__pagos_campos_modificacion.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

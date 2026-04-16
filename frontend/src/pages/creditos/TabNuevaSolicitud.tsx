@@ -165,7 +165,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
   // Asesores for admin/supervisor dropdown
   const { data: asesoresData } = useQuery({
     queryKey: ['usuarios-asesores'],
-    queryFn: () => usuarioService.listar({ activo: true }),
+    queryFn: () => usuarioService.listar({ activo: true, rol: 'ASESOR_COBRADOR' }),
     enabled: isAdminOrSup,
   })
 
