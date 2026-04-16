@@ -42,10 +42,9 @@ function fmtDateShort(iso: string | null | undefined) {
 interface CellProps {
   pago: CalendarioPagoDetalle | undefined
   isHoy: boolean
-  selectedDate: string
 }
 
-function PaymentCell({ pago, isHoy, selectedDate }: CellProps) {
+function PaymentCell({ pago, isHoy }: CellProps) {
   const [showTooltip, setShowTooltip] = useState(false)
 
   const borderCls = isHoy ? 'ring-2 ring-inset ring-blue-500' : ''
@@ -60,7 +59,7 @@ function PaymentCell({ pago, isHoy, selectedDate }: CellProps) {
 
   let symbol = '·'
   let cls = 'bg-gray-50 text-gray-400'
-  const isPast = pago.fechaProgramada.slice(0, 10) < selectedDate
+  const isPast = pago.fechaProgramada.slice(0, 10) < todayStr()
 
   switch (pago.estado as string) {
     case 'PAGADO':
@@ -278,7 +277,7 @@ export default function Historial() {
                 </div>
                 <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
                   <div className="text-[13px] font-bold text-[#16a34a]">
-                    {fmtMoney(resumen.totalCaja + resumen.totalRuta)}
+                    {fmtMoney((resumen.totalCaja ?? 0) + (resumen.totalRuta ?? 0))}
                   </div>
                   <div className="text-[10px] text-[#6c757d]">Total cobrado</div>
                 </div>
@@ -357,7 +356,6 @@ export default function Historial() {
                               key={n}
                               pago={calMap.get(n)}
                               isHoy={n === (cliente.numeroPagoHoy ?? -1)}
-                              selectedDate={fecha}
                             />
                           ))}
 
