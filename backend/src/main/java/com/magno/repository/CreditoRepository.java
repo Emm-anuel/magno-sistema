@@ -12,6 +12,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 
 @Repository
 public interface CreditoRepository extends JpaRepository<Credito, Long>,
@@ -28,6 +29,8 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
     Page<Credito> findBySucursalId(Long sucursalId, Pageable pageable);
 
     List<Credito> findByAsesorIdAndEstadoAndDeletedAtIsNull(Long asesorId, EstadoCredito estado);
+    List<Credito> findByAsesorIdAndEstadoAndFechaVencimientoGreaterThanEqualAndDeletedAtIsNull(
+            Long asesorId, EstadoCredito estado, LocalDate fechaVencimiento);
 
     List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
 

@@ -11,6 +11,8 @@ public record ClienteRutaDTO(
         String nombreCompleto,
         String celular,
         String negocioNombre,
+        Long asesorId,
+        String asesorNombre,
 
         Long creditoId,
         BigDecimal montoCapital,

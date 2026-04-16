@@ -105,7 +105,7 @@ export default function CobrosPage() {
                 setAsesorId(e.target.value ? Number(e.target.value) : undefined)
               }
             >
-              <option value="">Mi ruta</option>
+              <option value="">{isAdmin ? 'Todos los asesores' : 'Mi ruta'}</option>
               {asesores.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.nombre_completo}

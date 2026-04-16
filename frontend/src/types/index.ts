@@ -422,6 +422,8 @@ export interface ClienteRuta {
   nombreCompleto: string
   celular: string
   negocioNombre: string
+  asesorId?: number | null
+  asesorNombre?: string | null
   creditoId: number
   montoCapital: number
   pagoPeriodico: number
