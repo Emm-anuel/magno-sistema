@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -54,14 +55,16 @@ public class CobrosController {
         LocalDate fechaEfectiva = fecha != null ? fecha : LocalDate.now();
 
         // Resolver asesor efectivo según rol
-        Long asesorEfectivo;
-        if ("ASESOR_COBRADOR".equals(principal.rol())) {
-            asesorEfectivo = principal.userId();
-        } else if ("SUPERVISOR_CAMPO".equals(principal.rol())) {
-            asesorEfectivo = asesorId != null ? asesorId : principal.userId();
-        } else {
-            // ADMIN y SUPERVISOR pueden especificar cualquier asesor
-            asesorEfectivo = asesorId != null ? asesorId : principal.userId();
+        Long asesorEfectivo = asesorId;
+        if (asesorId == null) {
+            if ("ADMINISTRADOR".equals(principal.rol()) || "SUPERVISOR".equals(principal.rol())) {
+                asesorEfectivo = null; // vista de sucursal completa
+            } else {
+                asesorEfectivo = principal.userId(); // asesor/supervisor_campo: solo su ruta
+            }
+        } else if ("ASESOR_COBRADOR".equals(principal.rol()) && !asesorId.equals(principal.userId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "No puedes consultar la ruta de otro asesor");
         }
 
         RutaDiaDTO ruta = cobrosService.getRutaDia(
