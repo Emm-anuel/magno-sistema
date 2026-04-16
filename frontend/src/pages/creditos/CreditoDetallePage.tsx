@@ -377,8 +377,8 @@ export default function CreditoDetallePage() {
                     <tr>
                       <th className="w-12 text-center">#</th>
                       <th>Fecha</th>
-                      <th className="text-right">Esperado</th>
-                      <th className="text-right">Recibido</th>
+                      <th className="text-right">Monto esperado</th>
+                      <th className="text-right">Monto recibido</th>
                       <th>Estado</th>
                       <th>Acciones</th>
                     </tr>
@@ -387,7 +387,7 @@ export default function CreditoDetallePage() {
                     {calendario.map((pago) => {
                       const vencido = esVencido(pago.fechaProgramada, pago.estado)
                       const pagoRegistrado = pagosHistorial.find(
-                        (p) => p.numeroPago === pago.numeroPago
+                        (p) => p.creditoId === numId && p.numeroPago === pago.numeroPago
                       )
 
                       let rowClass = ''
