@@ -9,7 +9,9 @@ import { ClienteModal } from './ClientesPage'
 import { ESTADO_CIVIL_LABELS } from '@/types'
 import type { EstadoCliente, EstadoCivil } from '@/types'
 import { creditoService } from '@/services/creditoService'
+import { cobrosService } from '@/services/cobrosService'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
+import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import type { CreditoResumen } from '@/types'
 
 // ── Badge de estado ───────────────────────────────────────────────
@@ -97,9 +99,10 @@ function fmtD(iso: string | null | undefined) {
 interface CreditoActivoCardProps {
   credito: CreditoResumen
   onNavigate: (path: string) => void
+  onRegistrarPago?: () => void
 }
 
-function CreditoActivoCard({ credito, onNavigate }: CreditoActivoCardProps) {
+function CreditoActivoCard({ credito, onNavigate, onRegistrarPago }: CreditoActivoCardProps) {
   const monto = safeNC(credito.montoAprobado ?? credito.montoCapital)
   const pagoPeriodico = safeNC(credito.pagoPeriodico)
   const totalPagos = safeNC(credito.totalPagos ?? credito.plazoDias)
@@ -156,7 +159,7 @@ function CreditoActivoCard({ credito, onNavigate }: CreditoActivoCardProps) {
           <button
             type="button"
             className="btn flex-1 py-2 text-sm"
-            onClick={() => onNavigate('/cobros')}
+            onClick={() => onRegistrarPago ? onRegistrarPago() : onNavigate('/cobros')}
           >
             Registrar Pago
           </button>
@@ -180,6 +183,7 @@ export default function ClienteDetallePage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('datos')
   const [editOpen, setEditOpen] = useState(false)
+  const [pagoModalOpen, setPagoModalOpen] = useState(false)
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const esAsesor = usuario?.rol === 'ASESOR_COBRADOR'
@@ -200,6 +204,13 @@ export default function ClienteDetallePage() {
     queryKey: ['creditos-cliente', Number(id)],
     queryFn: () => creditoService.getCreditosCliente(Number(id)),
     enabled: !!id && !!usuario?.id,
+  })
+
+  const { data: ultimosCobros = [] } = useQuery({
+    queryKey: ['pagos-cliente', Number(id)],
+    queryFn: () => cobrosService.getPagosPorCliente(Number(id)),
+    enabled: !!id && tab === 'historial',
+    staleTime: 30_000,
   })
 
   const creditoActivo = creditosData?.find((c) => c.estado === 'ACTIVO') ?? null
@@ -306,7 +317,11 @@ export default function ClienteDetallePage() {
 
       {/* ── Card: Crédito ── */}
       {creditoActivo ? (
-        <CreditoActivoCard credito={creditoActivo} onNavigate={navigate} />
+        <CreditoActivoCard
+          credito={creditoActivo}
+          onNavigate={navigate}
+          onRegistrarPago={() => setPagoModalOpen(true)}
+        />
       ) : creditoEnProceso ? (
         <div className="card border-l-4 border-l-amber-400 p-4 flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -545,6 +560,71 @@ export default function ClienteDetallePage() {
                   </table>
                 </div>
               )}
+
+              {/* ── Últimos cobros ── */}
+              {ultimosCobros.length > 0 && (
+                <div className="mt-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide">
+                      Últimos cobros
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-sm text-xs"
+                      onClick={() => navigate('/historial')}
+                    >
+                      Ver historial completo
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="tabla text-[12px]">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Pago #</th>
+                          <th className="text-right">Monto</th>
+                          <th>Estado</th>
+                          <th>Asesor</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ultimosCobros.slice(0, 10).map((p) => {
+                          const estado = p.razonNoPago ? 'NO_PAGADO' : p.esCompleto ? 'PAGADO' : 'PARCIAL'
+                          return (
+                            <tr key={p.id}>
+                              <td className="text-[#6c757d] whitespace-nowrap">
+                                {new Date(p.fechaPago + 'T12:00:00').toLocaleDateString('es-MX', {
+                                  day: '2-digit', month: 'short', year: 'numeric',
+                                })}
+                              </td>
+                              <td className="text-[#6c757d]">#{p.numeroPago}</td>
+                              <td className={`text-right font-semibold ${
+                                estado === 'NO_PAGADO' ? 'text-[#dc2626]'
+                                : estado === 'PAGADO'  ? 'text-[#2d6a4f]'
+                                : 'text-[#f59e0b]'
+                              }`}>
+                                {estado === 'NO_PAGADO' ? '—' : fmtMoney(p.montoRecibido)}
+                              </td>
+                              <td>
+                                <span className={`badge ${
+                                  estado === 'NO_PAGADO' ? 'badge-rojo'
+                                  : estado === 'PAGADO'  ? 'badge-verde'
+                                  : 'badge-amarillo'
+                                }`}>
+                                  {estado === 'NO_PAGADO' ? 'No pagó' : estado === 'PAGADO' ? 'Pagado' : 'Parcial'}
+                                </span>
+                              </td>
+                              <td className="text-[#6c757d]">
+                                {p.registradoPor?.nombreCompleto ?? '—'}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -562,6 +642,19 @@ export default function ClienteDetallePage() {
             setEditOpen(false)
             qc.invalidateQueries({ queryKey: ['cliente', usuario?.id, Number(id)] })
             qc.invalidateQueries({ queryKey: ['clientes'] })
+          }}
+        />
+      )}
+
+      {pagoModalOpen && creditoActivo && (
+        <ModalRegistrarPago
+          creditoId={creditoActivo.id}
+          pagoPeriodico={creditoActivo.pagoPeriodico}
+          nombreCliente={cliente.nombre_completo}
+          onClose={() => setPagoModalOpen(false)}
+          onSuccess={() => {
+            setPagoModalOpen(false)
+            qc.invalidateQueries({ queryKey: ['creditos-cliente', Number(id)] })
           }}
         />
       )}
