@@ -45,6 +45,14 @@ function monthStartStr() {
 
 type PresetFecha = 'hoy' | 'ayer' | 'semana' | 'mes' | 'rango'
 
+const PRESETS: { key: PresetFecha; label: string }[] = [
+  { key: 'hoy',    label: 'Hoy' },
+  { key: 'ayer',   label: 'Ayer' },
+  { key: 'semana', label: 'Esta semana' },
+  { key: 'mes',    label: 'Este mes' },
+  { key: 'rango',  label: 'Rango personalizado' },
+]
+
 function getPresetDates(preset: PresetFecha): { desde: string; hasta: string } {
   const hoy = todayStr()
   switch (preset) {
@@ -81,9 +89,11 @@ export default function TabHistorialCobros() {
 
   function applyPreset(p: PresetFecha) {
     setPreset(p)
-    const { desde, hasta } = getPresetDates(p)
-    setFechaDesde(desde)
-    setFechaHasta(hasta)
+    if (p !== 'rango') {
+      const { desde, hasta } = getPresetDates(p)
+      setFechaDesde(desde)
+      setFechaHasta(hasta)
+    }
     setPage(0)
   }
 
@@ -110,7 +120,6 @@ export default function TabHistorialCobros() {
 
   const pagos = data?.content ?? []
   const totalPages = data?.totalPages ?? data?.total_pages ?? 1
-  const totalElements = data?.totalElements ?? data?.total_elements ?? 0
 
   const filtrados = useMemo(() => {
     return pagos.filter((p) => {
@@ -124,16 +133,8 @@ export default function TabHistorialCobros() {
     })
   }, [pagos, buscar, estadoFiltro, modalidadFiltro])
 
-  const totalCobrado = filtrados.reduce((sum, p) => sum + (p.razonNoPago ? 0 : Number(p.montoRecibido)), 0)
+  const totalCobrado = filtrados.reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
   const totalMultas  = filtrados.reduce((sum, p) => sum + Number(p.multaAplicada ?? 0), 0)
-
-  const PRESETS: { key: PresetFecha; label: string }[] = [
-    { key: 'hoy',    label: 'Hoy' },
-    { key: 'ayer',   label: 'Ayer' },
-    { key: 'semana', label: 'Esta semana' },
-    { key: 'mes',    label: 'Este mes' },
-    { key: 'rango',  label: 'Rango personalizado' },
-  ]
 
   return (
     <>
@@ -233,8 +234,8 @@ export default function TabHistorialCobros() {
       {/* ── Summary bar ── */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-[#212529]">{totalElements}</div>
-          <div className="text-[11px] text-[#6c757d]">Total registros</div>
+          <div className="text-lg font-bold text-[#212529]">{filtrados.length}</div>
+          <div className="text-[11px] text-[#6c757d]">En esta página</div>
         </div>
         <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-[#16a34a]">{fmtMoney(totalCobrado)}</div>
@@ -335,7 +336,6 @@ export default function TabHistorialCobros() {
                   <th className="text-right">Diferencia</th>
                   <th>Modalidad</th>
                   <th>Estado</th>
-                  <th>Asesor</th>
                   <th>Fecha</th>
                   <th>Registrado por</th>
                   <th />
@@ -374,9 +374,6 @@ export default function TabHistorialCobros() {
                         }`}>
                           {estado === 'NO_PAGADO' ? 'No pagó' : estado === 'PAGADO' ? 'Pagado' : 'Parcial'}
                         </span>
-                      </td>
-                      <td className="text-[#6c757d]">
-                        {p.registradoPor?.nombreCompleto ?? '—'}
                       </td>
                       <td className="text-[#6c757d] whitespace-nowrap">{fmtDate(p.fechaPago)}</td>
                       <td className="text-[12px] text-[#adb5bd]">
