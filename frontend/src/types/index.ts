@@ -412,6 +412,91 @@ export interface ApiError {
 }
 
 // ------------------------------------------------------------------
+// Cobros
+// ------------------------------------------------------------------
+
+export type EstadoCobro = 'SIN_REGISTRO' | 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' | 'INHABIL' | 'INHABILL'
+
+export interface ClienteRuta {
+  clienteId: number
+  nombreCompleto: string
+  celular: string
+  negocioNombre: string
+  creditoId: number
+  montoCapital: number
+  pagoPeriodico: number
+  numeroPagoHoy: number | null
+  totalPagos: number
+  estadoHoy: EstadoCobro
+  montoRecibidoHoy: number | null
+  multasPendientes: number
+  razonNoPago: string | null
+  pagoIdHoy: number | null
+}
+
+export interface RutaDia {
+  asesor: { id: number; nombreCompleto: string }
+  fecha: string
+  clientes: ClienteRuta[]
+  resumen: {
+    totalClientes: number
+    cobrados: number
+    noPagaron: number
+    sinRegistrar: number
+    inhabiles: number
+    totalCaja: number
+    totalRuta: number
+    totalMultasCobradas: number
+  }
+}
+
+export interface PagoRegistrarRequest {
+  creditoId: number
+  modalidad: Modalidad
+  noPago: boolean
+  montoRecibido?: number
+  razonNoPago?: string
+}
+
+export interface PagoModificarRequest {
+  montoRecibido?: number
+  modalidad?: Modalidad
+  razonNoPago?: string
+  motivoModificacion: string
+}
+
+/** Pago tal como lo devuelve GET /api/cobros/* (camelCase desde Spring Boot) */
+export interface PagoCobroDTO {
+  id: number
+  creditoId: number
+  cliente: { id: number; nombreCompleto: string }
+  numeroPago: number
+  fechaPago: string
+  montoRecibido: number
+  montoEsperado: number
+  esCompleto: boolean
+  modalidad: Modalidad
+  razonNoPago: string | null
+  multaAplicada: number
+  registradoPor: { id: number; nombreCompleto: string } | null
+  modificadoPor: { id: number; nombreCompleto: string } | null
+  fechaModificacion: string | null
+  createdAt: string
+}
+
+export interface MultaCobroDTO {
+  id: number
+  creditoId: number
+  clienteId: number
+  pagoId: number | null
+  tipo: TipoMulta
+  monto: number
+  fecha: string
+  cobrada: boolean
+  cobradaEnPagoId: number | null
+}
+
+// ------------------------------------------------------------------
 // Créditos Nuevos
 // ------------------------------------------------------------------
 
@@ -431,7 +516,7 @@ export interface CalendarioPagoDetalle {
   numeroPago: number
   fechaProgramada: string
   montoEsperado: number
-  estado: EstadoPago
+  estado: EstadoPago | 'INHABIL' | 'INHABILL'
 }
 
 // Shape returned by GET /api/creditos (list) — camelCase from Spring Boot

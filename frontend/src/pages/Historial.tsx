@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
@@ -12,6 +12,8 @@ import type { CalendarioPagoDetalle } from '@/types'
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
+
+const TODAY = new Date().toISOString().slice(0, 10)
 
 function addDays(dateStr: string, n: number) {
   const d = new Date(dateStr + 'T12:00:00')
@@ -44,7 +46,7 @@ interface CellProps {
   isHoy: boolean
 }
 
-function PaymentCell({ pago, isHoy }: CellProps) {
+const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) {
   const [showTooltip, setShowTooltip] = useState(false)
 
   const borderCls = isHoy ? 'ring-2 ring-inset ring-blue-500' : ''
@@ -59,9 +61,9 @@ function PaymentCell({ pago, isHoy }: CellProps) {
 
   let symbol = '·'
   let cls = 'bg-gray-50 text-gray-400'
-  const isPast = pago.fechaProgramada.slice(0, 10) < todayStr()
+  const isPast = pago.fechaProgramada.slice(0, 10) < TODAY
 
-  switch (pago.estado as string) {
+  switch (pago.estado) {
     case 'PAGADO':
       symbol = '✓'; cls = 'bg-green-100 text-green-700 font-bold'; break
     case 'ADELANTADO':
@@ -99,21 +101,21 @@ function PaymentCell({ pago, isHoy }: CellProps) {
       </div>
     </td>
   )
-}
+})
 
 // ── Main component ────────────────────────────────────────────────────
 
 export default function Historial() {
   const { usuario } = useAuthStore()
 
-  const esAdminSupervisor =
+  const puedeVerTodosAsesores =
     usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
-  const esRestringido =
+  const soloSusPropios =
     usuario?.rol === 'ASESOR_COBRADOR' || usuario?.rol === 'SUPERVISOR_CAMPO'
 
   const [fecha, setFecha] = useState(todayStr())
   const [asesorId, setAsesorId] = useState<number | undefined>(
-    esRestringido ? (usuario?.id ?? undefined) : undefined
+    soloSusPropios ? (usuario?.id ?? undefined) : undefined
   )
 
   // Lista de asesores para admin/supervisor
@@ -123,11 +125,11 @@ export default function Historial() {
       api
         .get<{ id: number; nombre_completo: string }[]>('/clientes/asesores')
         .then((r) => r.data),
-    enabled: esAdminSupervisor,
+    enabled: puedeVerTodosAsesores,
     staleTime: 60_000,
   })
 
-  const asesorNombre = esRestringido
+  const asesorNombre = soloSusPropios
     ? usuario?.nombre_completo
     : asesores.find((a) => a.id === asesorId)?.nombre_completo
 
@@ -160,6 +162,11 @@ export default function Historial() {
     return Math.max(...clientes.map((c) => c.totalPagos ?? 25))
   }, [clientes])
 
+  const pagoIndices = useMemo(
+    () => Array.from({ length: maxPagos }, (_, i) => i + 1),
+    [maxPagos]
+  )
+
   const resumen = rutaDia?.resumen
 
   return (
@@ -169,7 +176,7 @@ export default function Historial() {
       {/* ── Filtros: asesor + fecha ── */}
       <div className="card p-4">
         <div className="flex flex-wrap items-center gap-4">
-          {esAdminSupervisor ? (
+          {puedeVerTodosAsesores ? (
             <div className="flex items-center gap-2">
               <label className="text-[12px] text-[#6c757d] whitespace-nowrap font-medium">
                 Asesor
@@ -209,14 +216,14 @@ export default function Historial() {
               type="date"
               className="input text-[13px] py-[5px] w-40"
               value={fecha}
-              max={todayStr()}
+              max={TODAY}
               onChange={(e) => setFecha(e.target.value)}
             />
             <button
               type="button"
               className="btn btn-sm p-1.5"
               onClick={() => setFecha(addDays(fecha, 1))}
-              disabled={fecha >= todayStr()}
+              disabled={fecha >= TODAY}
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -306,7 +313,7 @@ export default function Historial() {
                       <th className="text-right px-2 py-2 border-b border-[#e9ecef] whitespace-nowrap">
                         Pago/día
                       </th>
-                      {Array.from({ length: maxPagos }, (_, i) => i + 1).map((n) => (
+                      {pagoIndices.map((n) => (
                         <th
                           key={n}
                           className="text-center px-0 py-2 border-b border-[#e9ecef] w-8 min-w-[2rem]"
@@ -351,7 +358,7 @@ export default function Historial() {
                             {fmtMoney(cliente.pagoPeriodico)}
                           </td>
 
-                          {Array.from({ length: maxPagos }, (_, i) => i + 1).map((n) => (
+                          {pagoIndices.map((n) => (
                             <PaymentCell
                               key={n}
                               pago={calMap.get(n)}
