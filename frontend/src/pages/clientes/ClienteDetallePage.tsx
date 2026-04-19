@@ -98,6 +98,19 @@ function fmtD(iso: string | null | undefined) {
   })
 }
 
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 interface CreditoActivoCardProps {
   credito: CreditoResumen
   onNavigate: (path: string) => void
@@ -632,6 +645,11 @@ export default function ClienteDetallePage() {
                               </td>
                               <td className="text-[#6c757d]">
                                 {p.registradoPor?.nombreCompleto ?? '—'}
+                                {p.createdAt && (
+                                  <span className="text-[10px] text-[#adb5bd]">
+                                    {' · '}Reg: {fmtDateTime(p.createdAt)}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           )
