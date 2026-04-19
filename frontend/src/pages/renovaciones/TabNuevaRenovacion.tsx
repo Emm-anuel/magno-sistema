@@ -52,7 +52,12 @@ function fmt(n: number | null | undefined): string {
   return '$' + Number(n).toLocaleString('es-MX', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
 }
 
-export default function TabNuevaRenovacion() {
+interface Props {
+  initialCliente?: ClienteResumen | null
+  onClearInitial?: () => void
+}
+
+export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>(1)
@@ -138,6 +143,14 @@ export default function TabNuevaRenovacion() {
       setCreditoLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (initialCliente && !clienteSeleccionado) {
+      handleSelectCliente(initialCliente)
+      onClearInitial?.()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialCliente])
 
   // ── Monto / calculo ────────────────────────────────────────────
 
