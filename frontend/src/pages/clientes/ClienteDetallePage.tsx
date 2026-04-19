@@ -13,6 +13,7 @@ import { creditoService } from '@/services/creditoService'
 import { cobrosService } from '@/services/cobrosService'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
+import ClienteDocumentosSection from '@/components/clientes/ClienteDocumentosSection'
 import type { CreditoResumen } from '@/types'
 
 // ── Badge de estado ───────────────────────────────────────────────
@@ -51,7 +52,7 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────
-type Tab = 'datos' | 'referencias' | 'historial'
+type Tab = 'datos' | 'referencias' | 'historial' | 'documentos'
 
 // ── CreditoActivoCard ──────────────────────────────────────────────
 function safeNC(v: unknown): number {
@@ -369,9 +370,10 @@ export default function ClienteDetallePage() {
         {/* Tab nav — scrollable en móvil */}
         <div className="flex overflow-x-auto border-b border-[#e9ecef]">
           {([
-            { key: 'datos',       label: 'Datos Personales', icon: User },
-            { key: 'referencias', label: 'Referencias y Aval', icon: Users },
-            { key: 'historial',   label: 'Historial de Créditos', icon: FileText },
+            { key: 'datos',        label: 'Datos Personales',    icon: User },
+            { key: 'referencias',  label: 'Referencias y Aval',  icon: Users },
+            { key: 'historial',    label: 'Historial de Créditos', icon: FileText },
+            { key: 'documentos',   label: 'Documentos',          icon: FileText },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button
               type="button"
@@ -640,6 +642,14 @@ export default function ClienteDetallePage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Tab: Documentos ── */}
+          {tab === 'documentos' && (
+            <ClienteDocumentosSection
+              clienteId={Number(id)}
+              canDelete={esAdmin}
+            />
           )}
         </div>
       </div>

@@ -416,6 +416,17 @@ export interface ApiError {
 }
 
 // ------------------------------------------------------------------
+// Clientes — Documentos
+// ------------------------------------------------------------------
+export interface ClienteDocumentoDTO {
+  id: number
+  tipo: 'INE_FRENTE' | 'INE_REVERSO' | 'COMPROBANTE_DOMICILIO' | 'OTRO'
+  url: string
+  nombre: string | null
+  createdAt: string
+}
+
+// ------------------------------------------------------------------
 // Cobros
 // ------------------------------------------------------------------
 
