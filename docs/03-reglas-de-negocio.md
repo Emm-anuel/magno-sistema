@@ -72,6 +72,7 @@
 - Se permiten **pagos incompletos** (abonos).
 - Al marcar "No pagó" → campo de razón **obligatorio** → multa se aplica automáticamente.
 - Las razones de no pago quedan en historial del cliente y se ven como tooltip sobre ✗.
+- El timestamp exacto de registro (`created_at`) se guarda automáticamente al registrar un pago y se muestra en el historial de cobros en formato `dd/MM/yyyy HH:mm` (hora local `America/Mexico_City`).
 
 ### 6.3 Multas — DOS tipos independientes
 

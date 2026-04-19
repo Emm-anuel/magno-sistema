@@ -2,6 +2,7 @@ package com.magno.controller;
 
 import com.magno.dto.cliente.ClienteCreateRequest;
 import com.magno.dto.cliente.ClienteDetalleDTO;
+import com.magno.dto.cliente.ClienteDocumentoDTO;
 import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.security.JwtPrincipal;
@@ -196,6 +197,7 @@ public class ClienteController {
                     req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
                     req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
                     req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioLat(), req.negocioLng(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
@@ -216,6 +218,7 @@ public class ClienteController {
                     req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
                     req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
                     req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioLat(), req.negocioLng(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
@@ -225,6 +228,70 @@ public class ClienteController {
             );
             default -> req; // ADMINISTRADOR / SUPERVISOR sin cambios
         };
+    }
+
+    // ── Documentos del cliente ────────────────────────────────────────
+
+    private static final java.util.Set<String> TIPOS_DOCUMENTO_VALIDOS =
+        java.util.Set.of("INE_FRENTE", "INE_REVERSO", "COMPROBANTE_DOMICILIO", "OTRO");
+
+    record AgregarDocumentoRequest(
+        @jakarta.validation.constraints.NotBlank String tipo,
+        @jakarta.validation.constraints.NotBlank String url,
+        String nombre
+    ) {}
+
+    @GetMapping("/{id}/documentos")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ClienteDocumentoDTO>> listarDocumentos(
+            @PathVariable Long id, Authentication auth) {
+        JwtPrincipal principal = getPrincipal(auth);
+        ClienteDetalleDTO dto = clienteService.obtenerDetalle(id);
+        switch (principal.rol()) {
+            case "ASESOR_COBRADOR" -> {
+                if (dto.asesor() == null || !dto.asesor().id().equals(principal.userId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            case "SUPERVISOR_CAMPO" -> {
+                if (!dto.sucursal().id().equals(principal.sucursalId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+        return ResponseEntity.ok(clienteService.listarDocumentos(id));
+    }
+
+    @PostMapping("/{id}/documentos")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ClienteDocumentoDTO> agregarDocumento(
+            @PathVariable Long id,
+            @Valid @RequestBody AgregarDocumentoRequest req,
+            Authentication auth) {
+        JwtPrincipal principal = getPrincipal(auth);
+        ClienteDetalleDTO dto = clienteService.obtenerDetalle(id);
+        switch (principal.rol()) {
+            case "ASESOR_COBRADOR" -> {
+                if (dto.asesor() == null || !dto.asesor().id().equals(principal.userId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            case "SUPERVISOR_CAMPO" -> {
+                if (!dto.sucursal().id().equals(principal.sucursalId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+        if (!TIPOS_DOCUMENTO_VALIDOS.contains(req.tipo())) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(clienteService.agregarDocumento(id, req.tipo(), req.url(), req.nombre(), principal.userId()));
+    }
+
+    @DeleteMapping("/{clienteId}/documentos/{docId}")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<Void> eliminarDocumento(
+            @PathVariable Long clienteId,
+            @PathVariable Long docId) {
+        clienteService.eliminarDocumento(docId, clienteId);
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -246,6 +313,7 @@ public class ClienteController {
                     req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
                     req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
                     req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioLat(), req.negocioLng(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
@@ -266,6 +334,7 @@ public class ClienteController {
                     req.negocioCalle(), req.negocioNoExterior(), req.negocioNoInterior(),
                     req.negocioColonia(), req.negocioMunicipio(), req.negocioEstado(), req.negocioCp(),
                     req.negocioTipoLocal(), req.negocioMontoRenta(), req.negocioHorarios(),
+                    req.negocioLat(), req.negocioLng(),
                     req.ingresosSemanales(), req.gastosSemanales(), req.gastosRenta(), req.gastosOtros(),
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),

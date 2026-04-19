@@ -31,7 +31,7 @@
 | Módulo            | Gerente General | Gerente de Sucursal |   Supervisor    |     Asesor      |
 | ----------------- | :-------------: | :-----------------: | :-------------: | :-------------: |
 | Dashboard         |       ✅        |         ✅          |       ✅        |       ✅        |
-| Cobros            |       ✅        |         ✅          |       ✅        |       ✅        |
+| Cobros            |       ❌        |         ❌          |       ✅        |       ✅        |
 | Créditos Nuevos   |       ✅        |         ✅          |       ✅        |       ✅        |
 | Renovaciones      |       ✅        |         ✅          |       ✅        |       ✅        |
 | Clientes          |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |

@@ -106,6 +106,8 @@ public record ClienteCreateRequest(
         String negocioTipoLocal,
         BigDecimal negocioMontoRenta,
         String negocioHorarios,
+        BigDecimal negocioLat,
+        BigDecimal negocioLng,
 
         // ── Finanzas ──────────────────────────────────────────────
         BigDecimal ingresosSemanales,

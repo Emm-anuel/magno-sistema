@@ -53,6 +53,7 @@
   - Colonia _, Municipio _, Estado _, C.P. _
 - Tipo de local (Propio / Rentado), Monto de renta si aplica
 - Horarios del negocio
+- **Mapa interactivo (Leaflet / OpenStreetMap):** el asesor puede marcar la ubicación exacta del negocio haciendo clic en el mapa o usando el botón "Mi ubicación" (geolocalización del dispositivo). Las coordenadas se guardan en `negocio_lat DECIMAL(10,7)` y `negocio_lng DECIMAL(10,7)`. El pin es opcional — no bloquea el guardado del cliente.
 
 ### Sección 5: Ingresos y Gastos del Negocio
 
@@ -69,6 +70,16 @@
 ### Sección Aval (colapsable, opcional)
 
 - Nombre, Teléfono, Dirección, No. de identificación
+
+### Tab "Documentos" (ficha de detalle del cliente)
+
+La página de detalle del cliente incluye un tab **"Documentos"** para gestionar el acervo documental del cliente:
+
+- **Documentos soportados:** INE Frente (`INE_FRENTE`), INE Reverso (`INE_REVERSO`), Comprobante de Domicilio (`COMPROBANTE_DOMICILIO`), Otro (`OTRO`)
+- **UI:** zona de upload con selector de tipo de documento y descripción opcional; listado de documentos existentes con opción de eliminar (soft delete)
+- **Tipos de archivo aceptados:** imágenes (jpg, png, webp) y PDF
+- **Cardinalidad:** múltiples documentos por cliente
+- Los documentos se almacenan en S3 — ver `06-archivos-y-storage.md` para detalles
 
 ---
 

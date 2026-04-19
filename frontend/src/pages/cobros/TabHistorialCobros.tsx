@@ -20,6 +20,19 @@ function fmtDate(iso: string) {
   })
 }
 
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -293,6 +306,11 @@ export default function TabHistorialCobros() {
                       Asesor: {p.registradoPor.nombreCompleto}
                     </p>
                   )}
+                  {p.createdAt && (
+                    <p className="text-[10px] text-[#adb5bd] mt-0.5">
+                      Reg: {fmtDateTime(p.createdAt)}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-col gap-1.5 shrink-0">
                   <button
@@ -336,7 +354,8 @@ export default function TabHistorialCobros() {
                   <th className="text-right">Diferencia</th>
                   <th>Modalidad</th>
                   <th>Estado</th>
-                  <th>Fecha</th>
+                  <th>Fecha cobro</th>
+                  <th>Registrado</th>
                   <th>Registrado por</th>
                   <th />
                 </tr>
@@ -376,6 +395,7 @@ export default function TabHistorialCobros() {
                         </span>
                       </td>
                       <td className="text-[#6c757d] whitespace-nowrap">{fmtDate(p.fechaPago)}</td>
+                      <td className="text-[12px] text-[#adb5bd] whitespace-nowrap">{fmtDateTime(p.createdAt)}</td>
                       <td className="text-[12px] text-[#adb5bd]">
                         {p.registradoPor?.nombreCompleto ?? '—'}
                         {p.modificadoPor && (

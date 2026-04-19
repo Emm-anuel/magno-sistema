@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { AuthResponse, ApiError } from '@/types'
+import type { AuthResponse, ApiError, ClienteDocumentoDTO } from '@/types'
 
 function normalizeUsuario(raw: any): AuthResponse['usuario'] {
   const sucursal = raw?.sucursal ?? {}
@@ -366,6 +366,15 @@ export const clienteService = {
 
   historial: (id: number) =>
     api.get<any[]>(`/clientes/${id}/historial`).then((r) => r.data),
+
+  listarDocumentos: (clienteId: number) =>
+    api.get<ClienteDocumentoDTO[]>(`/clientes/${clienteId}/documentos`).then((r) => r.data),
+
+  agregarDocumento: (clienteId: number, tipo: string, url: string, nombre?: string) =>
+    api.post<ClienteDocumentoDTO>(`/clientes/${clienteId}/documentos`, { tipo, url, nombre }).then((r) => r.data),
+
+  eliminarDocumento: (clienteId: number, docId: number) =>
+    api.delete(`/clientes/${clienteId}/documentos/${docId}`),
 }
 
 // ── Files ─────────────────────────────────────────────────────────

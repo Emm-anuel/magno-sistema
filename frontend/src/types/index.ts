@@ -220,6 +220,8 @@ export interface ClienteDetalle {
   negocio_tipo_local?: string
   negocio_monto_renta?: number
   negocio_horarios?: string
+  negocio_lat?: number | null
+  negocio_lng?: number | null
   // Finanzas
   ingresos_semanales?: number
   gastos_semanales?: number
@@ -284,6 +286,8 @@ export interface ClienteCreateRequest {
   negocio_tipo_local?: string
   negocio_monto_renta?: number
   negocio_horarios?: string
+  negocio_lat?: number | null
+  negocio_lng?: number | null
   ingresos_semanales?: number
   gastos_semanales?: number
   gastos_renta?: number
@@ -409,6 +413,17 @@ export interface ApiError {
   status: number
   message: string
   timestamp: string
+}
+
+// ------------------------------------------------------------------
+// Clientes — Documentos
+// ------------------------------------------------------------------
+export interface ClienteDocumentoDTO {
+  id: number
+  tipo: 'INE_FRENTE' | 'INE_REVERSO' | 'COMPROBANTE_DOMICILIO' | 'OTRO'
+  url: string
+  nombre: string | null
+  createdAt: string
 }
 
 // ------------------------------------------------------------------

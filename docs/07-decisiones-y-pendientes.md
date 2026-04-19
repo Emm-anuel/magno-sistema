@@ -27,6 +27,25 @@
 
 ---
 
+## 13c. Reglas Confirmadas — Pendientes de Implementar
+
+| #   | Regla                                        | Módulo de implementación |
+| --- | -------------------------------------------- | ------------------------ |
+| 🔜  | **Bloqueo operativo después de las 5:00 PM** | Módulo 6 — Caja          |
+
+### Detalle — Bloqueo operativo por cierre de caja
+
+**Regla confirmada por cliente (Abril 2026):** Después de las 5:00 PM (hora local, `America/Mexico_City`), los roles `ASESOR_COBRADOR` y `SUPERVISOR_CAMPO` no pueden registrar ni modificar pagos, ni editar operaciones en ninguna sección.
+
+**Diseño conceptual:**
+- Esta restricción está **conceptualmente ligada al cierre de caja del día**, no es una validación de horario independiente.
+- Debe implementarse dentro del **Módulo 6 (Caja)**, donde el estado `abierta/cerrada` de la caja será la fuente de verdad.
+- La hora límite (5:00 PM) **podría ser configurable por sucursal** en el futuro.
+- El **mensaje de error al usuario** debe ser: `"No es posible registrar operaciones después de las 5:00 PM"`.
+- Roles que NO se bloquean: `ADMINISTRADOR` y `SUPERVISOR` (Gerente de Sucursal) pueden operar sin restricción de horario.
+
+---
+
 ## 14. Plan de Desarrollo (24 semanas)
 
 | Fase              | Módulos                                                                    | Semanas |

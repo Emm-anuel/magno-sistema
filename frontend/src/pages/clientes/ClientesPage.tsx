@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import BusinessMap from '@/components/BusinessMap'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -65,6 +66,8 @@ const clienteSchema = z.object({
   negocio_tipo_local:  z.string().optional(),
   negocio_monto_renta: z.coerce.number().optional(),
   negocio_horarios:    z.string().optional(),
+  negocio_lat:         z.coerce.number().optional(),
+  negocio_lng:         z.coerce.number().optional(),
   ingresos_semanales:  z.coerce.number().optional(),
   gastos_semanales:    z.coerce.number().optional(),
   gastos_renta:        z.coerce.number().optional(),
@@ -503,6 +506,12 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   const { usuario: authUsuario } = useAuthStore()
   const [isProcessing, setIsProcessing] = useState(false)
   const [avalOpen, setAvalOpen] = useState(!!cliente?.aval_nombre)
+  const [mapLat, setMapLat] = useState<number | null>(
+    cliente?.negocio_lat != null ? Number(cliente.negocio_lat) : null
+  )
+  const [mapLng, setMapLng] = useState<number | null>(
+    cliente?.negocio_lng != null ? Number(cliente.negocio_lng) : null
+  )
   const [curpStatus, setCurpStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
   const [celularStatus, setCelularStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
   const curpTimeout = useRef<ReturnType<typeof setTimeout>>()
@@ -631,6 +640,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       // Forzar asesor/sucursal según rol
       asesor_id:    puedeAsignarAsesor    ? (data.asesor_id || undefined)    : authUsuario?.id,
       sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : authUsuario!.sucursal.id,
+      negocio_lat:  mapLat ?? undefined,
+      negocio_lng:  mapLng ?? undefined,
     }
 
     setIsProcessing(true)
@@ -845,6 +856,21 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                 <Field label="Ingresos semanales">
                   <input {...register('ingresos_semanales')} type="number" className="input" placeholder="$ estimado" />
                 </Field>
+              </div>
+
+              {/* ── Ubicación del negocio ── */}
+              <div className="mt-4">
+                <p className="text-[11px] font-semibold text-[#6c757d] uppercase tracking-wide mb-2">
+                  Ubicación del negocio (opcional)
+                </p>
+                <BusinessMap
+                  lat={mapLat}
+                  lng={mapLng}
+                  onChange={(lat, lng) => {
+                    setMapLat(lat === 0 && lng === 0 ? null : lat)
+                    setMapLng(lat === 0 && lng === 0 ? null : lng)
+                  }}
+                />
               </div>
             </section>
 

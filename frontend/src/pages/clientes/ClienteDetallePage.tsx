@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import BusinessMap from '@/components/BusinessMap'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -12,6 +13,7 @@ import { creditoService } from '@/services/creditoService'
 import { cobrosService } from '@/services/cobrosService'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
+import ClienteDocumentosSection from '@/components/clientes/ClienteDocumentosSection'
 import type { CreditoResumen } from '@/types'
 
 // ── Badge de estado ───────────────────────────────────────────────
@@ -50,7 +52,7 @@ function Row({ label, value }: { label: string; value?: string | number | null }
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────
-type Tab = 'datos' | 'referencias' | 'historial'
+type Tab = 'datos' | 'referencias' | 'historial' | 'documentos'
 
 // ── CreditoActivoCard ──────────────────────────────────────────────
 function safeNC(v: unknown): number {
@@ -93,6 +95,19 @@ function fmtD(iso: string | null | undefined) {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
+  })
+}
+
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   })
 }
 
@@ -374,9 +389,10 @@ export default function ClienteDetallePage() {
         {/* Tab nav — scrollable en móvil */}
         <div className="flex overflow-x-auto border-b border-[#e9ecef]">
           {([
-            { key: 'datos',       label: 'Datos Personales', icon: User },
-            { key: 'referencias', label: 'Referencias y Aval', icon: Users },
-            { key: 'historial',   label: 'Historial de Créditos', icon: FileText },
+            { key: 'datos',        label: 'Datos Personales',    icon: User },
+            { key: 'referencias',  label: 'Referencias y Aval',  icon: Users },
+            { key: 'historial',    label: 'Historial de Créditos', icon: FileText },
+            { key: 'documentos',   label: 'Documentos',          icon: FileText },
           ] as const).map(({ key, label, icon: Icon }) => (
             <button
               type="button"
@@ -461,6 +477,19 @@ export default function ClienteDetallePage() {
                   <Row label="Ingresos semanales" value={fmtMoney(cliente.ingresos_semanales)} />
                   <Row label="Gastos semanales" value={fmtMoney(cliente.gastos_semanales)} />
                 </div>
+                {cliente.negocio_lat && cliente.negocio_lng && (
+                  <div className="mt-3">
+                    <p className="text-[11px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                      Ubicación del negocio
+                    </p>
+                    <BusinessMap
+                      lat={Number(cliente.negocio_lat)}
+                      lng={Number(cliente.negocio_lng)}
+                      onChange={() => {}}
+                      readOnly
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -622,6 +651,11 @@ export default function ClienteDetallePage() {
                               </td>
                               <td className="text-[#6c757d]">
                                 {p.registradoPor?.nombreCompleto ?? '—'}
+                                {p.createdAt && (
+                                  <span className="text-[10px] text-[#adb5bd]">
+                                    {' · '}Reg: {fmtDateTime(p.createdAt)}
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           )
@@ -632,6 +666,14 @@ export default function ClienteDetallePage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Tab: Documentos ── */}
+          {tab === 'documentos' && (
+            <ClienteDocumentosSection
+              clienteId={Number(id)}
+              canDelete={esAdmin}
+            />
           )}
         </div>
       </div>

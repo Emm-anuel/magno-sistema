@@ -14,10 +14,11 @@
 | **Renovaciones**    | Nueva Renovación      | Video de entrega de dinero | Video grabado al entregar el efectivo en la renovación | ✅ Sí       | `renovaciones.video_entrega_url VARCHAR` |
 | **Usuarios**        | Alta de Usuario       | Imagen INE                 | Foto o escaneo de INE (imagen)                         | ✅ Sí       | `usuarios.ine_imagen_url VARCHAR`        |
 | **Gastos**          | Registrar Gasto       | Comprobante / Referencia   | ⚠️ Campo de TEXTO libre — folio, número de ticket      | ❌ No       | `gastos.comprobante_referencia VARCHAR`  |
+| **Clientes** | Alta/Edición de Cliente | Documentos del cliente | Imágenes (jpg, png) y PDF | ❌ No | `cliente_documentos.url VARCHAR` |
 
 > **Nota importante sobre Gastos:** El mock implementa el comprobante como `<input type="text" placeholder="Folio, foto, o referencia del comprobante">`. Es un campo de texto, NO una zona de upload. Captura el folio o descripción del comprobante físico, no el archivo en sí.
 
-> **Nota importante sobre Alta de Cliente:** El modal de Alta de Cliente en el mock NO incluye upload de imagen de INE ni fotos de evidencia — estos campos están simplificados. El upload de evidencia del negocio y el INE-imagen se capturan en el flujo de **Créditos Nuevos** (solicitud) y **Usuarios** respectivamente. Si en el futuro se decide agregar INE-imagen al alta de cliente, seguiría el mismo patrón S3.
+> **Nota importante sobre Alta de Cliente:** El modal de Alta de Cliente no incluye upload de documentos directamente durante el registro inicial. Los documentos del cliente (INE, comprobante de domicilio, etc.) se gestionan desde el tab "Documentos" en la ficha de detalle del cliente. El upload de evidencia del negocio y el INE-imagen de empleados se capturan en el flujo de **Créditos Nuevos** (solicitud) y **Usuarios** respectivamente.
 
 ### 4.2 Detalles por punto de upload
 
@@ -31,6 +32,18 @@
 - **Almacenamiento:** S3 → `magno/evidencia-negocio/{cliente_id}/{credito_id}/`
 - **BD:** `creditos.evidencia_urls TEXT[]` — array de URLs S3
 - **Ciclo de vida:** persiste mientras el crédito/cliente esté activo; archivar al dar de baja
+
+#### Documentos del Cliente (Clientes → Tab Documentos)
+
+- **Qué sube:** INE del cliente (frente y reverso), comprobante de domicilio, otros documentos requeridos para la solicitud de crédito
+- **Propósito:** acervo documental del cliente para solicitudes de crédito
+- **UI:** tab "Documentos" en la ficha del cliente; zona de upload con selector de tipo y descripción opcional
+- **Tipos aceptados:** imágenes (jpg, png, webp) y PDF
+- **Cardinalidad:** múltiples documentos por cliente (tabla `cliente_documentos`)
+- **Almacenamiento:** S3 → `magno/clientes-documentos/{cliente_id}/{tipo}/`
+- **BD:** `cliente_documentos.url VARCHAR` — URL S3 por documento
+- **Tipos de documento:** `INE_FRENTE`, `INE_REVERSO`, `COMPROBANTE_DOMICILIO`, `OTRO`
+- **Ciclo de vida:** soft delete con `deleted_at`
 
 #### Imagen INE de Usuario (Usuarios → Alta de Usuario)
 
@@ -53,9 +66,13 @@ Bucket: magno-files/
 │           ├── foto_01.jpg
 │           ├── foto_02.jpg
 │           └── video_01.mp4
-└── usuarios-ine/
-    └── {usuario_id}/
-        └── ine.jpg
+├── usuarios-ine/
+│   └── {usuario_id}/
+│       └── ine.jpg
+└── clientes-documentos/
+    └── {cliente_id}/
+        └── {tipo}/
+            └── documento.jpg
 ```
 
 **Consideraciones técnicas:**
