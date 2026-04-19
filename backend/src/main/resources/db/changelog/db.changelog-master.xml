@@ -45,4 +45,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V7-cliente-negocio-coords" author="magno">
+        <sqlFile
+            path="db/changelog/V7__cliente_negocio_coords.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
