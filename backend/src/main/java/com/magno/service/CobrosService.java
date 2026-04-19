@@ -320,10 +320,6 @@ public class CobrosService {
             }
         }
 
-        if (req.modalidad() != null) {
-            pago.setModalidad(req.modalidad());
-        }
-
         if (req.razonNoPago() != null) {
             pago.setRazonNoPago(req.razonNoPago().isBlank() ? null : req.razonNoPago());
         }
@@ -396,7 +392,7 @@ public class CobrosService {
                 .montoRecibido(BigDecimal.ZERO)
                 .montoEsperado(cp.getMontoEsperado())
                 .esCompleto(false)
-                .modalidad(req.modalidad())
+
                 .razonNoPago(req.razonNoPago())
                 .multaAplicada(montoMulta)
                 .registradoPor(registrador)
@@ -457,7 +453,6 @@ public class CobrosService {
                 .montoRecibido(montoRecibido)
                 .montoEsperado(montoEsperado)
                 .esCompleto(esCompleto)
-                .modalidad(req.modalidad())
                 .razonNoPago(null)
                 .multaAplicada(multaAplicadaEnEstePago)
                 .registradoPor(registrador)
@@ -677,22 +672,12 @@ public class CobrosService {
             }
         }
 
-        BigDecimal totalCaja = pagosHoy.stream()
-                .filter(p -> "CAJA".equals(p.getModalidad()))
-                .map(p -> Optional.ofNullable(p.getMontoRecibido()).orElse(BigDecimal.ZERO))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalRuta = pagosHoy.stream()
-                .filter(p -> "RUTA".equals(p.getModalidad()))
-                .map(p -> Optional.ofNullable(p.getMontoRecibido()).orElse(BigDecimal.ZERO))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
         BigDecimal totalMultasCobradas = pagosHoy.stream()
                 .map(p -> Optional.ofNullable(p.getMultaAplicada()).orElse(BigDecimal.ZERO))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return new RutaDiaDTO.Resumen(
                 totalClientes, cobrados, noPagaron, sinRegistrar, inhabiles,
-                totalCaja, totalRuta, totalMultasCobradas);
+                totalMultasCobradas);
     }
 }

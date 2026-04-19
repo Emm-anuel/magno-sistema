@@ -13,21 +13,19 @@ import java.time.LocalDate;
  */
 public record PagoRegistrarRequest(
 
-        @NotNull(message = "credito_id es obligatorio") @JsonAlias("credito_id") Long creditoId,
+                @NotNull(message = "credito_id es obligatorio") @JsonAlias("credito_id") Long creditoId,
 
-        @NotNull(message = "modalidad es obligatoria") @Pattern(regexp = "CAJA|RUTA", message = "modalidad debe ser CAJA o RUTA") String modalidad,
+                @NotNull(message = "no_pago es obligatorio") @JsonAlias("no_pago") Boolean noPago,
 
-        @NotNull(message = "no_pago es obligatorio") @JsonAlias("no_pago") Boolean noPago,
+                /** Requerido si noPago = false. Acepta abonos parciales. */
+                @DecimalMin(value = "0.01", message = "monto_recibido debe ser mayor a 0") @JsonAlias("monto_recibido") BigDecimal montoRecibido,
 
-        /** Requerido si noPago = false. Acepta abonos parciales. */
-        @DecimalMin(value = "0.01", message = "monto_recibido debe ser mayor a 0") @JsonAlias("monto_recibido") BigDecimal montoRecibido,
+                /** Obligatorio si noPago = true. */
+                @JsonAlias("razon_no_pago") String razonNoPago,
 
-        /** Obligatorio si noPago = true. */
-        @JsonAlias("razon_no_pago") String razonNoPago,
-
-        /**
-         * Opcional: fecha a registrar (solo ADMINISTRADOR/SUPERVISOR para días
-         * históricos).
-         */
-        @JsonAlias("fecha_pago") LocalDate fechaPago) {
+                /**
+                 * Opcional: fecha a registrar (solo ADMINISTRADOR/SUPERVISOR para días
+                 * históricos).
+                 */
+                @JsonAlias("fecha_pago") LocalDate fechaPago) {
 }

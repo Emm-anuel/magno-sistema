@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { X } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
-import type { PagoCobroDTO, Modalidad } from '@/types'
+import type { PagoCobroDTO } from '@/types'
 
 interface Props {
   pago: PagoCobroDTO
@@ -15,7 +15,6 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
   const qc = useQueryClient()
 
   const [monto, setMonto] = useState(String(pago.montoRecibido))
-  const [modalidad, setModalidad] = useState<Modalidad>((pago.modalidad as Modalidad) ?? 'RUTA')
   const [razonNoPago, setRazonNoPago] = useState(pago.razonNoPago ?? '')
   const [motivo, setMotivo] = useState('')
 
@@ -29,7 +28,6 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
     mutationFn: () =>
       cobrosService.modificar(pago.id, {
         montoRecibido: Number(monto) || undefined,
-        modalidad,
         razonNoPago: razonNoPago || undefined,
         motivoModificacion: motivo.trim(),
       }),
@@ -82,25 +80,7 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
             </div>
           </div>
 
-          <div>
-            <label className="block text-[12px] font-medium text-[#495057] mb-2">Modalidad</label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['RUTA', 'CAJA'] as Modalidad[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setModalidad(m)}
-                  className={`py-2.5 rounded-lg border-2 text-[13px] font-medium transition-colors ${
-                    modalidad === m
-                      ? 'bg-[#dbeafe] border-[#2563eb] text-[#1e40af]'
-                      : 'border-[#dee2e6] text-[#6c757d] hover:border-[#ced4da]'
-                  }`}
-                >
-                  {m === 'RUTA' ? '🏍️ Ruta' : '🏢 Caja'}
-                </button>
-              ))}
-            </div>
-          </div>
+
 
           <div>
             <label className="block text-[12px] font-medium text-[#495057] mb-1">

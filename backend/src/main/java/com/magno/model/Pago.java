@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"credito", "cliente", "asesor", "registradoPor", "modificadoPor"})
+@ToString(exclude = { "credito", "cliente", "asesor", "registradoPor", "modificadoPor" })
 public class Pago {
 
     @Id
@@ -55,9 +55,6 @@ public class Pago {
     @Column(name = "es_completo", nullable = false)
     private Boolean esCompleto;
 
-    @Column(name = "modalidad", nullable = false, length = 10)
-    private String modalidad;  // CAJA | RUTA
-
     @Column(name = "razon_no_pago", columnDefinition = "TEXT")
     private String razonNoPago;
 
@@ -90,8 +87,10 @@ public class Pago {
         OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
-        if (esCompleto == null) esCompleto = true;
-        if (multaAplicada == null) multaAplicada = BigDecimal.ZERO;
+        if (esCompleto == null)
+            esCompleto = true;
+        if (multaAplicada == null)
+            multaAplicada = BigDecimal.ZERO;
     }
 
     @PreUpdate

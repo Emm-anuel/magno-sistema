@@ -23,12 +23,38 @@ function fmtMoney(v?: number | null): string {
   return `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`
 }
 
+function toLocalDateInput(v: string): string {
+  const value = v.trim()
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T12:00:00` : value
+}
+
+function todayLocalIso(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function fmtDate(v?: string | null): string {
   if (!v) return '—'
-  return new Date(v).toLocaleDateString('es-MX', {
+  return new Date(toLocalDateInput(v)).toLocaleDateString('es-MX', {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
+  })
+}
+
+function fmtDateTime(v?: string | null): string {
+  if (!v) return '—'
+  return new Date(v).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
   })
 }
 
@@ -77,11 +103,7 @@ export default function CreditoDetallePage() {
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
 
-  const hoy = useMemo(() => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
-  }, [])
+  const hoyIso = useMemo(() => todayLocalIso(), [])
 
   const numId = Number(id)
 
@@ -140,7 +162,8 @@ export default function CreditoDetallePage() {
   // ── Helpers de estado de calendario ──────────────────────────────
 
   function esVencido(fechaProgramada: string, estado: string) {
-    return estado === 'PENDIENTE' && new Date(fechaProgramada) < hoy
+    const fechaIso = fechaProgramada?.slice(0, 10)
+    return estado === 'PENDIENTE' && Boolean(fechaIso) && fechaIso < hoyIso
   }
 
   // ── Stats ─────────────────────────────────────────────────────────
@@ -149,7 +172,7 @@ export default function CreditoDetallePage() {
   const calendario = credito.calendario ?? []
   const evidenciaUrls = credito.evidenciaUrls ?? []
   const pagosVencidosVisuales = calendario.filter(
-    (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && new Date(p.fechaProgramada) < hoy,
+    (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && p.fechaProgramada.slice(0, 10) < hoyIso,
   ).length
   const pagosVencidosTotales = Math.max(stats.pagosVencidos ?? 0, pagosVencidosVisuales)
   const pagoPeriodicoCalendario = calendario.length > 0 ? calendario[0].montoEsperado : null
@@ -158,7 +181,7 @@ export default function CreditoDetallePage() {
     pagoPeriodicoCalendario != null &&
     Number.isFinite(credito.pagoPeriodico) &&
     Math.abs(Number(pagoPeriodicoCalendario) - Number(credito.pagoPeriodico)) > 0.009
-  const fechaPago = new Date().toISOString().slice(0, 10)
+  const fechaPago = hoyIso
   const pagoPendienteHoy = calendario.find(
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada?.slice(0, 10) === fechaPago,
   )
@@ -392,15 +415,15 @@ export default function CreditoDetallePage() {
           {tab === 'calendario' && (
             <div className="space-y-4">
               <div className="overflow-x-auto -mx-4 sm:-mx-6">
-                <table className="tabla min-w-full">
+                <table className="tabla min-w-full table-fixed">
                   <thead>
                     <tr>
-                      <th className="w-12 text-center">#</th>
-                      <th>Fecha</th>
-                      <th className="text-right">Monto esperado</th>
-                      <th className="text-right">Monto recibido</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
+                      <th className="w-12 !text-center px-2 py-3">#</th>
+                      <th className="w-44 !text-center px-2 py-3">Fecha</th>
+                      <th className="w-36 !text-center px-2 py-3 font-mono whitespace-nowrap">Monto esperado</th>
+                      <th className="w-36 !text-center px-2 py-3 font-mono whitespace-nowrap">Monto recibido</th>
+                      <th className="w-40 !text-center px-2 py-3">Estado</th>
+                      <th className="w-44 !text-center px-2 py-3">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -446,10 +469,10 @@ export default function CreditoDetallePage() {
 
                       return (
                         <tr key={pago.id} className={rowClass}>
-                          <td className="text-center font-mono text-sm">{pago.numeroPago}</td>
-                          <td className="text-sm">{fmtDate(pago.fechaProgramada)}</td>
-                          <td className="text-right font-mono text-sm">{fmtMoney(pago.montoEsperado)}</td>
-                          <td className="text-right font-mono text-sm">
+                          <td className="text-center font-mono text-sm px-2 py-3">{pago.numeroPago}</td>
+                          <td className="text-sm text-center px-2 py-3 whitespace-nowrap">{fmtDate(pago.fechaProgramada)}</td>
+                          <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">{fmtMoney(pago.montoEsperado)}</td>
+                          <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">
                             {pagoRegistrado
                               ? pagoRegistrado.razonNoPago
                                 ? <span className="text-[#dc2626] italic text-xs">No pagó</span>
@@ -457,13 +480,13 @@ export default function CreditoDetallePage() {
                               : <span className="text-gray-400">—</span>
                             }
                           </td>
-                          <td>
+                          <td className="text-center px-2 py-3 whitespace-nowrap">
                             <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${badgeCls}`}>
                               {badgeLabel}
                             </span>
                           </td>
-                          <td>
-                            <div className="flex gap-1.5">
+                          <td className="text-center px-2 py-3 whitespace-nowrap">
+                            <div className="flex justify-center gap-1.5">
                               {tieneRegistro && pagoRegistrado && (
                                 <button
                                   type="button"
@@ -502,13 +525,13 @@ export default function CreditoDetallePage() {
                   (p) =>
                     p.estado === 'PENDIENTE' &&
                     p.fechaProgramada != null &&
-                    new Date(p.fechaProgramada) < hoy
+                    p.fechaProgramada.slice(0, 10) < hoyIso
                 ).length
                 const pendientesCount = calendario.filter(
                   (p) =>
                     p.estado === 'PENDIENTE' &&
                     p.fechaProgramada != null &&
-                    new Date(p.fechaProgramada) >= hoy
+                    p.fechaProgramada.slice(0, 10) >= hoyIso
                 ).length
                 const totalCobradoCalendario = pagosHistorial.reduce(
                   (sum, p) => sum + Number(p.montoRecibido ?? 0),
@@ -696,10 +719,9 @@ export default function CreditoDetallePage() {
                 ['Fecha',             fmtDate(pagoModal.fechaPago)],
                 ['Monto esperado',    fmtMoney(pagoModal.montoEsperado)],
                 ['Monto recibido',    pagoModal.razonNoPago ? 'No pagó' : fmtMoney(pagoModal.montoRecibido)],
-                ['Modalidad',         pagoModal.modalidad],
                 ['Razón no pago',     pagoModal.razonNoPago ?? '—'],
                 ['Registrado por',    pagoModal.registradoPor?.nombreCompleto ?? '—'],
-                ['Fecha de registro', fmtDate(pagoModal.createdAt)],
+                ['Fecha de registro', fmtDateTime(pagoModal.createdAt)],
               ] as [string, string][]).map(([label, value]) => (
                 <div key={label} className="flex justify-between text-[13px]">
                   <span className="text-[#6c757d]">{label}</span>

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { X, AlertTriangle, CheckCircle } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
-import type { Modalidad } from '@/types'
+
 
 const RAZONES = [
   'No estaba en el negocio',
@@ -72,7 +72,6 @@ export default function ModalRegistrarPago({
   // ── Estado del form ───────────────────────────────────────────────
   const [noPago, setNoPago] = useState(false)
   const [monto, setMonto] = useState(String(pagoPeriodico))
-  const [modalidad, setModalidad] = useState<Modalidad>('RUTA')
   const [razon, setRazon] = useState('')
   const [razonCustom, setRazonCustom] = useState('')
 
@@ -108,7 +107,6 @@ export default function ModalRegistrarPago({
       const razonFinal = razon === 'Otro' ? razonCustom.trim() : razon
       return cobrosService.registrar({
         creditoId,
-        modalidad,
         noPago,
         montoRecibido: noPago ? undefined : Number(monto),
         razonNoPago: noPago ? razonFinal : undefined,
@@ -285,28 +283,7 @@ export default function ModalRegistrarPago({
             </div>
           )}
 
-          {/* ── Modalidad ── */}
-          <div>
-            <label className="block text-[12px] font-medium text-[#495057] mb-2">
-              Modalidad
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              {(['RUTA', 'CAJA'] as Modalidad[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setModalidad(m)}
-                  className={`py-2.5 rounded-lg border-2 text-[13px] font-medium transition-colors ${
-                    modalidad === m
-                      ? 'bg-[#dbeafe] border-[#2563eb] text-[#1e40af]'
-                      : 'border-[#dee2e6] text-[#6c757d] hover:border-[#ced4da]'
-                  }`}
-                >
-                  {m === 'RUTA' ? '🏍️ Ruta' : '🏢 Caja'}
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
 
         {/* ── Footer ── */}

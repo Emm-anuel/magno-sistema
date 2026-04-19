@@ -117,7 +117,7 @@ La página de detalle del cliente incluye un tab **"Documentos"** para gestionar
 
 ### Pestaña "Ruta del Día"
 
-**Métricas en encabezado:** Caja | Ruta | Desembolso | Multas | No Pagaron
+**Métricas en encabezado:** Multas | No Pagaron
 
 **Tabla de control de pagos:**
 
@@ -132,7 +132,6 @@ La página de detalle del cliente incluye un tab **"Documentos"** para gestionar
 - Razón de falta de pago \* (obligatorio si no pagó)
 - Al marcar "No pagó" → multa aplicada automáticamente
 
-**Modalidades:** CAJA (pago en sucursal) | RUTA (cobrador va al cliente)
 **Días INHÁBIL:** celda bloqueada, sin multa.
 
 **Sub-encabezado de cuadre:** DIARIO 1-14 | DIARIO 15-20 | SEMANAL | TOTAL | MULTAS | Firma Cajero

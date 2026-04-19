@@ -9,22 +9,21 @@ import java.util.List;
  * Incluye todos sus clientes con crédito activo y el resumen del día.
  */
 public record RutaDiaDTO(
-        AsesorResumenDTO asesor,
-        LocalDate fecha,
-        List<ClienteRutaDTO> clientes,
-        Resumen resumen
-) {
+                AsesorResumenDTO asesor,
+                LocalDate fecha,
+                List<ClienteRutaDTO> clientes,
+                Resumen resumen) {
 
-    public record AsesorResumenDTO(Long id, String nombreCompleto) {}
+        public record AsesorResumenDTO(Long id, String nombreCompleto) {
+        }
 
-    public record Resumen(
-            int totalClientes,
-            int cobrados,         // PAGADO + PARCIAL
-            int noPagaron,        // NO_PAGADO
-            int sinRegistrar,     // SIN_REGISTRO
-            int inhabiles,        // INHABIL
-            BigDecimal totalCaja, // suma montoRecibido de modalidad=CAJA en el día
-            BigDecimal totalRuta, // suma montoRecibido de modalidad=RUTA en el día
-            BigDecimal totalMultasCobradas  // multas cobradas en el día
-    ) {}
+        public record Resumen(
+                        int totalClientes,
+                        int cobrados, // PAGADO + PARCIAL
+                        int noPagaron, // NO_PAGADO
+                        int sinRegistrar, // SIN_REGISTRO
+                        int inhabiles, // INHABIL
+                        BigDecimal totalMultasCobradas // multas cobradas en el día
+        ) {
+        }
 }

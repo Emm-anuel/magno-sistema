@@ -397,10 +397,6 @@ public class DataSeeder {
                             .findByCreditoIdOrderByNumeroPago(credito.getId());
 
                     // Crear registros de pago para los pagos #2–#10 (PAGADO en calendario)
-                    String[] modalidades = { "CAJA", "RUTA", "CAJA", "RUTA", "CAJA",
-                            "RUTA", "CAJA", "RUTA", "CAJA" };
-                    int modalIdx = 0;
-
                     for (CalendarioPago cp : calendario) {
                         if (cp.getNumeroPago() < 2 || cp.getNumeroPago() > 10)
                             continue;
@@ -415,13 +411,11 @@ public class DataSeeder {
                                 .montoRecibido(credito.getPagoPeriodico())
                                 .montoEsperado(cp.getMontoEsperado())
                                 .esCompleto(true)
-                                .modalidad(modalidades[modalIdx % modalidades.length])
                                 .multaAplicada(BigDecimal.ZERO)
                                 .registradoPor(asesor)
                                 .build();
 
                         pagoRepo.save(pago);
-                        modalIdx++;
                     }
 
                     log.info("9 pagos de prueba creados para crédito id=" + credito.getId());

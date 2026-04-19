@@ -94,7 +94,6 @@ export default function TabHistorialCobros() {
   const [fechaDesde, setFechaDesde] = useState(todayStr())
   const [fechaHasta, setFechaHasta] = useState(todayStr())
   const [estadoFiltro, setEstadoFiltro] = useState<'' | 'PAGADO' | 'PARCIAL' | 'NO_PAGADO'>('')
-  const [modalidadFiltro, setModalidadFiltro] = useState<'' | 'CAJA' | 'RUTA'>('')
   const [asesorFiltro, setAsesorFiltro] = useState<number | undefined>(undefined)
   const [buscar, setBuscar] = useState('')
   const [page, setPage] = useState(0)
@@ -141,10 +140,9 @@ export default function TabHistorialCobros() {
         if (!p.cliente.nombreCompleto.toLowerCase().includes(q)) return false
       }
       if (estadoFiltro && estadoFromPago(p) !== estadoFiltro) return false
-      if (modalidadFiltro && p.modalidad !== modalidadFiltro) return false
       return true
     })
-  }, [pagos, buscar, estadoFiltro, modalidadFiltro])
+  }, [pagos, buscar, estadoFiltro])
 
   const totalCobrado = filtrados.reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
   const totalMultas  = filtrados.reduce((sum, p) => sum + Number(p.multaAplicada ?? 0), 0)
@@ -215,16 +213,6 @@ export default function TabHistorialCobros() {
             <option value="NO_PAGADO">No pagó</option>
           </select>
 
-          <select
-            className="input text-[13px] py-[5px] w-auto"
-            value={modalidadFiltro}
-            onChange={(e) => { setModalidadFiltro(e.target.value as '' | 'CAJA' | 'RUTA'); setPage(0) }}
-          >
-            <option value="">Todas las modalidades</option>
-            <option value="CAJA">Caja</option>
-            <option value="RUTA">Ruta</option>
-          </select>
-
           {esAdminSupervisor && (
             <select
               className="input text-[13px] py-[5px] w-auto"
@@ -290,7 +278,6 @@ export default function TabHistorialCobros() {
                     }`}>
                       {estado === 'NO_PAGADO' ? 'No pagó' : estado === 'PAGADO' ? 'Pagado' : 'Parcial'}
                     </span>
-                    <span className="badge badge-azul text-[10px]">{p.modalidad}</span>
                   </div>
                   <p className="text-[13px] font-semibold mt-1 text-[#212529]">
                     {estado === 'NO_PAGADO' ? '—' : fmtMoney(p.montoRecibido)}
@@ -352,7 +339,6 @@ export default function TabHistorialCobros() {
                   <th className="text-right">Esperado</th>
                   <th className="text-right">Recibido</th>
                   <th className="text-right">Diferencia</th>
-                  <th>Modalidad</th>
                   <th>Estado</th>
                   <th>Fecha cobro</th>
                   <th>Registrado</th>
@@ -379,11 +365,6 @@ export default function TabHistorialCobros() {
                       </td>
                       <td className={`text-right font-semibold ${difNeg ? 'text-[#dc2626]' : 'text-[#6c757d]'}`}>
                         {estado === 'NO_PAGADO' ? '—' : (difNeg ? '-' : '') + fmtMoney(Math.abs(diferencia))}
-                      </td>
-                      <td>
-                        <span className={`badge ${p.modalidad === 'CAJA' ? 'badge-azul' : 'badge-gris'} text-[10px]`}>
-                          {p.modalidad}
-                        </span>
                       </td>
                       <td>
                         <span className={`badge ${

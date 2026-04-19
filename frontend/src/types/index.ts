@@ -20,7 +20,6 @@ export type EstadoCredito =
   | 'CANCELADO'
 export type EstadoPago    = 'PENDIENTE' | 'PAGADO' | 'NO_PAGADO' | 'PARCIAL' | 'ADELANTADO'
 export type TipoPago      = 'DIARIO' | 'SEMANAL'
-export type Modalidad     = 'CAJA' | 'RUTA'
 export type TipoMulta     = 'NO_PAGO' | 'INCOMPLETO'
 export type TipoColocacion= 'NUEVO' | 'RENOVACION'
 export type CategoriaGasto= 'GASOLINA' | 'MOTOS' | 'RECARGAS' | 'SOLICITUD_DUENO' | 'VARIOS'
@@ -368,7 +367,6 @@ export interface Pago {
   es_completo: boolean
   razon_no_pago?: string
   multa_aplicada: number
-  modalidad: Modalidad
 }
 
 export interface Multa {
@@ -461,15 +459,16 @@ export interface RutaDia {
     noPagaron: number
     sinRegistrar: number
     inhabiles: number
-    totalCaja: number
-    totalRuta: number
     totalMultasCobradas: number
+    /** Compatibilidad con documentación/UI heredada. */
+    totalCaja?: number
+    /** Compatibilidad con documentación/UI heredada; representa el total cobrado en ruta. */
+    totalRuta?: number
   }
 }
 
 export interface PagoRegistrarRequest {
   creditoId: number
-  modalidad: Modalidad
   noPago: boolean
   montoRecibido?: number
   razonNoPago?: string
@@ -478,7 +477,6 @@ export interface PagoRegistrarRequest {
 
 export interface PagoModificarRequest {
   montoRecibido?: number
-  modalidad?: Modalidad
   razonNoPago?: string
   motivoModificacion: string
 }
@@ -493,7 +491,6 @@ export interface PagoCobroDTO {
   montoRecibido: number
   montoEsperado: number
   esCompleto: boolean
-  modalidad: Modalidad
   razonNoPago: string | null
   multaAplicada: number
   registradoPor: { id: number; nombreCompleto: string } | null

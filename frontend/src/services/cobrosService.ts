@@ -72,7 +72,6 @@ function normalizePago(raw: any): PagoCobroDTO {
     montoRecibido: raw.montoRecibido ?? raw.monto_recibido,
     montoEsperado: raw.montoEsperado ?? raw.monto_esperado,
     esCompleto: raw.esCompleto ?? raw.es_completo,
-    modalidad: raw.modalidad,
     razonNoPago: raw.razonNoPago ?? raw.razon_no_pago ?? null,
     multaAplicada: raw.multaAplicada ?? raw.multa_aplicada ?? 0,
     registradoPor: registradoPor

@@ -111,6 +111,12 @@ function fmtDateTime(iso: string | null | undefined) {
   })
 }
 
+function parseCoord(v: unknown): number | null {
+  if (v == null) return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
+
 interface CreditoActivoCardProps {
   credito: CreditoResumen
   onNavigate: (path: string) => void
@@ -281,6 +287,9 @@ export default function ClienteDetallePage() {
   }
 
   const puedeEditar = !esAsesor || cliente.estado_cliente === 'SIN_CREDITO'
+  const negocioLat = parseCoord(cliente.negocio_lat)
+  const negocioLng = parseCoord(cliente.negocio_lng)
+  const tieneUbicacionNegocio = negocioLat != null && negocioLng != null && (negocioLat !== 0 || negocioLng !== 0)
 
   return (
     <div className="space-y-4">
@@ -477,14 +486,14 @@ export default function ClienteDetallePage() {
                   <Row label="Ingresos semanales" value={fmtMoney(cliente.ingresos_semanales)} />
                   <Row label="Gastos semanales" value={fmtMoney(cliente.gastos_semanales)} />
                 </div>
-                {cliente.negocio_lat && cliente.negocio_lng && (
+                {tieneUbicacionNegocio && (
                   <div className="mt-3">
                     <p className="text-[11px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
                       Ubicación del negocio
                     </p>
                     <BusinessMap
-                      lat={Number(cliente.negocio_lat)}
-                      lng={Number(cliente.negocio_lng)}
+                      lat={negocioLat}
+                      lng={negocioLng}
                       onChange={() => {}}
                       readOnly
                     />

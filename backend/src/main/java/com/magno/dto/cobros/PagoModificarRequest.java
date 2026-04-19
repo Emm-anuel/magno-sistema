@@ -12,11 +12,9 @@ import java.math.BigDecimal;
  */
 public record PagoModificarRequest(
 
-                @JsonAlias("monto_recibido") BigDecimal montoRecibido,
+        @JsonAlias("monto_recibido") BigDecimal montoRecibido,
 
-                @Pattern(regexp = "CAJA|RUTA", message = "modalidad debe ser CAJA o RUTA") String modalidad,
+        @JsonAlias("razon_no_pago") String razonNoPago,
 
-                @JsonAlias("razon_no_pago") String razonNoPago,
-
-                @NotBlank(message = "motivo_modificacion es obligatorio para la bitácora") @JsonAlias("motivo_modificacion") String motivoModificacion) {
+        @NotBlank(message = "motivo_modificacion es obligatorio para la bitácora") @JsonAlias("motivo_modificacion") String motivoModificacion) {
 }

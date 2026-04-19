@@ -28,6 +28,26 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/tiles/osm': {
+        target: 'https://tile.openstreetmap.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tiles\/osm/, ''),
+      },
+      '/tiles/osmde': {
+        target: 'https://tile.openstreetmap.de',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tiles\/osmde/, ''),
+      },
+      '/tiles/carto': {
+        target: 'https://a.basemaps.cartocdn.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tiles\/carto/, '/light_all'),
+      },
+      '/geocode/search': {
+        target: 'https://nominatim.openstreetmap.org',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/geocode\/search/, '/search'),
+      },
     },
   },
   build: {

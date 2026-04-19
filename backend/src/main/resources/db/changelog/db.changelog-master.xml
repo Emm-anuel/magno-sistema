@@ -69,4 +69,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V9-eliminar-modalidad-pagos" author="magno">
+        <sqlFile
+            path="db/changelog/V9__eliminar_modalidad_pagos.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
