@@ -232,7 +232,14 @@ public class ClienteController {
 
     // ── Documentos del cliente ────────────────────────────────────────
 
-    record AgregarDocumentoRequest(String tipo, String url, String nombre) {}
+    private static final java.util.Set<String> TIPOS_DOCUMENTO_VALIDOS =
+        java.util.Set.of("INE_FRENTE", "INE_REVERSO", "COMPROBANTE_DOMICILIO", "OTRO");
+
+    record AgregarDocumentoRequest(
+        @jakarta.validation.constraints.NotBlank String tipo,
+        @jakarta.validation.constraints.NotBlank String url,
+        String nombre
+    ) {}
 
     @GetMapping("/{id}/documentos")
     @PreAuthorize("isAuthenticated()")
@@ -257,15 +264,29 @@ public class ClienteController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ClienteDocumentoDTO> agregarDocumento(
             @PathVariable Long id,
-            @RequestBody AgregarDocumentoRequest req,
+            @Valid @RequestBody AgregarDocumentoRequest req,
             Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
+        ClienteDetalleDTO dto = clienteService.obtenerDetalle(id);
+        switch (principal.rol()) {
+            case "ASESOR_COBRADOR" -> {
+                if (dto.asesor() == null || !dto.asesor().id().equals(principal.userId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            case "SUPERVISOR_CAMPO" -> {
+                if (!dto.sucursal().id().equals(principal.sucursalId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+        if (!TIPOS_DOCUMENTO_VALIDOS.contains(req.tipo())) {
+            return ResponseEntity.badRequest().build();
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(clienteService.agregarDocumento(id, req.tipo(), req.url(), req.nombre(), principal.userId()));
     }
 
     @DeleteMapping("/{clienteId}/documentos/{docId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
     public ResponseEntity<Void> eliminarDocumento(
             @PathVariable Long clienteId,
             @PathVariable Long docId) {

@@ -243,8 +243,8 @@ public class ClienteService {
         if (req.negocioTipoLocal() != null)   c.setNegocioTipoLocal(req.negocioTipoLocal());
         if (req.negocioMontoRenta() != null)  c.setNegocioMontoRenta(req.negocioMontoRenta());
         if (req.negocioHorarios() != null)    c.setNegocioHorarios(req.negocioHorarios());
-        c.setNegocioLat(req.negocioLat());
-        c.setNegocioLng(req.negocioLng());
+        if (req.negocioLat() != null) c.setNegocioLat(req.negocioLat());
+        if (req.negocioLng() != null) c.setNegocioLng(req.negocioLng());
 
         if (req.ingresosSemanales() != null)  c.setIngresosSemanales(req.ingresosSemanales());
         if (req.gastosSemanales() != null)    c.setGastosSemanales(req.gastosSemanales());
