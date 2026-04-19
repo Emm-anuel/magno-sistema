@@ -28,18 +28,18 @@
 
 **Módulos accesibles por rol (actualizado):**
 
-| Módulo            | Gerente General | Gerente de Sucursal |   Supervisor    |     Asesor      |
-| ----------------- | :-------------: | :-----------------: | :-------------: | :-------------: |
-| Dashboard         |       ✅        |         ✅          |       ✅        |       ✅        |
-| Cobros            |       ✅        |         ✅          |       ✅        |       ✅        |
-| Créditos Nuevos   |       ✅        |         ✅          |       ✅        |       ✅        |
-| Renovaciones      |       ✅        |         ✅          |       ✅        |       ✅        |
-| Clientes          |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |
-| Historial de Pago |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |
-| Caja              |       ✅        |         ✅          |       ❌        |       ❌        |
-| Gastos            |       ✅        |         ✅          |       ❌        |       ❌        |
-| Reportes          |       ✅        |         ✅          |       ❌        |       ❌        |
-| Sucursales        |       ✅        |         ❌          |       ❌        |       ❌        |
-| Usuarios          |       ✅        |         ❌          |       ❌        |       ❌        |
-| Bitácora          |       ✅        |         ✅          |       ❌        |       ❌        |
-| Administración    |       ✅        |         ❌          |       ❌        |       ❌        |
+| Módulo            |  Gerente General  | Gerente de Sucursal |          Supervisor          |     Asesor      |
+| ----------------- | :---------------: | :-----------------: | :--------------------------: | :-------------: |
+| Dashboard         |        ✅         |         ✅          |              ✅              |       ✅        |
+| Cobros            |        ❌         |         ❌          |              ✅              |       ✅        |
+| Créditos Nuevos   | ✅ (solo edicion) |  ✅ (solo edicion)  |              ✅              |       ✅        |
+| Renovaciones      |        ✅         |         ✅          |              ✅              |       ✅        |
+| Clientes          |        ✅         |         ✅          | ✅ (solo los de sus agentes) | ✅ (solo suyos) |
+| Historial de Pago |  ✅ (puede modificar pagos)  |  ✅ (puede modificar pagos)  | ✅ solo lectura (solo los de sus agentes) | ✅ solo lectura (solo suyos) |
+| Caja              |        ✅         |         ✅          |              ❌              |       ❌        |
+| Gastos            |        ✅         |         ✅          |              ❌              |       ❌        |
+| Reportes          |        ✅         |         ✅          |              ❌              |       ❌        |
+| Sucursales        |        ✅         |         ❌          |              ❌              |       ❌        |
+| Usuarios          |        ✅         |         ❌          |              ❌              |       ❌        |
+| Bitácora          |        ✅         |         ✅          |              ❌              |       ❌        |
+| Administración    |        ✅         |         ❌          |              ❌              |       ❌        |
