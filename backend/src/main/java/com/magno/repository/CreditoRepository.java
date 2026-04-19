@@ -48,6 +48,22 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
          * Suma de multas pendientes (no cobradas) para un crédito.
          * Devuelve 0 si no hay multas.
          */
+        @Query("SELECT c FROM Credito c " +
+                        "WHERE c.deletedAt IS NULL " +
+                        "AND c.estado = :estado " +
+                        "AND c.fechaDesembolso IS NOT NULL " +
+                        "AND c.fechaDesembolso >= :inicioTs " +
+                        "AND c.fechaDesembolso < :finTs " +
+                        "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+                        "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
+                        "ORDER BY c.fechaDesembolso ASC")
+        List<Credito> findColocacionesNuevos(
+                        @Param("estado") EstadoCredito estado,
+                        @Param("inicioTs") java.time.OffsetDateTime inicioTs,
+                        @Param("finTs") java.time.OffsetDateTime finTs,
+                        @Param("asesorId") Long asesorId,
+                        @Param("sucursalId") Long sucursalId);
+
         @Query(value = "SELECT COALESCE(SUM(m.monto), 0) " +
                         "FROM multas m " +
                         "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)

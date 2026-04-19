@@ -15,4 +15,6 @@ public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, 
     List<CalendarioPago> findByCreditoIdAndEstado(Long creditoId, EstadoCalendarioPago estado);
 
     long countByCreditoIdAndEstadoIn(Long creditoId, List<EstadoCalendarioPago> estados);
+
+    List<CalendarioPago> findByCreditoIdAndEstadoIn(Long creditoId, List<EstadoCalendarioPago> estados);
 }
