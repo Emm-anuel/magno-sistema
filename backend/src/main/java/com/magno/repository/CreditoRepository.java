@@ -1,6 +1,7 @@
 package com.magno.repository;
 
 import com.magno.model.Credito;
+import com.magno.model.EstadoCalendarioPago;
 import com.magno.model.EstadoCredito;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -51,4 +52,17 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "FROM multas m " +
                         "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
         java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
+
+        @Query("SELECT c FROM Credito c WHERE c.estado = com.magno.model.EstadoCredito.ACTIVO " +
+               "AND c.deletedAt IS NULL " +
+               "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+               "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
+               "AND (SELECT COUNT(cp) FROM CalendarioPago cp WHERE cp.credito = c " +
+               "     AND cp.estado IN :realizados) >= " +
+               "    CASE WHEN c.plazoDias = 30 THEN 19L ELSE 16L END " +
+               "ORDER BY c.cliente.apellidoPaterno ASC, c.cliente.nombre ASC")
+        List<Credito> findListosParaRenovar(
+                @Param("asesorId") Long asesorId,
+                @Param("sucursalId") Long sucursalId,
+                @Param("realizados") List<EstadoCalendarioPago> realizados);
 }
