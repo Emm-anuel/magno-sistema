@@ -99,10 +99,11 @@ function fmtD(iso: string | null | undefined) {
 interface CreditoActivoCardProps {
   credito: CreditoResumen
   onNavigate: (path: string) => void
+  puedeRegistrarCobro: boolean
   onRegistrarPago?: () => void
 }
 
-function CreditoActivoCard({ credito, onNavigate, onRegistrarPago }: CreditoActivoCardProps) {
+function CreditoActivoCard({ credito, onNavigate, puedeRegistrarCobro, onRegistrarPago }: CreditoActivoCardProps) {
   const monto = safeNC(credito.montoAprobado ?? credito.montoCapital)
   const pagoPeriodico = safeNC(credito.pagoPeriodico)
   const totalPagos = safeNC(credito.totalPagos ?? credito.plazoDias)
@@ -156,16 +157,18 @@ function CreditoActivoCard({ credito, onNavigate, onRegistrarPago }: CreditoActi
         </div>
 
         <div className="flex gap-2 pt-1">
+          {puedeRegistrarCobro && (
+            <button
+              type="button"
+              className="btn flex-1 py-2 text-sm"
+              onClick={() => onRegistrarPago ? onRegistrarPago() : onNavigate('/cobros')}
+            >
+              Registrar Pago
+            </button>
+          )}
           <button
             type="button"
-            className="btn flex-1 py-2 text-sm"
-            onClick={() => onRegistrarPago ? onRegistrarPago() : onNavigate('/cobros')}
-          >
-            Registrar Pago
-          </button>
-          <button
-            type="button"
-            className="btn-primary flex-1 py-2 text-sm"
+            className={`btn-primary py-2 text-sm ${puedeRegistrarCobro ? 'flex-1' : 'w-full'}`}
             onClick={() => onNavigate(`/creditos/${credito.id}`)}
           >
             Ver crédito
@@ -193,6 +196,8 @@ export default function ClienteDetallePage() {
     usuario?.rol === 'SUPERVISOR_CAMPO'
   const puedeAsignarSucursal =
     usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const puedeRegistrarCobro =
+    usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
 
   const { data: cliente, isLoading, error } = useQuery({
     queryKey: ['cliente', usuario?.id, Number(id)],
@@ -320,7 +325,8 @@ export default function ClienteDetallePage() {
         <CreditoActivoCard
           credito={creditoActivo}
           onNavigate={navigate}
-          onRegistrarPago={() => setPagoModalOpen(true)}
+          puedeRegistrarCobro={puedeRegistrarCobro}
+          onRegistrarPago={puedeRegistrarCobro ? () => setPagoModalOpen(true) : undefined}
         />
       ) : creditoEnProceso ? (
         <div className="card border-l-4 border-l-amber-400 p-4 flex items-center justify-between flex-wrap gap-3">
@@ -651,6 +657,7 @@ export default function ClienteDetallePage() {
           creditoId={creditoActivo.id}
           pagoPeriodico={creditoActivo.pagoPeriodico}
           nombreCliente={cliente.nombre_completo}
+          fecha={new Date().toISOString().slice(0, 10)}
           onClose={() => setPagoModalOpen(false)}
           onSuccess={() => {
             setPagoModalOpen(false)

@@ -58,8 +58,8 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
        @Query("SELECT p FROM Pago p " +
                      "WHERE (:asesorId IS NULL OR p.asesor.id = :asesorId) " +
                      "AND (:clienteId IS NULL OR p.cliente.id = :clienteId) " +
-                     "AND (:fechaDesde IS NULL OR p.fechaPago >= :fechaDesde) " +
-                     "AND (:fechaHasta IS NULL OR p.fechaPago <= :fechaHasta) " +
+                     "AND p.fechaPago >= COALESCE(:fechaDesde, p.fechaPago) " +
+                     "AND p.fechaPago <= COALESCE(:fechaHasta, p.fechaPago) " +
                      "AND p.deletedAt IS NULL " +
                      "ORDER BY p.fechaPago DESC, p.id DESC")
        Page<Pago> findHistorial(@Param("asesorId") Long asesorId,

@@ -7,6 +7,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -30,6 +31,15 @@ public class GlobalExceptionHandler {
         return error(HttpStatus.FORBIDDEN, "No tienes permiso para realizar esta acción");
     }
 
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatus(ResponseStatusException e) {
+        HttpStatus status = HttpStatus.valueOf(e.getStatusCode().value());
+        String message = e.getReason() != null && !e.getReason().isBlank()
+                ? e.getReason()
+                : status.getReasonPhrase();
+        return error(status, message);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException e) {
         Map<String, String> errors = new LinkedHashMap<>();
@@ -39,15 +49,13 @@ public class GlobalExceptionHandler {
                 "status", HttpStatus.BAD_REQUEST.value(),
                 "message", "Validación fallida",
                 "errors", errors,
-                "timestamp", Instant.now().toString()
-        ));
+                "timestamp", Instant.now().toString()));
     }
 
     private ResponseEntity<Map<String, Object>> error(HttpStatus status, String message) {
         return ResponseEntity.status(status).body(Map.of(
                 "status", status.value(),
                 "message", message,
-                "timestamp", Instant.now().toString()
-        ));
+                "timestamp", Instant.now().toString()));
     }
 }

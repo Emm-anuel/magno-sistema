@@ -115,7 +115,7 @@ App disponible en `http://localhost:5173`. Las llamadas a `/api` se proxean al b
 Copiar `.env.example` a `.env` y completar todos los valores:
 
 ```bash
-cp .env.example .env
+cp .env.example .env    b12 dX
 ```
 
 Variables requeridas:

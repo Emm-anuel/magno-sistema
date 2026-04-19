@@ -3,6 +3,7 @@ package com.magno.controller;
 import com.magno.dto.cobros.*;
 import com.magno.security.JwtPrincipal;
 import com.magno.service.CobrosService;
+import com.magno.util.DateTimeUtils;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -14,7 +15,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -53,7 +53,7 @@ public class CobrosController {
             Authentication auth) {
 
         JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
-        LocalDate fechaEfectiva = fecha != null ? fecha : LocalDate.now();
+        LocalDate fechaEfectiva = fecha != null ? fecha : DateTimeUtils.hoyEnMagno();
 
         RutaDiaDTO ruta = cobrosService.getRutaDia(
                 asesorId,
@@ -71,11 +71,10 @@ public class CobrosController {
 
     /**
      * Registra un cobro (pagó o no pagó).
-     * Todos los roles autenticados pueden registrar cobros,
-     * pero solo de sus propios clientes (validado en el servicio).
+     * Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR pueden registrar cobros.
      */
     @PostMapping("/registrar")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
     public ResponseEntity<PagoDTO> registrar(
             @Valid @RequestBody PagoRegistrarRequest req,
             Authentication auth) {
@@ -113,8 +112,9 @@ public class CobrosController {
      * Historial de cobros con filtros.
      *
      * <ul>
-     * <li>ASESOR_COBRADOR: forzado a sus propios pagos</li>
-     * <li>SUPERVISOR_CAMPO y superiores: pueden filtrar por asesor</li>
+     * <li>ADMINISTRADOR y SUPERVISOR: acceso completo (con filtro opcional por
+     * asesor)</li>
+     * <li>SUPERVISOR_CAMPO y ASESOR_COBRADOR: forzados a sus propios pagos</li>
      * </ul>
      */
     @GetMapping("/historial")

@@ -34,6 +34,7 @@ function normalizeCreditoResumen(raw: any): CreditoResumen {
       id: sucursal.id,
       nombre: sucursal.nombre,
     },
+    montoSolicitado: raw.montoSolicitado ?? raw.monto_solicitado ?? raw.montoCapital ?? raw.monto_capital,
     montoCapital: raw.montoCapital ?? raw.monto_capital,
     montoAprobado: raw.montoAprobado ?? raw.monto_aprobado,
     pagoPeriodico: raw.pagoPeriodico ?? raw.pago_periodico,
@@ -93,6 +94,7 @@ function normalizeCreditoDetalle(raw: any): CreditoDetalle {
       id: sucursal.id,
       nombre: sucursal.nombre,
     },
+    montoSolicitado: raw.montoSolicitado ?? raw.monto_solicitado ?? raw.montoCapital ?? raw.monto_capital,
     montoCapital: raw.montoCapital ?? raw.monto_capital,
     tasaInteres: raw.tasaInteres ?? raw.tasa_interes,
     cargoFinanciero: raw.cargoFinanciero ?? raw.cargo_financiero,
@@ -162,13 +164,13 @@ export const creditoService = {
     lugar?: string
   }) =>
     api.post<CreditoDetalle>('/creditos', {
-      cliente_id: data.clienteId,
-      asesor_id: data.asesorId,
-      sucursal_id: data.sucursalId,
-      monto_solicitado: data.montoSolicitado,
-      tipo_pago: data.tipoPago,
-      garantia_descripcion: data.garantiaDescripcion,
-      evidencia_urls: data.evidenciaUrls,
+      clienteId: data.clienteId,
+      asesorId: data.asesorId,
+      sucursalId: data.sucursalId,
+      montoSolicitado: data.montoSolicitado,
+      tipoPago: data.tipoPago,
+      garantiaDescripcion: data.garantiaDescripcion,
+      evidenciaUrls: data.evidenciaUrls,
       lugar: data.lugar,
     }).then((r) => normalizeCreditoDetalle(r.data)),
 
@@ -181,17 +183,17 @@ export const creditoService = {
     lugar?: string
   }) =>
     api.patch<CreditoDetalle>(`/creditos/${id}/solicitud`, {
-      asesor_id: data.asesorId,
-      monto_solicitado: data.montoSolicitado,
-      tipo_pago: data.tipoPago,
-      garantia_descripcion: data.garantiaDescripcion,
-      evidencia_urls: data.evidenciaUrls,
+      asesorId: data.asesorId,
+      montoSolicitado: data.montoSolicitado,
+      tipoPago: data.tipoPago,
+      garantiaDescripcion: data.garantiaDescripcion,
+      evidenciaUrls: data.evidenciaUrls,
       lugar: data.lugar,
     }).then((r) => normalizeCreditoDetalle(r.data)),
 
   aprobarCredito: (id: number, data: { montoAprobado: number; observaciones?: string }) =>
     api.patch<CreditoDetalle>(`/creditos/${id}/aprobar`, {
-      monto_aprobado: data.montoAprobado,
+      montoAprobado: data.montoAprobado,
       observaciones: data.observaciones,
     }).then((r) => normalizeCreditoDetalle(r.data)),
 

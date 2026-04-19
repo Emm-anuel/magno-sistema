@@ -7,6 +7,7 @@ import { creditoService } from '@/services/creditoService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import FileUpload from '@/components/FileUpload'
 import type { CreditoResumen, CreditoDetalle } from '@/types'
+import type { ApiError } from '@/types'
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -292,8 +293,8 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
       setShowModal(false)
       navigate(`/creditos/${result.id}`)
     },
-    onError: () => {
-      toast.error('Error al activar el crédito')
+    onError: (err: ApiError) => {
+      toast.error(err.message ?? 'Error al activar el crédito')
     },
   })
 

@@ -125,7 +125,12 @@ export const cobrosService = {
     api.get<any>('/cobros/ruta-dia', { params }).then((r) => normalizeRutaDia(r.data)),
 
   registrar: (req: PagoRegistrarRequest): Promise<PagoCobroDTO> =>
-    api.post<any>('/cobros/registrar', req).then((r) => normalizePago(r.data)),
+    api
+      .post<any>('/cobros/registrar', {
+        ...req,
+        fecha_pago: req.fechaPago,
+      })
+      .then((r) => normalizePago(r.data)),
 
   modificar: (pagoId: number, req: PagoModificarRequest): Promise<PagoCobroDTO> =>
     api.patch<any>(`/cobros/${pagoId}`, req).then((r) => normalizePago(r.data)),

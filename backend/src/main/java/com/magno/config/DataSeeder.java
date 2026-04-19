@@ -4,6 +4,7 @@ import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.service.CreditoCalculoService;
 import com.magno.service.CreditoCalculoService.ResumenCalculo;
+import com.magno.util.DateTimeUtils;
 import jakarta.annotation.PostConstruct;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.context.annotation.Profile;
@@ -283,6 +284,7 @@ public class DataSeeder {
                 .cliente(clientes.get(0))
                 .asesor(asesor)
                 .sucursal(sucursal)
+                .montoSolicitado(c1.capital())
                 .montoCapital(c1.capital())
                 .tasaInteres(c1.tasa())
                 .cargoFinanciero(c1.cargoFinanciero())
@@ -293,18 +295,18 @@ public class DataSeeder {
                 .pagoAdelantado(c1.pagoAdelantado())
                 .estado(EstadoCredito.APROBADO) // necesita APROBADO antes de activar
                 .montoAprobado(c1.capital())
-                .fechaAprobacion(java.time.OffsetDateTime.now().minusDays(31))
+                .fechaAprobacion(DateTimeUtils.ahoraEnMagno().minusDays(31))
                 .aprobadoPor(admin)
                 .createdBy(admin)
                 .build();
         creditoRepo.save(credito1);
 
         // Generar calendario desde hace 30 días y marcar primeros pagos
-        java.time.LocalDate fechaInicio1 = java.time.LocalDate.now().minusDays(30);
+        java.time.LocalDate fechaInicio1 = DateTimeUtils.hoyEnMagno().minusDays(30);
         calculoService.generarCalendario(credito1, fechaInicio1, c1.plazo(), c1, sucursal.getId());
 
         credito1.setFechaInicio(fechaInicio1);
-        credito1.setFechaDesembolso(java.time.OffsetDateTime.now().minusDays(30));
+        credito1.setFechaDesembolso(DateTimeUtils.ahoraEnMagno().minusDays(30));
         credito1.setEstado(EstadoCredito.ACTIVO);
         creditoRepo.save(credito1);
 
@@ -326,6 +328,7 @@ public class DataSeeder {
                 .cliente(clientes.get(1))
                 .asesor(asesor)
                 .sucursal(sucursal)
+                .montoSolicitado(c2.capital())
                 .montoCapital(c2.capital())
                 .tasaInteres(c2.tasa())
                 .cargoFinanciero(c2.cargoFinanciero())
@@ -347,6 +350,7 @@ public class DataSeeder {
                 .cliente(clientes.get(2))
                 .asesor(asesor)
                 .sucursal(sucursal)
+                .montoSolicitado(c3.capital())
                 .montoCapital(c3.capital())
                 .tasaInteres(c3.tasa())
                 .cargoFinanciero(c3.cargoFinanciero())
@@ -357,7 +361,7 @@ public class DataSeeder {
                 .pagoAdelantado(c3.pagoAdelantado())
                 .estado(EstadoCredito.APROBADO)
                 .montoAprobado(new BigDecimal("20000.00"))
-                .fechaAprobacion(java.time.OffsetDateTime.now().minusDays(1))
+                .fechaAprobacion(DateTimeUtils.ahoraEnMagno().minusDays(1))
                 .aprobadoPor(admin)
                 .observaciones("Aprobado por Gerente General. Cliente con historial limpio.")
                 .createdBy(asesor)
@@ -379,11 +383,13 @@ public class DataSeeder {
 
         // Buscar el crédito ACTIVO de $2,000 (cliente Rosa Garcés)
         List<Cliente> clientes = clienteRepo.findAll();
-        if (clientes.isEmpty()) return;
+        if (clientes.isEmpty())
+            return;
 
         Usuario asesor = usuarioRepo.findByEmail("asesor1@magno.com")
                 .orElse(null);
-        if (asesor == null) return;
+        if (asesor == null)
+            return;
 
         creditoRepo.findByClienteIdAndEstado(clientes.get(0).getId(), EstadoCredito.ACTIVO)
                 .ifPresent(credito -> {
@@ -391,12 +397,13 @@ public class DataSeeder {
                             .findByCreditoIdOrderByNumeroPago(credito.getId());
 
                     // Crear registros de pago para los pagos #2–#10 (PAGADO en calendario)
-                    String[] modalidades = {"CAJA", "RUTA", "CAJA", "RUTA", "CAJA",
-                                            "RUTA", "CAJA", "RUTA", "CAJA"};
+                    String[] modalidades = { "CAJA", "RUTA", "CAJA", "RUTA", "CAJA",
+                            "RUTA", "CAJA", "RUTA", "CAJA" };
                     int modalIdx = 0;
 
                     for (CalendarioPago cp : calendario) {
-                        if (cp.getNumeroPago() < 2 || cp.getNumeroPago() > 10) continue;
+                        if (cp.getNumeroPago() < 2 || cp.getNumeroPago() > 10)
+                            continue;
 
                         Pago pago = Pago.builder()
                                 .credito(credito)
@@ -425,7 +432,7 @@ public class DataSeeder {
                             .credito(credito)
                             .tipo("NO_PAGO")
                             .monto(new BigDecimal("50.00"))
-                            .fecha(LocalDate.now().minusDays(2))
+                            .fecha(DateTimeUtils.hoyEnMagno().minusDays(2))
                             .cobrada(false)
                             .build();
                     multaRepo.save(multaPrueba);

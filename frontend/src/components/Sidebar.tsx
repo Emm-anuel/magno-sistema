@@ -30,7 +30,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Operación',
     items: [
-      { label: 'Cobros',          to: '/cobros',          icon: Wallet,     roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
+      { label: 'Cobros',          to: '/cobros',          icon: Wallet,     roles: ['SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
       { label: 'Créditos Nuevos', to: '/creditos-nuevos', icon: CreditCard, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
       { label: 'Renovaciones',    to: '/renovaciones',    icon: RefreshCw,  roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
     ],
@@ -67,10 +67,12 @@ interface SidebarProps {
 }
 
 function getInitials(name: string): string {
+  if (!name?.trim()) return 'U'
+
   return name
     .split(' ')
     .slice(0, 2)
-    .map((w) => w[0])
+    .map((w) => w?.[0] ?? '')
     .join('')
     .toUpperCase()
 }
@@ -78,6 +80,8 @@ function getInitials(name: string): string {
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const usuario = useAuthStore((s) => s.usuario)
   const rol = usuario?.rol
+  const nombreCompleto = usuario?.nombre_completo ?? (usuario as any)?.nombreCompleto ?? ''
+  const sucursalNombre = usuario?.sucursal?.nombre ?? ''
 
   return (
     <nav
@@ -151,14 +155,14 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {usuario && (
         <div className="flex items-center gap-2.5 px-3.5 py-3 border-t border-white/10 shrink-0">
           <div className="w-[30px] h-[30px] rounded-full bg-[#2d6a4f] flex items-center justify-center text-[12px] font-semibold text-white shrink-0">
-            {getInitials(usuario.nombre_completo)}
+            {getInitials(nombreCompleto)}
           </div>
           <div className="min-w-0">
             <p className="text-white text-[12px] font-medium truncate">
-              {usuario.nombre_completo.split(' ').slice(0, 2).join(' ')}
+              {nombreCompleto.split(' ').filter(Boolean).slice(0, 2).join(' ') || 'Usuario'}
             </p>
             <p className="text-white/50 text-[10px] truncate">
-              {ROL_LABELS[usuario.rol]} · {usuario.sucursal.nombre}
+              {ROL_LABELS[usuario.rol]}{sucursalNombre ? ` · ${sucursalNombre}` : ''}
             </p>
           </div>
         </div>

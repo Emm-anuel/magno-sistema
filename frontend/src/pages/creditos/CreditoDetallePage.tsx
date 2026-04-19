@@ -10,6 +10,7 @@ import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import FileUpload from '@/components/FileUpload'
 import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
+import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
 import type { PagoCobroDTO } from '@/types'
 
@@ -74,6 +75,7 @@ export default function CreditoDetallePage() {
   const [cambiandoVideo, setCambiandoVideo] = useState(false)
   const [pagoModal, setPagoModal] = useState<PagoCobroDTO | null>(null)
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
+  const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
 
   const hoy = useMemo(() => {
     const d = new Date()
@@ -133,6 +135,7 @@ export default function CreditoDetallePage() {
 
   const rol = usuario?.rol
   const esAdminSupervisor = rol === 'ADMINISTRADOR' || rol === 'SUPERVISOR'
+  const puedeRegistrarCobro = rol === 'SUPERVISOR_CAMPO' || rol === 'ASESOR_COBRADOR'
 
   // ── Helpers de estado de calendario ──────────────────────────────
 
@@ -149,6 +152,18 @@ export default function CreditoDetallePage() {
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && new Date(p.fechaProgramada) < hoy,
   ).length
   const pagosVencidosTotales = Math.max(stats.pagosVencidos ?? 0, pagosVencidosVisuales)
+  const pagoPeriodicoCalendario = calendario.length > 0 ? calendario[0].montoEsperado : null
+  const pagoPeriodicoVisual = pagoPeriodicoCalendario ?? credito.pagoPeriodico
+  const hayDiferenciaPagoHistorico =
+    pagoPeriodicoCalendario != null &&
+    Number.isFinite(credito.pagoPeriodico) &&
+    Math.abs(Number(pagoPeriodicoCalendario) - Number(credito.pagoPeriodico)) > 0.009
+  const fechaPago = new Date().toISOString().slice(0, 10)
+  const pagoPendienteHoy = calendario.find(
+    (p) => p.estado === 'PENDIENTE' && p.fechaProgramada?.slice(0, 10) === fechaPago,
+  )
+  const siguientePendiente = calendario.find((p) => p.estado === 'PENDIENTE')
+  const numeroPagoHoy = pagoPendienteHoy?.numeroPago ?? siguientePendiente?.numeroPago ?? null
   const totalAPagarCredito =
     credito.totalAPagar ??
     ((credito.montoCapital ?? 0) + (credito.cargoFinanciero ?? 0))
@@ -203,10 +218,10 @@ export default function CreditoDetallePage() {
               Desembolsar
             </button>
           )}
-          {credito.estado === 'ACTIVO' && (
+          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && (
             <button
               className="btn-primary btn btn-sm"
-              onClick={() => navigate('/cobros')}
+              onClick={() => setRegistrarPagoOpen(true)}
             >
               Registrar Pago
             </button>
@@ -217,12 +232,12 @@ export default function CreditoDetallePage() {
       {/* Métricas */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="metric-card">
-          <span className="metric-label">Monto aprobado</span>
-          <span className="metric-val">{fmtMoney(credito.montoAprobado ?? credito.montoCapital)}</span>
+          <span className="metric-label">{credito.montoAprobado != null ? 'Monto aprobado' : 'Monto solicitado'}</span>
+          <span className="metric-val">{fmtMoney(credito.montoAprobado ?? credito.montoSolicitado)}</span>
         </div>
         <div className="metric-card">
           <span className="metric-label">Pago diario</span>
-          <span className="metric-val">{fmtMoney(credito.pagoPeriodico)}</span>
+          <span className="metric-val">{fmtMoney(pagoPeriodicoVisual)}</span>
         </div>
         <div className="metric-card">
           <span className="metric-label">Progreso</span>
@@ -267,6 +282,11 @@ export default function CreditoDetallePage() {
           {/* ── Tab 1: Información ─────────────────────────────────── */}
           {tab === 'informacion' && (
             <div className="space-y-6">
+              {hayDiferenciaPagoHistorico && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  El calendario histórico usa un pago por cuota de {fmtMoney(pagoPeriodicoCalendario)} y difiere del cálculo actual ({fmtMoney(credito.pagoPeriodico)}).
+                </div>
+              )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Datos del crédito */}
                 <section>
@@ -274,12 +294,12 @@ export default function CreditoDetallePage() {
                     Datos del crédito
                   </h2>
                   <div className="space-y-0.5">
-                    <Row label="Capital solicitado" value={fmtMoney(credito.montoCapital)} />
+                    <Row label="Capital solicitado" value={fmtMoney(credito.montoSolicitado)} />
                     <Row label="Monto aprobado" value={fmtMoney(credito.montoAprobado)} />
                     <Row label="Tasa de interés" value={fmtPct(credito.tasaInteres)} />
                     <Row label="Cargo financiero" value={fmtMoney(credito.cargoFinanciero)} />
                     <Row label="Total a pagar" value={fmtMoney(totalAPagarCredito)} />
-                    <Row label="Pago diario" value={fmtMoney(credito.pagoPeriodico)} />
+                    <Row label="Pago diario" value={fmtMoney(pagoPeriodicoVisual)} />
                     <Row label="Pago adelantado" value={fmtMoney(credito.pagoAdelantado)} />
                     <Row
                       label="Forma de pago"
@@ -704,6 +724,23 @@ export default function CreditoDetallePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal Registrar pago */}
+      {registrarPagoOpen && (
+        <ModalRegistrarPago
+          creditoId={numId}
+          pagoPeriodico={Number(pagoPeriodicoVisual) || 0}
+          nombreCliente={credito.cliente.nombreCompleto}
+          fecha={fechaPago}
+          numeroPagoHoy={numeroPagoHoy}
+          onClose={() => setRegistrarPagoOpen(false)}
+          onSuccess={() => {
+            setRegistrarPagoOpen(false)
+            qc.invalidateQueries({ queryKey: ['credito', numId] })
+            qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
+          }}
+        />
       )}
 
       {/* Modal Modificar pago */}

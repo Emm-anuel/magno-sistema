@@ -1,5 +1,6 @@
 package com.magno.dto.cobros;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
@@ -11,13 +12,11 @@ import java.math.BigDecimal;
  */
 public record PagoModificarRequest(
 
-        BigDecimal montoRecibido,
+                @JsonAlias("monto_recibido") BigDecimal montoRecibido,
 
-        @Pattern(regexp = "CAJA|RUTA", message = "modalidad debe ser CAJA o RUTA")
-        String modalidad,
+                @Pattern(regexp = "CAJA|RUTA", message = "modalidad debe ser CAJA o RUTA") String modalidad,
 
-        String razonNoPago,
+                @JsonAlias("razon_no_pago") String razonNoPago,
 
-        @NotBlank(message = "motivo_modificacion es obligatorio para la bitácora")
-        String motivoModificacion
-) {}
+                @NotBlank(message = "motivo_modificacion es obligatorio para la bitácora") @JsonAlias("motivo_modificacion") String motivoModificacion) {
+}

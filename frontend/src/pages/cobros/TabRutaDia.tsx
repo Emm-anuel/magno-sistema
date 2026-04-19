@@ -1,14 +1,21 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
 import { Search, RefreshCw } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
+import { useAuthStore } from '@/hooks/useAuthStore'
 import EstadoCobroBadge from '@/components/cobros/EstadoCobroBadge'
 import MultaBadge from '@/components/cobros/MultaBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
-import type { ClienteRuta } from '@/types'
+import ModalModificarPago from '@/components/cobros/ModalModificarPago'
+import type { ClienteRuta, PagoCobroDTO } from '@/types'
 
 function fmtMoney(v: number) {
   return `$${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 0 })}`
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 interface Props {
@@ -17,8 +24,13 @@ interface Props {
 }
 
 export default function TabRutaDia({ asesorId, fecha }: Props) {
+  const usuario = useAuthStore((s) => s.usuario)
   const [buscar, setBuscar] = useState('')
   const [pagoModal, setPagoModal] = useState<ClienteRuta | null>(null)
+  const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
+  const esFechaHistorica = fecha !== todayStr()
+  const puedeRegistrarHistorico = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const esAdminSupervisor = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
 
   // ── Query: ruta del día (auto-refresh cada 30s) ───────────────────
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
@@ -45,9 +57,40 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
       )
     : clientes
 
-  // ── Puede cobrar ──────────────────────────────────────────────────
-  const puedeRegistrar = (c: ClienteRuta) =>
-    c.estadoHoy !== 'INHABIL' && c.estadoHoy !== 'INHABILL' && c.estadoHoy !== 'PAGADO'
+  const puedeCobrar = (c: ClienteRuta) =>
+    c.estadoHoy === 'SIN_REGISTRO'
+    && (!esFechaHistorica || puedeRegistrarHistorico)
+
+  const puedeModificar = (c: ClienteRuta) =>
+    c.estadoHoy !== 'SIN_REGISTRO'
+    && !!c.pagoIdHoy
+    && esAdminSupervisor
+
+  const abrirAccionCobro = async (c: ClienteRuta) => {
+    if (puedeCobrar(c)) {
+      setPagoModal(c)
+      return
+    }
+
+    if (!puedeModificar(c) || !c.pagoIdHoy) return
+
+    try {
+      const hist = await cobrosService.getHistorial({
+        clienteId: c.clienteId,
+        fechaDesde: fecha,
+        fechaHasta: fecha,
+        page: 0,
+        size: 100,
+      })
+      const pago = (hist.content ?? []).find((p) => p.id === c.pagoIdHoy)
+      if (!pago) {
+        throw new Error('Pago no encontrado para edición')
+      }
+      setPagoEditar(pago)
+    } catch (e: any) {
+      toast.error(e?.message ?? 'No se pudo cargar el pago para editar')
+    }
+  }
 
   if (isLoading) {
     return (
@@ -118,6 +161,12 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
         </button>
       </div>
 
+      {esFechaHistorica && !puedeRegistrarHistorico && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+          Vista histórica: para fechas anteriores solo se muestran registros. Para ajustar pagos usa la pestaña Historial de Cobros.
+        </div>
+      )}
+
       {filtrados.length === 0 && (
         <div className="text-center py-16">
           <p className="text-[#adb5bd] text-[13px]">
@@ -132,8 +181,8 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
           <ClienteCard
             key={c.clienteId}
             cliente={c}
-            puedeRegistrar={puedeRegistrar(c)}
-            onCobrar={() => setPagoModal(c)}
+            puedeRegistrar={puedeCobrar(c) || puedeModificar(c)}
+            onCobrar={() => void abrirAccionCobro(c)}
           />
         ))}
       </div>
@@ -159,8 +208,8 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
                 <ClienteRow
                   key={c.clienteId}
                   cliente={c}
-                  puedeRegistrar={puedeRegistrar(c)}
-                  onCobrar={() => setPagoModal(c)}
+                  puedeRegistrar={puedeCobrar(c) || puedeModificar(c)}
+                  onCobrar={() => void abrirAccionCobro(c)}
                 />
               ))}
             </tbody>
@@ -174,9 +223,18 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
           creditoId={pagoModal.creditoId}
           pagoPeriodico={pagoModal.pagoPeriodico}
           nombreCliente={pagoModal.nombreCompleto}
+          fecha={fecha}
           numeroPagoHoy={pagoModal.numeroPagoHoy}
           onClose={() => setPagoModal(null)}
           onSuccess={() => setPagoModal(null)}
+        />
+      )}
+
+      {pagoEditar && (
+        <ModalModificarPago
+          pago={pagoEditar}
+          onClose={() => setPagoEditar(null)}
+          onSuccess={() => setPagoEditar(null)}
         />
       )}
     </>
@@ -235,7 +293,7 @@ function ClienteCard({
             onClick={onCobrar}
             className="btn-primary py-3 px-4 text-[13px] shrink-0 min-w-[80px]"
           >
-            {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Editar'}
+            {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
           </button>
         )}
       </div>
@@ -276,7 +334,7 @@ function ClienteRow({
       <td>
         {puedeRegistrar && (
           <button type="button" onClick={onCobrar} className="btn btn-sm">
-            {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Editar'}
+            {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
           </button>
         )}
       </td>

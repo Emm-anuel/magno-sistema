@@ -27,6 +27,11 @@ export const CLIENTES_ROLES: Rol[] = [
   'ASESOR_COBRADOR',
 ]
 
+export const COBROS_ROLES: Rol[] = [
+  'SUPERVISOR_CAMPO',
+  'ASESOR_COBRADOR',
+]
+
 // ── Etiquetas de roles ─────────────────────────────────────────────
 // Fuente centralizada — NO duplicar en componentes individuales.
 

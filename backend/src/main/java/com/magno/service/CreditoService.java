@@ -4,6 +4,7 @@ import com.magno.dto.credito.*;
 import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.service.CreditoCalculoService.ResumenCalculo;
+import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -82,6 +83,12 @@ public class CreditoService {
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("sucursal").get("id"), sucursalId));
                 if (estado != null)
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("estado"), estado));
+
+                // Un crédito APROBADO pendiente de desembolso no debe tener fechaDesembolso.
+                // Esto evita listar registros inconsistentes para la pestaña de desembolso.
+                if (estado == EstadoCredito.APROBADO) {
+                        spec = spec.and((r, q, cb) -> cb.isNull(r.get("fechaDesembolso")));
+                }
 
                 return creditoRepo.findAll(spec, pageable)
                                 .map(c -> {
@@ -172,6 +179,7 @@ public class CreditoService {
                                 .cliente(cliente)
                                 .asesor(asesor)
                                 .sucursal(sucursal)
+                                .montoSolicitado(req.montoSolicitado())
                                 .montoCapital(calculo.capital())
                                 .tasaInteres(calculo.tasa())
                                 .cargoFinanciero(calculo.cargoFinanciero())
@@ -223,6 +231,7 @@ public class CreditoService {
 
                 c.setAsesor(asesor);
                 c.setSucursal(sucursal);
+                c.setMontoSolicitado(req.montoSolicitado());
                 c.setMontoCapital(calculo.capital());
                 c.setTasaInteres(calculo.tasa());
                 c.setCargoFinanciero(calculo.cargoFinanciero());
@@ -266,8 +275,11 @@ public class CreditoService {
                                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
 
                 c.setMontoAprobado(req.montoAprobado());
-                // Actualizar cálculos con el monto aprobado
-                c.setMontoCapital(calculo.capital());
+                // Actualizar montoCapital para reflejar el monto aprobado (puede diferir del
+                // solicitado)
+                c.setMontoCapital(req.montoAprobado());
+                // Mantener montoSolicitado histórico y recalcular campos operativos con monto
+                // aprobado
                 c.setTasaInteres(calculo.tasa());
                 c.setCargoFinanciero(calculo.cargoFinanciero());
                 c.setTotalAPagar(calculo.totalAPagar());
@@ -275,7 +287,7 @@ public class CreditoService {
                 c.setPlazoDias(calculo.plazo());
                 c.setPagoAdelantado(calculo.pagoAdelantado());
                 c.setObservaciones(req.observaciones());
-                c.setFechaAprobacion(OffsetDateTime.now());
+                c.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
                 c.setAprobadoPor(aprobadoPorUsuario);
                 c.setEstado(EstadoCredito.APROBADO);
 
@@ -296,6 +308,16 @@ public class CreditoService {
         public CreditoDetalleDTO activarCredito(Long id, Long usuarioId) {
                 Credito c = findCreditoActivo(id);
 
+                // Blindaje ante datos inconsistentes históricos: si ya existe desembolso o
+                // calendario, no debe volver a activarse.
+                boolean yaTieneCalendario = !calendarioPagoRepo
+                                .findByCreditoIdOrderByNumeroPago(c.getId())
+                                .isEmpty();
+                if (c.getFechaDesembolso() != null || c.getFechaInicio() != null || yaTieneCalendario) {
+                        throw new IllegalArgumentException(
+                                        "El crédito ya tiene desembolso/calendario registrado y no puede activarse nuevamente");
+                }
+
                 if (c.getEstado() != EstadoCredito.APROBADO) {
                         throw new IllegalArgumentException(
                                         "Solo se puede activar un crédito en estado APROBADO. Estado actual: "
@@ -306,13 +328,13 @@ public class CreditoService {
                 BigDecimal montoBase = c.getMontoAprobado() != null ? c.getMontoAprobado() : c.getMontoCapital();
                 ResumenCalculo calculo = calculoService.calcularCredito(montoBase);
 
-                LocalDate hoy = LocalDate.now();
+                LocalDate hoy = DateTimeUtils.hoyEnMagno();
 
                 // Generar calendario (modifica c.fechaVencimiento in-place)
                 calculoService.generarCalendario(c, hoy, calculo.plazo(), calculo, c.getSucursal().getId());
 
                 c.setFechaInicio(hoy);
-                c.setFechaDesembolso(OffsetDateTime.now());
+                c.setFechaDesembolso(DateTimeUtils.ahoraEnMagno());
                 c.setEstado(EstadoCredito.ACTIVO);
 
                 creditoRepo.save(c);
@@ -368,7 +390,7 @@ public class CreditoService {
 
                 c.setEstado(EstadoCredito.CANCELADO);
                 c.setObservaciones(motivo);
-                c.setDeletedAt(OffsetDateTime.now());
+                c.setDeletedAt(DateTimeUtils.ahoraEnMagno());
 
                 creditoRepo.save(c);
 
@@ -404,7 +426,7 @@ public class CreditoService {
                                 .findByCreditoIdOrderByNumeroPago(c.getId())
                                 .stream().map(CalendarioPagoDTO::from).toList();
 
-                LocalDate hoy = LocalDate.now();
+                LocalDate hoy = DateTimeUtils.hoyEnMagno();
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(), ESTADOS_REALIZADOS);
                 long pagosPendientes = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 c.getId(), List.of(EstadoCalendarioPago.PENDIENTE));

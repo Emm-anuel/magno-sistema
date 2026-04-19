@@ -18,15 +18,51 @@ interface Props {
   creditoId: number
   pagoPeriodico: number
   nombreCliente: string
+  fecha: string
   numeroPagoHoy?: number | null
   onClose: () => void
   onSuccess: () => void
+}
+
+function extractErrorMessage(error: unknown): string {
+  if (!error) return ''
+
+  if (typeof error === 'string') return error
+
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  const anyError = error as any
+  const candidate =
+    anyError?.message
+    ?? anyError?.response?.data?.message
+    ?? anyError?.response?.data?.error
+    ?? anyError?.response?.data?.detail
+
+  return typeof candidate === 'string' ? candidate : ''
+}
+
+function getRegistrarPagoErrorMessage(error: unknown, fecha: string) {
+  const rawMessage = extractErrorMessage(error).trim()
+  const message = rawMessage.toLowerCase()
+
+  if (message.includes('no hay pago pendiente para la fecha seleccionada')) {
+    const hoy = new Date().toISOString().slice(0, 10)
+    if (fecha === hoy) {
+      return 'No hay pagos pendientes para hoy en este crédito.'
+    }
+    return 'No hay pagos pendientes para la fecha seleccionada.'
+  }
+
+  return rawMessage || 'Error al registrar pago'
 }
 
 export default function ModalRegistrarPago({
   creditoId,
   pagoPeriodico,
   nombreCliente,
+  fecha,
   numeroPagoHoy,
   onClose,
   onSuccess,
@@ -76,6 +112,7 @@ export default function ModalRegistrarPago({
         noPago,
         montoRecibido: noPago ? undefined : Number(monto),
         razonNoPago: noPago ? razonFinal : undefined,
+        fechaPago: fecha,
       })
     },
     onSuccess: () => {
@@ -90,7 +127,9 @@ export default function ModalRegistrarPago({
       onSuccess()
       onClose()
     },
-    onError: (e: any) => toast.error(e.message ?? 'Error al registrar pago'),
+    onError: (e: unknown) => {
+      toast.error(getRegistrarPagoErrorMessage(e, fecha))
+    },
   })
 
   // ── Validación ────────────────────────────────────────────────────

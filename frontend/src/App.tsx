@@ -18,6 +18,7 @@ import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
   ADMIN_ONLY_ROLES,
+  COBROS_ROLES,
   CLIENTES_ROLES,
 } from '@/utils/roles'
 
@@ -37,7 +38,11 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/cobros" element={<CobrosPage />} />
+
+            {/* Solo Supervisor y Asesor */}
+            <Route element={<ProtectedRoute allowedRoles={COBROS_ROLES} />}>
+              <Route path="/cobros" element={<CobrosPage />} />
+            </Route>
 
             {/* Todos los roles operativos — Créditos, Renovaciones, Historial */}
             <Route element={<ProtectedRoute allowedRoles={ALL_ROLES} />}>

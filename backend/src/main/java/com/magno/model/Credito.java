@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"cliente", "asesor", "sucursal", "aprobadoPor", "createdBy"})
+@ToString(exclude = { "cliente", "asesor", "sucursal", "aprobadoPor", "createdBy" })
 public class Credito {
 
     @Id
@@ -38,11 +38,14 @@ public class Credito {
     private Sucursal sucursal;
 
     // ── Producto financiero ──────────────────────────────────────
+    @Column(name = "monto_solicitado", nullable = false, precision = 12, scale = 2)
+    private BigDecimal montoSolicitado;
+
     @Column(name = "monto_capital", nullable = false, precision = 12, scale = 2)
     private BigDecimal montoCapital;
 
     @Column(name = "tasa_interes", nullable = false, precision = 5, scale = 4)
-    private BigDecimal tasaInteres;              // 0.30 = 30%
+    private BigDecimal tasaInteres; // 0.30 = 30%
 
     @Column(name = "cargo_financiero", nullable = false, precision = 12, scale = 2)
     private BigDecimal cargoFinanciero;
@@ -51,10 +54,10 @@ public class Credito {
     private BigDecimal totalAPagar;
 
     @Column(name = "pago_periodico", nullable = false, precision = 12, scale = 2)
-    private BigDecimal pagoPeriodico;            // pago diario o semanal redondeado
+    private BigDecimal pagoPeriodico; // pago diario o semanal redondeado
 
     @Column(name = "plazo_dias", nullable = false)
-    private Integer plazoDias;                   // 25 o 30
+    private Integer plazoDias; // 25 o 30
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_pago", nullable = false, length = 10)
@@ -132,8 +135,10 @@ public class Credito {
         OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
-        if (estado == null) estado = EstadoCredito.SOLICITADO;
-        if (pagoAdelantado == null) pagoAdelantado = BigDecimal.ZERO;
+        if (estado == null)
+            estado = EstadoCredito.SOLICITADO;
+        if (pagoAdelantado == null)
+            pagoAdelantado = BigDecimal.ZERO;
     }
 
     @PreUpdate

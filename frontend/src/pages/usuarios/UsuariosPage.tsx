@@ -54,7 +54,8 @@ const PASSWORD_MASK = '••••••••'
 
 // ── Helpers ───────────────────────────────────────────────────────
 function initials(name: string) {
-  return name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+  if (!name?.trim()) return 'US'
+  return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
 }
 
 // ── Componente principal ──────────────────────────────────────────

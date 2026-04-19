@@ -2,6 +2,25 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Usuario } from '@/types'
 
+function normalizeUsuarioPersistido(raw: Usuario | Record<string, any> | null): Usuario | null {
+  if (!raw) return null
+
+  const anyRaw = raw as Record<string, any>
+  const sucursal = (anyRaw.sucursal ?? {}) as Record<string, any>
+
+  return {
+    ...anyRaw,
+    nombre_completo: anyRaw.nombre_completo ?? anyRaw.nombreCompleto ?? '',
+    sucursal: {
+      ...sucursal,
+      nombre: sucursal.nombre ?? '',
+      multa_base: sucursal.multa_base ?? sucursal.multaBase ?? 0,
+      ahorro_diario: sucursal.ahorro_diario ?? sucursal.ahorroDiario ?? 0,
+      activa: sucursal.activa ?? true,
+    },
+  } as Usuario
+}
+
 // Nota: zustand se agrega al instalar dependencias.
 // Si se prefiere sin zustand, usar Context + useReducer.
 // Por ahora se deja como hook simple con localStorage.
@@ -41,6 +60,7 @@ export const useAuthStore = create<AuthState>()(
       partialize: (s) => ({ token: s.token, usuario: s.usuario }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          state.usuario = normalizeUsuarioPersistido(state.usuario)
           // Sincronizar isAuthenticated desde el token persistido
           state.isAuthenticated = !!state.token
           state.setHydrated()

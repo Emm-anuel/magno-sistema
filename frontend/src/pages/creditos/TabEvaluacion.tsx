@@ -352,7 +352,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
   // When a credito detail loads, pre-fill monto and trigger calculo
   useEffect(() => {
     if (detalle) {
-      const monto = String(safeN(detalle.montoCapital))
+      const monto = String(safeN(detalle.montoSolicitado ?? detalle.montoCapital))
       setMontoAprobado(monto)
       setObservaciones(detalle.observaciones ?? '')
       triggerCalculo(monto)
@@ -493,7 +493,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
 
                   {/* Monto solicitado (read-only) */}
                   <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-sm text-blue-800">
-                    Monto solicitado: <strong>{fmt(safeN(detalle.montoCapital))}</strong>
+                    Monto solicitado: <strong>{fmt(safeN(detalle.montoSolicitado ?? detalle.montoCapital))}</strong>
                   </div>
 
                   {/* Monto aprobado input */}

@@ -3,6 +3,7 @@ package com.magno.service;
 import com.magno.dto.cobros.*;
 import com.magno.model.*;
 import com.magno.repository.*;
+import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -26,6 +28,7 @@ import java.util.logging.Logger;
 public class CobrosService {
 
     private static final Logger log = Logger.getLogger(CobrosService.class.getName());
+    private static final ZoneId BUSINESS_ZONE = ZoneId.of("America/Mexico_City");
 
     private final PagoRepository pagoRepo;
     private final MultaRepository multaRepo;
@@ -76,7 +79,7 @@ public class CobrosService {
                 sucursalIdSolicitante,
                 asesorIdEfectivo,
                 EstadoCredito.ACTIVO,
-                LocalDate.now());
+                hoyNegocio());
 
         // Obtener días festivos de la sucursal para la fecha consultada
         List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalIdSolicitante);
@@ -211,6 +214,12 @@ public class CobrosService {
         Usuario registrador = usuarioRepo.findById(usuarioId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
 
+        String rol = registrador.getRol().getNombre();
+        if (!"SUPERVISOR_CAMPO".equals(rol) && !"ASESOR_COBRADOR".equals(rol)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "No tienes permisos para registrar cobros");
+        }
+
         // 3. Obtener crédito
         Credito credito = creditoRepo.findById(req.creditoId())
                 .orElseThrow(() -> new EntityNotFoundException("Crédito no encontrado: " + req.creditoId()));
@@ -222,7 +231,6 @@ public class CobrosService {
 
         // 4. Verificar acceso: ASESOR solo sus clientes, SUPERVISOR_CAMPO solo su
         // sucursal
-        String rol = registrador.getRol().getNombre();
         Cliente cliente = credito.getCliente();
 
         if ("ASESOR_COBRADOR".equals(rol)) {
@@ -238,30 +246,33 @@ public class CobrosService {
             }
         }
 
-        // 5. Obtener el próximo pago pendiente del calendario
-        CalendarioPago cp = obtenerProximoPagoPendiente(credito);
+        // 5. Resolver fecha de operación (histórico solo para ADMINISTRADOR/SUPERVISOR)
+        LocalDate fechaOperacion = resolverFechaOperacion(req.fechaPago(), rol);
+
+        // 6. Obtener pago pendiente para la fecha seleccionada
+        CalendarioPago cp = obtenerPagoPendienteParaFecha(credito, fechaOperacion);
         if (cp == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "No hay pagos pendientes para este crédito");
+                    "No hay pago pendiente para la fecha seleccionada");
         }
 
-        // 6. Verificar que no se registre dos veces el mismo día
-        LocalDate hoy = LocalDate.now();
+        // 7. Verificar que no se registre dos veces el mismo pago
         if (pagoRepo.existsByCreditoIdAndNumeroPago(credito.getId(), cp.getNumeroPago())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "El pago #" + cp.getNumeroPago() + " ya fue registrado para este crédito");
         }
 
-        // 7. Obtener config de multas para este crédito
+        // 8. Obtener config de multas para este crédito
         BigDecimal montoCapital = credito.getMontoCapital();
         Long sucursalId = credito.getSucursal().getId();
 
-        // 8. Flujo según noPago
+        // 9. Flujo según noPago
         Pago pago;
         if (Boolean.TRUE.equals(req.noPago())) {
-            pago = registrarNoPago(credito, cliente, cp, registrador, req, sucursalId, montoCapital, hoy);
+            pago = registrarNoPago(credito, cliente, cp, registrador, req, sucursalId, montoCapital, fechaOperacion);
         } else {
-            pago = registrarPagoRecibido(credito, cliente, cp, registrador, req, sucursalId, montoCapital, hoy);
+            pago = registrarPagoRecibido(credito, cliente, cp, registrador, req, sucursalId, montoCapital,
+                    fechaOperacion);
         }
 
         log.info("Pago registrado — crédito=" + credito.getId()
@@ -318,7 +329,7 @@ public class CobrosService {
         }
 
         pago.setModificadoPor(modificador);
-        pago.setFechaModificacion(OffsetDateTime.now());
+        pago.setFechaModificacion(DateTimeUtils.ahoraEnMagno());
 
         pagoRepo.save(pago);
 
@@ -338,12 +349,12 @@ public class CobrosService {
             Pageable pageable,
             String rolSolicitante, Long usuarioIdSolicitante,
             Long sucursalIdSolicitante) {
-        // ASESOR_COBRADOR solo puede ver sus propios pagos
-        if ("ASESOR_COBRADOR".equals(rolSolicitante)) {
+        // ASESOR_COBRADOR y SUPERVISOR_CAMPO solo pueden ver sus propios pagos
+        if ("ASESOR_COBRADOR".equals(rolSolicitante)
+                || "SUPERVISOR_CAMPO".equals(rolSolicitante)) {
             asesorId = usuarioIdSolicitante;
         }
-        // SUPERVISOR_CAMPO puede ver su sucursal completa pero el filtro lo aplica el
-        // controller
+        // ADMINISTRADOR y SUPERVISOR mantienen alcance completo
 
         return pagoRepo.findHistorial(asesorId, clienteId, fechaDesde, fechaHasta, pageable)
                 .map(PagoDTO::from);
@@ -541,7 +552,7 @@ public class CobrosService {
         if (pendientes.isEmpty())
             return null;
 
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = hoyNegocio();
 
         // Preferir el pendiente más antiguo vencido (fecha <= hoy)
         return pendientes.stream()
@@ -554,6 +565,32 @@ public class CobrosService {
                         .orElse(null));
     }
 
+    private CalendarioPago obtenerPagoPendienteParaFecha(Credito credito, LocalDate fechaOperacion) {
+        return calendarioPagoRepo
+                .findByCreditoIdAndEstado(credito.getId(), EstadoCalendarioPago.PENDIENTE)
+                .stream()
+                .filter(cp -> fechaOperacion.equals(cp.getFechaProgramada()))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private LocalDate resolverFechaOperacion(LocalDate fechaSolicitada, String rolSolicitante) {
+        LocalDate hoy = hoyNegocio();
+        if (fechaSolicitada == null) {
+            return hoy;
+        }
+
+        boolean esRolCampo = "ASESOR_COBRADOR".equals(rolSolicitante)
+                || "SUPERVISOR_CAMPO".equals(rolSolicitante);
+
+        if (esRolCampo && !hoy.equals(fechaSolicitada)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Solo Gerente General y Gerente de Sucursal pueden registrar en fechas históricas");
+        }
+
+        return fechaSolicitada;
+    }
+
     private BigDecimal obtenerMontoMultaNoPago(Long sucursalId, BigDecimal montoCapital) {
         return configMultaRepo.findBySucursalAndMonto(sucursalId, montoCapital)
                 .map(ConfigMulta::getMultaNoPago)
@@ -564,6 +601,10 @@ public class CobrosService {
         return configMultaRepo.findBySucursalAndMonto(sucursalId, montoCapital)
                 .map(ConfigMulta::getMultaIncompletos)
                 .orElse(new BigDecimal("50.00")); // fallback
+    }
+
+    private LocalDate hoyNegocio() {
+        return LocalDate.now(BUSINESS_ZONE);
     }
 
     private boolean esInhabil(LocalDate fecha, List<LocalDate> diasFestivos) {

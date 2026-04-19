@@ -458,6 +458,7 @@ export interface PagoRegistrarRequest {
   noPago: boolean
   montoRecibido?: number
   razonNoPago?: string
+  fechaPago?: string
 }
 
 export interface PagoModificarRequest {
@@ -527,6 +528,7 @@ export interface CreditoResumen {
   cliente: { id: number; nombreCompleto: string; celular: string }
   asesor: { id: number; nombreCompleto: string }
   sucursal: { id: number; nombre: string }
+  montoSolicitado: number
   montoCapital: number
   montoAprobado: number | null
   pagoPeriodico: number
@@ -547,6 +549,7 @@ export interface CreditoDetalle {
   cliente: { id: number; nombreCompleto: string; celular: string }
   asesor: { id: number; nombreCompleto: string }
   sucursal: { id: number; nombre: string }
+  montoSolicitado: number
   montoCapital: number
   tasaInteres: number
   cargoFinanciero: number

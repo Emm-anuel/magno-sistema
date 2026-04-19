@@ -182,15 +182,18 @@ export default function TabSolicitudes({
       {/* Desktop table */}
       {!isLoading && !isError && (
         <>
-          <div className="flex items-center justify-end">
-            <button
-              type="button"
-              onClick={onNuevaSolicitud}
-              className="btn-primary inline-flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Nueva Solicitud
-            </button>
-          </div>
+          {/* Botón "Nueva Solicitud" - solo para Supervisor y Asesor */}
+          {!isAdminOrSup && (
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={onNuevaSolicitud}
+                className="btn-primary inline-flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" /> Nueva Solicitud
+              </button>
+            </div>
+          )}
 
           <div className="card hidden lg:block overflow-x-auto">
             <table className="tabla w-full">

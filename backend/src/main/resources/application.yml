@@ -18,9 +18,9 @@ spring:
     change-log: classpath:db/changelog/db.changelog-master.xml
     enabled: true
 
-  # Jackson — snake_case para JSON ↔ frontend
+  # Jackson — camelCase para JSON ↔ frontend
   jackson:
-    property-naming-strategy: SNAKE_CASE
+    property-naming-strategy: LOWER_CAMEL_CASE
     serialization:
       write-dates-as-timestamps: false
     deserialization:
@@ -101,7 +101,7 @@ magno:
     bucket: ${S3_BUCKET:magno-files}
     public-url: ${S3_PUBLIC_URL:http://localhost:9000/magno-files}
   cors:
-    allowed-origins: "http://localhost:5173,http://localhost:3000,https://kept-ahead-processing-talk.trycloudflare.com"
+    allowed-origins: "http://localhost:5173,http://localhost:3000,https://passive-transport-growth-met.trycloudflare.com"
 
 logging:
   level:
@@ -160,7 +160,7 @@ magno:
     bucket: ${S3_BUCKET:magno-files}
     public-url: ${S3_PUBLIC_URL}
   cors:
-    allowed-origins: ${CORS_ORIGINS}
+    allowed-origins: "*"
 
 logging:
   level:
