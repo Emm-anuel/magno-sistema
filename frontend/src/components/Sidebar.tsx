@@ -3,6 +3,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, CreditCard, Wallet, RefreshCw, Users, History,
   Archive, Receipt, BarChart2, Building2, UserCog, ScrollText, Settings, X,
+  CalendarDays,
 } from 'lucide-react'
 import type { Rol } from '@/types'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -30,9 +31,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Operación',
     items: [
-      { label: 'Cobros',          to: '/cobros',          icon: Wallet,     roles: ['SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
-      { label: 'Créditos Nuevos', to: '/creditos-nuevos', icon: CreditCard, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
-      { label: 'Renovaciones',    to: '/renovaciones',    icon: RefreshCw,  roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
+      { label: 'Cobros',          to: '/cobros',          icon: Wallet,       roles: ['SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
+      { label: 'Créditos Nuevos', to: '/creditos-nuevos', icon: CreditCard,   roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
+      { label: 'Renovaciones',    to: '/renovaciones',    icon: RefreshCw,    roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
+      { label: 'Colocaciones',    to: '/colocaciones',    icon: CalendarDays, roles: ['ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR'] },
     ],
   },
   {

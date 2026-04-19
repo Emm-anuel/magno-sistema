@@ -14,6 +14,7 @@ import CreditoDetallePage from '@/pages/creditos/CreditoDetallePage'
 import CobrosPage from '@/pages/cobros/CobrosPage'
 import HistorialPage from '@/pages/Historial'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
+import ColocacionesPage from '@/pages/colocaciones/ColocacionesPage'
 import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="/creditos-nuevos" element={<CreditosNuevosPage />} />
               <Route path="/creditos/:id" element={<CreditoDetallePage />} />
               <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
+              <Route path="/colocaciones" element={<ColocacionesPage />} />
               <Route path="/historial" element={<HistorialPage />} />
             </Route>
 
