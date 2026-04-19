@@ -35,7 +35,7 @@
 | Créditos Nuevos   |       ✅        |         ✅          |       ✅        |       ✅        |
 | Renovaciones      |       ✅        |         ✅          |       ✅        |       ✅        |
 | Clientes          |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |
-| Historial de Pago |       ✅        |         ✅          | ✅ (solo suyos) | ✅ (solo suyos) |
+| Historial de Pago |  ✅ (puede modificar pagos)  |  ✅ (puede modificar pagos)  | ✅ solo lectura (solo los de sus agentes) | ✅ solo lectura (solo suyos) |
 | Caja              |       ✅        |         ✅          |       ❌        |       ❌        |
 | Gastos            |       ✅        |         ✅          |       ❌        |       ❌        |
 | Reportes          |       ✅        |         ✅          |       ❌        |       ❌        |
