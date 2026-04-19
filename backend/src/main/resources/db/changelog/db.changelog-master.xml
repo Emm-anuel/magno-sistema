@@ -53,4 +53,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V8-cliente-documentos" author="magno">
+        <sqlFile
+            path="db/changelog/V8__cliente_documentos.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
