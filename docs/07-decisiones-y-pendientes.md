@@ -12,6 +12,8 @@
 | ✅  | **Cobros — Quién registra**              | El asesor asignado registra los cobros de sus propios clientes. Supervisor y Admin pueden intervenir y registrar cobros de cualquier cliente de su sucursal.                                                                                                               |
 | ✅  | **Cobros — Corrección de pagos**         | Solo Supervisor o Admin pueden modificar un pago ya registrado. El asesor no puede editar sus propios registros una vez guardados.                                                                                                                                         |
 | ✅  | **Cobros — Clientes por asesor**         | Se asume entre 20 y 50 clientes por asesor. La grilla debe tener paginación y búsqueda para escalar sin problema.                                                                                                                                                          |
+| ✅  | **Colocaciones Semanales — módulo independiente** | Extraído del módulo de Renovaciones y promovido a módulo propio en el sidebar (ruta `/colocaciones`). Accesible por los 4 roles. No es una sub-pestaña de Renovaciones. |
+| ✅  | **Listos para Renovar — umbral y filtrado por rol** | Pestaña de solo lectura dentro de Renovaciones. Umbral: 16 pagos (plazo 25 días) o 19 pagos (plazo 30 días). Filtrado por rol: Asesor ve sus clientes, Supervisor de campo ve clientes de su sucursal, Gerente de Sucursal ve todos en su sucursal, Gerente General ve todos. |
 
 ## 13b. Ítems Pendientes de Confirmar con Cliente
 

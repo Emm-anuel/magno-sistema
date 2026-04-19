@@ -1,25 +1,35 @@
 # Módulos, UI y Diseño Responsive — MAGNO v3.5
 
-## 5. Módulos del Sistema (13 módulos)
+## 5. Módulos del Sistema (14 módulos)
 
 | #   | Módulo (key navegación) | Pestañas internas                                             |
 | --- | ----------------------- | ------------------------------------------------------------- |
 | 1   | **dashboard**           | —                                                             |
 | 2   | **cobros**              | Ruta del Día · Historial de Cobros                            |
 | 3   | **creditos-nuevos**     | Solicitudes · Nueva Solicitud · Evaluación · Tabla de Pagos   |
-| 4   | **renovaciones**        | Colocaciones Semanales · Nueva Renovación                     |
-| 5   | **clientes**            | (listado + modal alta + ficha detalle)                        |
-| 6   | **cliente-detalle**     | (pantalla completa por cliente)                               |
-| 7   | **historial**           | (filtros por asesor y fecha)                                  |
-| 8   | **caja**                | Apertura · Cierre / Corte · Histórico                         |
-| 9   | **gastos**              | Gastos Registrados · Registrar Gasto                          |
-| 10  | **reportes**            | Diario Ingresos/Egresos · Colocaciones · Cartera · Por Asesor |
-| 11  | **sucursales**          | (listado + modal crear/editar)                                |
-| 12  | **usuarios**            | (listado + modal alta)                                        |
-| 13  | **bitacora**            | (log con filtros)                                             |
+| 4   | **renovaciones** ✅     | Listos para Renovar · Nueva Renovación                        |
+| 5   | **colocaciones** ✅     | (reporte semanal de colocaciones — todos los roles)           |
+| 6   | **clientes**            | (listado + modal alta + ficha detalle)                        |
+| 7   | **cliente-detalle**     | (pantalla completa por cliente)                               |
+| 8   | **historial**           | (filtros por asesor y fecha)                                  |
+| 9   | **caja**                | Apertura · Cierre / Corte · Histórico                         |
+| 10  | **gastos**              | Gastos Registrados · Registrar Gasto                          |
+| 11  | **reportes**            | Diario Ingresos/Egresos · Colocaciones · Cartera · Por Asesor |
+| 12  | **sucursales**          | (listado + modal crear/editar)                                |
+| 13  | **usuarios**            | (listado + modal alta)                                        |
+| 14  | **bitacora**            | (log con filtros)                                             |
 | —   | **administracion**      | Config. Multas · Config. Créditos · Días Festivos             |
 
 > "Préstamos" fue renombrado a **"Créditos Nuevos"** en toda la aplicación — NUNCA usar "Préstamos".
+
+### Módulo Renovaciones — Pestañas
+
+- **Listos para Renovar:** lista de solo lectura con los clientes elegibles para renovación. Umbral: 16 pagos completados (créditos a 25 días) o 19 pagos completados (créditos a 30 días). La lista se filtra por rol (ver `02-roles-y-permisos.md`).
+- **Nueva Renovación:** formulario para registrar la renovación de un crédito.
+
+### Módulo Colocaciones Semanales — Descripción
+
+Módulo independiente en la navegación lateral (sidebar), accesible por los 4 roles. Muestra el reporte de colocaciones de la semana actual: créditos nuevos y renovaciones desembolsados, agrupados por asesor. Extraído de Renovaciones en Abril 2026 para darle visibilidad directa a todos los roles sin necesidad de entrar al flujo de renovación.
 
 ---
 

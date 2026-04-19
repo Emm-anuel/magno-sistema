@@ -28,18 +28,30 @@
 
 **Módulos accesibles por rol (actualizado):**
 
-| Módulo            |      Gerente General       |    Gerente de Sucursal     |                Supervisor                 |            Asesor            |
-| ----------------- | :------------------------: | :------------------------: | :---------------------------------------: | :--------------------------: |
-| Dashboard         |             ✅             |             ✅             |                    ✅                     |              ✅              |
-| Cobros            |             ❌             |             ❌             |                    ✅                     |              ✅              |
-| Créditos Nuevos   |             ✅             |             ✅             |                    ✅                     |              ✅              |
-| Renovaciones      |             ✅             |             ✅             |                    ✅                     |              ✅              |
-| Clientes          |             ✅             |             ✅             |              ✅ (solo suyos)              |       ✅ (solo suyos)        |
-| Historial de Pago | ✅ (puede modificar pagos) | ✅ (puede modificar pagos) | ✅ solo lectura (solo los de sus agentes) | ✅ solo lectura (solo suyos) |
-| Caja              |             ✅             |             ✅             |                    ❌                     |              ❌              |
-| Gastos            |             ✅             |             ✅             |                    ❌                     |              ❌              |
-| Reportes          |             ✅             |             ✅             |                    ❌                     |              ❌              |
-| Sucursales        |             ✅             |             ❌             |                    ❌                     |              ❌              |
-| Usuarios          |             ✅             |             ❌             |                    ❌                     |              ❌              |
-| Bitácora          |             ✅             |             ✅             |                    ❌                     |              ❌              |
-| Administración    |             ✅             |             ❌             |                    ❌                     |              ❌              |
+| Módulo              |      Gerente General       |    Gerente de Sucursal     |                Supervisor                 |            Asesor            |
+| ------------------- | :------------------------: | :------------------------: | :---------------------------------------: | :--------------------------: |
+| Dashboard           |             ✅             |             ✅             |                    ✅                     |              ✅              |
+| Cobros              |             ❌             |             ❌             |                    ✅                     |              ✅              |
+| Créditos Nuevos     |             ✅             |             ✅             |                    ✅                     |              ✅              |
+| Renovaciones        |             ✅             |             ✅             |                    ✅                     |              ✅              |
+| Colocaciones        |             ✅             |             ✅             |                    ✅                     |              ✅              |
+| Clientes            |             ✅             |             ✅             |              ✅ (solo suyos)              |       ✅ (solo suyos)        |
+| Historial de Pago   | ✅ (puede modificar pagos) | ✅ (puede modificar pagos) | ✅ solo lectura (solo los de sus agentes) | ✅ solo lectura (solo suyos) |
+| Caja                |             ✅             |             ✅             |                    ❌                     |              ❌              |
+| Gastos              |             ✅             |             ✅             |                    ❌                     |              ❌              |
+| Reportes            |             ✅             |             ✅             |                    ❌                     |              ❌              |
+| Sucursales          |             ✅             |             ❌             |                    ❌                     |              ❌              |
+| Usuarios            |             ✅             |             ❌             |                    ❌                     |              ❌              |
+| Bitácora            |             ✅             |             ✅             |                    ❌                     |              ❌              |
+| Administración      |             ✅             |             ❌             |                    ❌                     |              ❌              |
+
+### Renovaciones — Tab "Listos para Renovar" (acceso por rol)
+
+Esta pestaña es de solo lectura y muestra los clientes elegibles para renovación según el umbral de pagos cumplidos (16 pagos para créditos de 25 días, 19 pagos para créditos de 30 días). La visibilidad está acotada por rol:
+
+| Rol                     | Clientes visibles                                          |
+| ----------------------- | ---------------------------------------------------------- |
+| **Asesor**              | Solo sus propios clientes                                  |
+| **Supervisor** (campo)  | Todos los clientes de los asesores de su sucursal          |
+| **Gerente de Sucursal** | Todos los clientes de su sucursal                          |
+| **Gerente General**     | Todos los clientes del sistema (todas las sucursales)      |
