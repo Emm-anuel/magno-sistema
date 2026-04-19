@@ -2,11 +2,14 @@ package com.magno.service;
 
 import com.magno.dto.cliente.ClienteCreateRequest;
 import com.magno.dto.cliente.ClienteDetalleDTO;
+import com.magno.dto.cliente.ClienteDocumentoDTO;
 import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.model.Cliente;
+import com.magno.model.ClienteDocumento;
 import com.magno.model.Sucursal;
 import com.magno.model.Usuario;
+import com.magno.repository.ClienteDocumentoRepository;
 import com.magno.repository.ClienteRepository;
 import com.magno.repository.SucursalRepository;
 import com.magno.repository.UsuarioRepository;
@@ -27,13 +30,16 @@ public class ClienteService {
     private final ClienteRepository clienteRepo;
     private final UsuarioRepository usuarioRepo;
     private final SucursalRepository sucursalRepo;
+    private final ClienteDocumentoRepository clienteDocumentoRepository;
 
     public ClienteService(ClienteRepository clienteRepo,
                           UsuarioRepository usuarioRepo,
-                          SucursalRepository sucursalRepo) {
+                          SucursalRepository sucursalRepo,
+                          ClienteDocumentoRepository clienteDocumentoRepository) {
         this.clienteRepo = clienteRepo;
         this.usuarioRepo = usuarioRepo;
         this.sucursalRepo = sucursalRepo;
+        this.clienteDocumentoRepository = clienteDocumentoRepository;
     }
 
     /** Listado paginado con filtros. asesorId null = todos los clientes (para roles con acceso global). */
@@ -309,6 +315,42 @@ public class ClienteService {
 
     public long contarTotal() {
         return clienteRepo.count();
+    }
+
+    // ── Documentos del cliente ────────────────────────────────────────
+
+    public List<ClienteDocumentoDTO> listarDocumentos(Long clienteId) {
+        return clienteDocumentoRepository.findByClienteIdActivos(clienteId)
+                .stream().map(ClienteDocumentoDTO::from).toList();
+    }
+
+    @Transactional
+    public ClienteDocumentoDTO agregarDocumento(Long clienteId, String tipo, String url, String nombre, Long createdByUserId) {
+        Cliente cliente = clienteRepo.findById(clienteId)
+                .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado: " + clienteId));
+
+        Usuario createdBy = usuarioRepo.findById(createdByUserId).orElse(null);
+
+        ClienteDocumento doc = ClienteDocumento.builder()
+                .cliente(cliente)
+                .tipo(tipo)
+                .url(url)
+                .nombre(nombre)
+                .createdBy(createdBy)
+                .build();
+
+        return ClienteDocumentoDTO.from(clienteDocumentoRepository.save(doc));
+    }
+
+    @Transactional
+    public void eliminarDocumento(Long documentoId, Long clienteId) {
+        ClienteDocumento doc = clienteDocumentoRepository.findById(documentoId)
+                .orElseThrow(() -> new EntityNotFoundException("Documento no encontrado: " + documentoId));
+        if (!doc.getCliente().getId().equals(clienteId)) {
+            throw new IllegalArgumentException("El documento no pertenece al cliente indicado");
+        }
+        doc.setDeletedAt(java.time.OffsetDateTime.now());
+        clienteDocumentoRepository.save(doc);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.magno.controller;
 
 import com.magno.dto.cliente.ClienteCreateRequest;
 import com.magno.dto.cliente.ClienteDetalleDTO;
+import com.magno.dto.cliente.ClienteDocumentoDTO;
 import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.security.JwtPrincipal;
@@ -227,6 +228,49 @@ public class ClienteController {
             );
             default -> req; // ADMINISTRADOR / SUPERVISOR sin cambios
         };
+    }
+
+    // ── Documentos del cliente ────────────────────────────────────────
+
+    record AgregarDocumentoRequest(String tipo, String url, String nombre) {}
+
+    @GetMapping("/{id}/documentos")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ClienteDocumentoDTO>> listarDocumentos(
+            @PathVariable Long id, Authentication auth) {
+        JwtPrincipal principal = getPrincipal(auth);
+        ClienteDetalleDTO dto = clienteService.obtenerDetalle(id);
+        switch (principal.rol()) {
+            case "ASESOR_COBRADOR" -> {
+                if (dto.asesor() == null || !dto.asesor().id().equals(principal.userId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            case "SUPERVISOR_CAMPO" -> {
+                if (!dto.sucursal().id().equals(principal.sucursalId()))
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+        return ResponseEntity.ok(clienteService.listarDocumentos(id));
+    }
+
+    @PostMapping("/{id}/documentos")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ClienteDocumentoDTO> agregarDocumento(
+            @PathVariable Long id,
+            @RequestBody AgregarDocumentoRequest req,
+            Authentication auth) {
+        JwtPrincipal principal = getPrincipal(auth);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(clienteService.agregarDocumento(id, req.tipo(), req.url(), req.nombre(), principal.userId()));
+    }
+
+    @DeleteMapping("/{clienteId}/documentos/{docId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> eliminarDocumento(
+            @PathVariable Long clienteId,
+            @PathVariable Long docId) {
+        clienteService.eliminarDocumento(docId, clienteId);
+        return ResponseEntity.noContent().build();
     }
 
     /**
