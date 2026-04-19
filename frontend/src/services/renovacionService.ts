@@ -1,18 +1,53 @@
 import { api } from './api'
-import type { RenovacionCalculo, RenovacionDetalle, ColocacionesSemana, ColocacionItem, ListoRenovarItem } from '@/types'
+import type { RenovacionCalculo, RenovacionDetalle, ColocacionesSemana, ListoRenovarItem } from '@/types'
 
-function normalizeColocacionItem(raw: any): ColocacionItem {
+function normalizeCalculo(raw: any): RenovacionCalculo {
   return {
-    fecha: raw.fecha ?? raw.fecha_colocacion,
-    clienteNombre: raw.clienteNombre ?? raw.cliente_nombre,
-    clienteId: raw.clienteId ?? raw.cliente_id,
+    creditoAnteriorId: raw.creditoAnteriorId ?? raw.credito_anterior_id,
+    montoAnterior: raw.montoAnterior ?? raw.monto_anterior,
+    pagoPeriodicoAnterior: raw.pagoPeriodicoAnterior ?? raw.pago_periodico_anterior,
+    plazoDiasAnterior: raw.plazoDiasAnterior ?? raw.plazo_dias_anterior,
+    montoNuevo: raw.montoNuevo ?? raw.monto_nuevo,
+    pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
+    montoPagosRestantes: raw.montoPagosRestantes ?? raw.monto_pagos_restantes,
+    multasPendientes: raw.multasPendientes ?? raw.multas_pendientes,
+    pagoAdelantadoNuevo: raw.pagoAdelantadoNuevo ?? raw.pago_adelantado_nuevo,
+    montoDesembolso: raw.montoDesembolso ?? raw.monto_desembolso,
+    plazoDiasNuevo: raw.plazoDiasNuevo ?? raw.plazo_dias_nuevo,
+    tasaNueva: raw.tasaNueva ?? raw.tasa_nueva,
+    cargoFinancieroNuevo: raw.cargoFinancieroNuevo ?? raw.cargo_financiero_nuevo,
+    totalAPagarNuevo: raw.totalAPagarNuevo ?? raw.total_a_pagar_nuevo,
+    pagoPeriodicoNuevo: raw.pagoPeriodicoNuevo ?? raw.pago_periodico_nuevo,
+    puedeAumentarMonto: raw.puedeAumentarMonto ?? raw.puede_aumentar_monto ?? true,
+    advertenciaMonto: raw.advertenciaMonto ?? raw.advertencia_monto ?? null,
+  }
+}
+
+function normalizeDetalle(raw: any): RenovacionDetalle {
+  return {
+    id: raw.id,
+    cliente: {
+      id: raw.cliente?.id,
+      nombreCompleto: raw.cliente?.nombreCompleto ?? raw.cliente?.nombre_completo,
+      celular: raw.cliente?.celular,
+    },
+    asesor: {
+      id: raw.asesor?.id,
+      nombreCompleto: raw.asesor?.nombreCompleto ?? raw.asesor?.nombre_completo,
+    },
     creditoAnterior: raw.creditoAnterior ?? raw.credito_anterior,
     creditoNuevo: raw.creditoNuevo ?? raw.credito_nuevo,
-    desembolso: raw.desembolso,
-    asesorNombre: raw.asesorNombre ?? raw.asesor_nombre,
-    tipo: raw.tipo,
+    fecha: raw.fecha,
+    pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
+    montoPagosRestantes: raw.montoPagosRestantes ?? raw.monto_pagos_restantes,
+    multasPendientes: raw.multasPendientes ?? raw.multas_pendientes,
+    pagoAdelantado: raw.pagoAdelantado ?? raw.pago_adelantado,
+    montoDesembolso: raw.montoDesembolso ?? raw.monto_desembolso,
     salidaDe: raw.salidaDe ?? raw.salida_de,
-    refId: raw.refId ?? raw.ref_id,
+    garantiaDescripcion: raw.garantiaDescripcion ?? raw.garantia_descripcion ?? null,
+    videoEntregaUrl: raw.videoEntregaUrl ?? raw.video_entrega_url ?? null,
+    evidenciaUrls: raw.evidenciaUrls ?? raw.evidencia_urls ?? [],
+    createdAt: raw.createdAt ?? raw.created_at,
   }
 }
 
@@ -20,9 +55,20 @@ function normalizeColocaciones(raw: any): ColocacionesSemana {
   return {
     semanaInicio: raw.semanaInicio ?? raw.semana_inicio,
     semanaFin: raw.semanaFin ?? raw.semana_fin,
-    items: (raw.items ?? []).map(normalizeColocacionItem),
-    totalDesembolsos: raw.totalDesembolsos ?? raw.total_desembolsos ?? 0,
-    totalCaja: raw.totalCaja ?? raw.total_caja ?? 0,
+    items: (raw.items ?? []).map((item: any) => ({
+      fecha: item.fecha,
+      clienteNombre: item.clienteNombre ?? item.cliente_nombre,
+      clienteId: item.clienteId ?? item.cliente_id,
+      creditoAnterior: item.creditoAnterior ?? item.credito_anterior ?? null,
+      creditoNuevo: item.creditoNuevo ?? item.credito_nuevo,
+      desembolso: item.desembolso,
+      asesorNombre: item.asesorNombre ?? item.asesor_nombre,
+      tipo: item.tipo,
+      salidaDe: item.salidaDe ?? item.salida_de ?? null,
+      refId: item.refId ?? item.ref_id,
+    })),
+    totalDesembolsos: raw.totalDesembolsos ?? raw.total_desembolsos,
+    totalCaja: raw.totalCaja ?? raw.total_caja,
   }
 }
 
@@ -45,19 +91,44 @@ function normalizeListoItem(raw: any): ListoRenovarItem {
 }
 
 export const renovacionService = {
-  calcularRenovacion: (creditoId: number): Promise<RenovacionCalculo> =>
-    api.get(`/renovaciones/calcular/${creditoId}`).then((r) => r.data),
+  calcular: (creditoId: number, montoNuevo: number): Promise<RenovacionCalculo> =>
+    api.get('/renovaciones/calcular', { params: { creditoId, montoNuevo } })
+      .then((r) => normalizeCalculo(r.data)),
 
-  obtenerDetalle: (creditoId: number): Promise<RenovacionDetalle> =>
-    api.get(`/renovaciones/detalle/${creditoId}`).then((r) => r.data),
+  crear: (data: {
+    creditoAnteriorId: number
+    montoNuevo: number
+    tipoPago: string
+    salidaDe: 'CAJA' | 'RUTA'
+    garantiaDescripcion?: string
+    evidenciaUrls?: string[]
+    videoEntregaUrl?: string
+  }): Promise<RenovacionDetalle> =>
+    api.post('/renovaciones', {
+      creditoAnteriorId: data.creditoAnteriorId,
+      montoNuevo: data.montoNuevo,
+      tipoPago: data.tipoPago,
+      salidaDe: data.salidaDe,
+      garantiaDescripcion: data.garantiaDescripcion,
+      evidenciaUrls: data.evidenciaUrls,
+      videoEntregaUrl: data.videoEntregaUrl,
+    }).then((r) => normalizeDetalle(r.data)),
 
-  getColocacionesSemana: (): Promise<ColocacionesSemana[]> =>
-    api.get('/renovaciones/colocaciones-semana').then((r) =>
-      (r.data ?? []).map(normalizeColocaciones),
-    ),
+  getColocaciones: (params?: {
+    semanaInicio?: string
+    asesorId?: number
+    sucursalId?: number
+  }): Promise<ColocacionesSemana> =>
+    api.get('/renovaciones/colocaciones', { params }).then((r) => normalizeColocaciones(r.data)),
 
-  exportarPdfUrl: (creditoId: number): string =>
-    `/api/renovaciones/exportar/${creditoId}`,
+  exportarPdfUrl: (params?: { semanaInicio?: string; asesorId?: number; sucursalId?: number }): string => {
+    const base = '/api/renovaciones/colocaciones/pdf'
+    const qs = new URLSearchParams()
+    if (params?.semanaInicio) qs.set('semanaInicio', params.semanaInicio)
+    if (params?.asesorId) qs.set('asesorId', String(params.asesorId))
+    if (params?.sucursalId) qs.set('sucursalId', String(params.sucursalId))
+    return `${base}?${qs.toString()}`
+  },
 
   getListosRenovar: (params?: {
     asesorId?: number
