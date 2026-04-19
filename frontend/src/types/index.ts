@@ -593,3 +593,83 @@ export interface CreditoDetalle {
     elegibleRenovacion: boolean
   }
 }
+
+// ------------------------------------------------------------------
+// Renovaciones
+// ------------------------------------------------------------------
+
+export interface RenovacionCalculo {
+  creditoAnteriorId: number
+  montoAnterior: number
+  pagoPeriodicoAnterior: number
+  plazoDiasAnterior: number
+  montoNuevo: number
+  pagosRestantes: number
+  montoPagosRestantes: number
+  multasPendientes: number
+  pagoAdelantadoNuevo: number
+  montoDesembolso: number
+  plazoDiasNuevo: number
+  tasaNueva: number
+  cargoFinancieroNuevo: number
+  totalAPagarNuevo: number
+  pagoPeriodicoNuevo: number
+  puedeAumentarMonto: boolean
+  advertenciaMonto: string | null
+}
+
+export interface RenovacionDetalle {
+  id: number
+  cliente: { id: number; nombreCompleto: string; celular: string }
+  asesor: { id: number; nombreCompleto: string }
+  creditoAnterior: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string }
+  creditoNuevo: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string }
+  fecha: string
+  pagosRestantes: number
+  montoPagosRestantes: number
+  multasPendientes: number
+  pagoAdelantado: number
+  montoDesembolso: number
+  salidaDe: 'CAJA' | 'RUTA'
+  garantiaDescripcion: string | null
+  videoEntregaUrl: string | null
+  evidenciaUrls: string[]
+  createdAt: string
+}
+
+export interface ColocacionItem {
+  fecha: string
+  clienteNombre: string
+  clienteId: number
+  creditoAnterior: number | null
+  creditoNuevo: number
+  desembolso: number
+  asesorNombre: string
+  tipo: 'NUEVO' | 'RENOVACION'
+  salidaDe: 'CAJA' | 'RUTA' | null
+  refId: number
+}
+
+export interface ColocacionesSemana {
+  semanaInicio: string
+  semanaFin: string
+  items: ColocacionItem[]
+  totalDesembolsos: number
+  totalCaja: number
+}
+
+export interface ListoRenovarItem {
+  clienteId: number
+  clienteNombre: string
+  creditoId: number
+  montoCapital: number
+  plazoDias: number
+  pagoPeriodico: number
+  asesorId: number
+  asesorNombre: string
+  sucursalId: number
+  sucursalNombre: string
+  pagosRealizados: number
+  pagosRestantes: number
+  multasPendientes: number
+}
