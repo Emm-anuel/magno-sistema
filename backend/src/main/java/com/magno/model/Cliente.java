@@ -137,6 +137,12 @@ public class Cliente {
     @Column(name = "negocio_horarios", length = 150)
     private String negocioHorarios;
 
+    @Column(name = "negocio_lat", precision = 10, scale = 7)
+    private BigDecimal negocioLat;
+
+    @Column(name = "negocio_lng", precision = 10, scale = 7)
+    private BigDecimal negocioLng;
+
     // ── Finanzas ──────────────────────────────────────────────────
     @Column(name = "ingresos_semanales", precision = 12, scale = 2)
     private BigDecimal ingresosSemanales;

@@ -60,6 +60,8 @@ public record ClienteUpdateRequest(
         String negocioTipoLocal,
         BigDecimal negocioMontoRenta,
         String negocioHorarios,
+        BigDecimal negocioLat,
+        BigDecimal negocioLng,
 
         // Finanzas
         BigDecimal ingresosSemanales,

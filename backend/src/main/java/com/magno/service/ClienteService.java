@@ -157,6 +157,8 @@ public class ClienteService {
                 .negocioTipoLocal(req.negocioTipoLocal())
                 .negocioMontoRenta(req.negocioMontoRenta())
                 .negocioHorarios(req.negocioHorarios())
+                .negocioLat(req.negocioLat())
+                .negocioLng(req.negocioLng())
                 .ingresosSemanales(req.ingresosSemanales())
                 .gastosSemanales(req.gastosSemanales())
                 .gastosRenta(req.gastosRenta())
@@ -235,6 +237,8 @@ public class ClienteService {
         if (req.negocioTipoLocal() != null)   c.setNegocioTipoLocal(req.negocioTipoLocal());
         if (req.negocioMontoRenta() != null)  c.setNegocioMontoRenta(req.negocioMontoRenta());
         if (req.negocioHorarios() != null)    c.setNegocioHorarios(req.negocioHorarios());
+        c.setNegocioLat(req.negocioLat());
+        c.setNegocioLng(req.negocioLng());
 
         if (req.ingresosSemanales() != null)  c.setIngresosSemanales(req.ingresosSemanales());
         if (req.gastosSemanales() != null)    c.setGastosSemanales(req.gastosSemanales());

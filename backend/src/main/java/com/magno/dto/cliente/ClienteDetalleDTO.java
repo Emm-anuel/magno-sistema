@@ -57,6 +57,8 @@ public record ClienteDetalleDTO(
         String negocioTipoLocal,
         BigDecimal negocioMontoRenta,
         String negocioHorarios,
+        BigDecimal negocioLat,
+        BigDecimal negocioLng,
 
         // Finanzas
         BigDecimal ingresosSemanales,
@@ -155,6 +157,8 @@ public record ClienteDetalleDTO(
                 c.getNegocioTipoLocal(),
                 c.getNegocioMontoRenta(),
                 c.getNegocioHorarios(),
+                c.getNegocioLat(),
+                c.getNegocioLng(),
                 c.getIngresosSemanales(),
                 c.getGastosSemanales(),
                 c.getGastosRenta(),
