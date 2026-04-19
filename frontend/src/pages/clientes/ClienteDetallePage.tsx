@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import BusinessMap from '@/components/BusinessMap'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -455,6 +456,19 @@ export default function ClienteDetallePage() {
                   <Row label="Ingresos semanales" value={fmtMoney(cliente.ingresos_semanales)} />
                   <Row label="Gastos semanales" value={fmtMoney(cliente.gastos_semanales)} />
                 </div>
+                {cliente.negocio_lat && cliente.negocio_lng && (
+                  <div className="mt-3">
+                    <p className="text-[11px] font-semibold text-[#adb5bd] uppercase tracking-wide mb-2">
+                      Ubicación del negocio
+                    </p>
+                    <BusinessMap
+                      lat={Number(cliente.negocio_lat)}
+                      lng={Number(cliente.negocio_lng)}
+                      onChange={() => {}}
+                      readOnly
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
