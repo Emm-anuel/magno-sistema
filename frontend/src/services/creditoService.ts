@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { CreditoResumen, CreditoDetalle, CalendarioPagoDetalle, ProductoCalculo, Page } from '@/types'
+import type { CreditoResumen, CreditoDetalle, CalendarioPagoDetalle, ProductoCalculo, Page, RenovacionVinculo } from '@/types'
 
 function normalizeProductoCalculo(raw: any): ProductoCalculo {
   return {
@@ -72,12 +72,26 @@ function normalizeCalendarioItem(item: any): CalendarioPagoDetalle {
   }
 }
 
+function normalizeRenovacionVinculo(raw: any): RenovacionVinculo {
+  return {
+    renovacionId: raw.renovacionId ?? raw.renovacion_id,
+    fechaRenovacion: raw.fechaRenovacion ?? raw.fecha_renovacion,
+    pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
+    montoPagosRestantes: raw.montoPagosRestantes ?? raw.monto_pagos_restantes,
+    montoDesembolso: raw.montoDesembolso ?? raw.monto_desembolso,
+    creditoVinculadoId: raw.creditoVinculadoId ?? raw.credito_vinculado_id,
+    montoCapitalVinculado: raw.montoCapitalVinculado ?? raw.monto_capital_vinculado,
+  }
+}
+
 function normalizeCreditoDetalle(raw: any): CreditoDetalle {
   const cliente = raw.cliente ?? {}
   const asesor = raw.asesor ?? {}
   const sucursal = raw.sucursal ?? {}
   const aprobadoPor = raw.aprobadoPor ?? raw.aprobado_por
   const estadisticasRaw = raw.estadisticas ?? {}
+  const liquidadoRaw = raw.liquidadoPorRenovacion ?? raw.liquidado_por_renovacion
+  const origenRaw = raw.originadoPorRenovacion ?? raw.originado_por_renovacion
 
   return {
     id: raw.id,
@@ -130,6 +144,8 @@ function normalizeCreditoDetalle(raw: any): CreditoDetalle {
       multasPendientes: estadisticasRaw.multasPendientes ?? estadisticasRaw.multas_pendientes ?? 0,
       elegibleRenovacion: estadisticasRaw.elegibleRenovacion ?? estadisticasRaw.elegible_renovacion ?? false,
     },
+    liquidadoPorRenovacion: liquidadoRaw ? normalizeRenovacionVinculo(liquidadoRaw) : null,
+    originadoPorRenovacion: origenRaw ? normalizeRenovacionVinculo(origenRaw) : null,
   }
 }
 
