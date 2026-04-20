@@ -619,6 +619,16 @@ export interface ColocacionesSemana {
   totalCaja: number
 }
 
+export interface RenovacionVinculo {
+  renovacionId: number
+  fechaRenovacion: string
+  pagosRestantes: number
+  montoPagosRestantes: number
+  montoDesembolso: number
+  creditoVinculadoId: number
+  montoCapitalVinculado: number
+}
+
 // Shape returned by GET /api/creditos/:id
 export interface CreditoDetalle {
   id: number
@@ -656,6 +666,8 @@ export interface CreditoDetalle {
     multasPendientes: number
     elegibleRenovacion: boolean
   }
+  liquidadoPorRenovacion: RenovacionVinculo | null
+  originadoPorRenovacion: RenovacionVinculo | null
 }
 
 // ------------------------------------------------------------------
