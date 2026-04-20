@@ -696,6 +696,78 @@ export default function CreditoDetallePage() {
         </div>
       </div>
 
+      {/* Bloque: Liquidado por Renovación */}
+      {credito.estado === 'RENOVADO' && credito.liquidadoPorRenovacion && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 sm:p-5 space-y-3">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+            Liquidado por Renovación
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+              <div className="text-[11px] text-gray-500 uppercase tracking-wide">Fecha de renovación</div>
+              <div className="font-medium text-gray-800 mt-0.5">
+                {fmtDateTime(credito.liquidadoPorRenovacion.fechaRenovacion)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-gray-500 uppercase tracking-wide">Pagos cubiertos</div>
+              <div className="font-medium text-gray-800 mt-0.5">
+                {credito.liquidadoPorRenovacion.pagosRestantes} pagos · {fmtMoney(credito.liquidadoPorRenovacion.montoPagosRestantes)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-gray-500 uppercase tracking-wide">Monto crédito nuevo</div>
+              <div className="font-medium text-gray-800 mt-0.5">
+                {fmtMoney(credito.liquidadoPorRenovacion.montoCapitalVinculado)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-gray-500 uppercase tracking-wide">Desembolso al cliente</div>
+              <div className="font-semibold text-[#3d6b35] mt-0.5">
+                {fmtMoney(credito.liquidadoPorRenovacion.montoDesembolso)}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/creditos/${credito.liquidadoPorRenovacion!.creditoVinculadoId}`)}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-900"
+          >
+            Ver crédito #{credito.liquidadoPorRenovacion.creditoVinculadoId} →
+          </button>
+        </div>
+      )}
+
+      {/* Bloque: Originado por Renovación */}
+      {credito.originadoPorRenovacion && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 sm:p-5 space-y-3">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+            Originado por Renovación
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            <div>
+              <div className="text-[11px] text-gray-500 uppercase tracking-wide">Crédito anterior</div>
+              <div className="font-medium text-gray-800 mt-0.5">
+                #{credito.originadoPorRenovacion.creditoVinculadoId} · {fmtMoney(credito.originadoPorRenovacion.montoCapitalVinculado)}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-gray-500 uppercase tracking-wide">Pagos cubiertos del anterior</div>
+              <div className="font-medium text-gray-800 mt-0.5">
+                {credito.originadoPorRenovacion.pagosRestantes} pagos · {fmtMoney(credito.originadoPorRenovacion.montoPagosRestantes)}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/creditos/${credito.originadoPorRenovacion!.creditoVinculadoId}`)}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:text-amber-900"
+          >
+            ← Ver crédito anterior #{credito.originadoPorRenovacion.creditoVinculadoId}
+          </button>
+        </div>
+      )}
+
       {/* Modal Ver pago */}
       {pagoModal && (
         <div
