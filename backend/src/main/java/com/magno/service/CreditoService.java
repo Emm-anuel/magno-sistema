@@ -42,19 +42,22 @@ public class CreditoService {
         private final UsuarioRepository usuarioRepo;
         private final SucursalRepository sucursalRepo;
         private final CreditoCalculoService calculoService;
+        private final RenovacionRepository renovacionRepo;
 
         public CreditoService(CreditoRepository creditoRepo,
                         CalendarioPagoRepository calendarioPagoRepo,
                         ClienteRepository clienteRepo,
                         UsuarioRepository usuarioRepo,
                         SucursalRepository sucursalRepo,
-                        CreditoCalculoService calculoService) {
+                        CreditoCalculoService calculoService,
+                        RenovacionRepository renovacionRepo) {
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
                 this.clienteRepo = clienteRepo;
                 this.usuarioRepo = usuarioRepo;
                 this.sucursalRepo = sucursalRepo;
                 this.calculoService = calculoService;
+                this.renovacionRepo = renovacionRepo;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -442,7 +445,6 @@ public class CreditoService {
 
                 BigDecimal multasPendientes = creditoRepo.sumMultasPendientes(c.getId());
 
-                // Elegibilidad para renovación: a partir del pago 16 (plazo 25) o 19 (plazo 30)
                 int umbralRenovacion = c.getPlazoDias() == 30 ? 19 : 16;
                 boolean elegibleRenovacion = c.getEstado() == EstadoCredito.ACTIVO
                                 && pagosRealizados >= umbralRenovacion;
@@ -454,6 +456,35 @@ public class CreditoService {
                                 multasPendientes,
                                 elegibleRenovacion);
 
-                return CreditoDetalleDTO.from(c, calendario, stats);
+                // Vínculo: este crédito fue liquidado por una renovación (estado RENOVADO)
+                RenovacionVinculoDTO liquidadoPorRenovacion = null;
+                if (c.getEstado() == EstadoCredito.RENOVADO) {
+                        liquidadoPorRenovacion = renovacionRepo
+                                        .findActivaByCreditoAnteriorId(c.getId())
+                                        .map(r -> new RenovacionVinculoDTO(
+                                                        r.getId(),
+                                                        r.getCreatedAt(),
+                                                        r.getPagosRestantes(),
+                                                        r.getMontoPagosRestantes(),
+                                                        r.getMontoDesembolso(),
+                                                        r.getCreditoNuevo().getId(),
+                                                        r.getCreditoNuevo().getMontoCapital()))
+                                        .orElse(null);
+                }
+
+                // Vínculo: este crédito fue creado como resultado de una renovación
+                RenovacionVinculoDTO originadoPorRenovacion = renovacionRepo
+                                .findActivaByCreditoNuevoId(c.getId())
+                                .map(r -> new RenovacionVinculoDTO(
+                                                r.getId(),
+                                                r.getCreatedAt(),
+                                                r.getPagosRestantes(),
+                                                r.getMontoPagosRestantes(),
+                                                r.getMontoDesembolso(),
+                                                r.getCreditoAnterior().getId(),
+                                                r.getCreditoAnterior().getMontoCapital()))
+                                .orElse(null);
+
+                return CreditoDetalleDTO.from(c, calendario, stats, liquidadoPorRenovacion, originadoPorRenovacion);
         }
 }

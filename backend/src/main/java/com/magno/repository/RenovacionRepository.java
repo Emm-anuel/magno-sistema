@@ -8,11 +8,18 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface RenovacionRepository extends JpaRepository<Renovacion, Long> {
 
     List<Renovacion> findByCreditoAnteriorId(Long creditoAnteriorId);
+
+    @Query("SELECT r FROM Renovacion r WHERE r.creditoAnterior.id = :creditoId AND r.deletedAt IS NULL")
+    Optional<Renovacion> findActivaByCreditoAnteriorId(@Param("creditoId") Long creditoId);
+
+    @Query("SELECT r FROM Renovacion r WHERE r.creditoNuevo.id = :creditoId AND r.deletedAt IS NULL")
+    Optional<Renovacion> findActivaByCreditoNuevoId(@Param("creditoId") Long creditoId);
 
     @Query("SELECT r FROM Renovacion r " +
            "WHERE r.deletedAt IS NULL " +
