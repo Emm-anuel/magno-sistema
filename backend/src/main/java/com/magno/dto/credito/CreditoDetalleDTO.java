@@ -62,7 +62,11 @@ public record CreditoDetalleDTO(
                 List<CalendarioPagoDTO> calendario,
 
                 // ── Estadísticas ─────────────────────────────────────────
-                Estadisticas estadisticas) {
+                Estadisticas estadisticas,
+
+                // ── Vínculos de renovación (nullable) ────────────────────
+                RenovacionVinculoDTO liquidadoPorRenovacion,
+                RenovacionVinculoDTO originadoPorRenovacion) {
         public record Estadisticas(
                         long pagosRealizados,
                         long pagosPendientes,
@@ -73,7 +77,9 @@ public record CreditoDetalleDTO(
 
         public static CreditoDetalleDTO from(Credito c,
                         List<CalendarioPagoDTO> calendario,
-                        Estadisticas estadisticas) {
+                        Estadisticas estadisticas,
+                        RenovacionVinculoDTO liquidadoPorRenovacion,
+                        RenovacionVinculoDTO originadoPorRenovacion) {
                 CreditoResumenDTO.ClienteInfo cliente = new CreditoResumenDTO.ClienteInfo(
                                 c.getCliente().getId(),
                                 c.getCliente().getNombreCompleto(),
@@ -119,6 +125,8 @@ public record CreditoDetalleDTO(
                                 c.getCreatedAt(),
                                 c.getUpdatedAt(),
                                 calendario,
-                                estadisticas);
+                                estadisticas,
+                                liquidadoPorRenovacion,
+                                originadoPorRenovacion);
         }
 }
