@@ -13,6 +13,7 @@ import CreditosNuevosPage from '@/pages/creditos/CreditosNuevosPage'
 import CreditoDetallePage from '@/pages/creditos/CreditoDetallePage'
 import CobrosPage from '@/pages/cobros/CobrosPage'
 import HistorialPage from '@/pages/Historial'
+import RenovacionesPage from '@/pages/renovaciones/RenovacionesPage'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import ColocacionesPage from '@/pages/colocaciones/ColocacionesPage'
 import {
@@ -49,7 +50,7 @@ export default function App() {
             <Route element={<ProtectedRoute allowedRoles={ALL_ROLES} />}>
               <Route path="/creditos-nuevos" element={<CreditosNuevosPage />} />
               <Route path="/creditos/:id" element={<CreditoDetallePage />} />
-              <Route path="/renovaciones" element={<ModulePlaceholderPage />} />
+              <Route path="/renovaciones" element={<RenovacionesPage />} />
               <Route path="/colocaciones" element={<ColocacionesPage />} />
               <Route path="/historial" element={<HistorialPage />} />
             </Route>
