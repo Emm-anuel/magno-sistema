@@ -127,14 +127,9 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
             <p className="metric-sub">con multa aplicada</p>
           </div>
           <div className="metric-card">
-            <p className="metric-label">Total Caja</p>
-            <p className="metric-val">{fmtMoney(resumen.totalCaja)}</p>
-            <p className="metric-sub">cobrado en sucursal</p>
-          </div>
-          <div className="metric-card">
-            <p className="metric-label">Total Ruta</p>
-            <p className="metric-val">{fmtMoney(resumen.totalRuta)}</p>
-            <p className="metric-sub">cobrado en campo</p>
+            <p className="metric-label">Multas cobradas</p>
+            <p className="metric-val">{fmtMoney(resumen.totalMultasCobradas ?? 0)}</p>
+            <p className="metric-sub">del día</p>
           </div>
         </div>
       )}

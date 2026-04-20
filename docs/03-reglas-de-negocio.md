@@ -91,7 +91,7 @@
 - Las multas pendientes **se descuentan del desembolso en renovaciones**.
 - Configuración en módulo Administración → Config. Multas: Sucursal | Rango Mín | Rango Máx | Multa/Día | Multa por 2 Incompletos.
 
-### 6.4 Renovaciones
+### 6.4 Renovaciones ✅ Implementado (Módulo 5)
 
 - Elegibilidad: pago **#16** (25 días) / pago **#19** (30 días). El sistema bloquea antes.
 - 0–1 pagos pendientes → puede aumentar monto. 2–3 pendientes → igual o menor.
@@ -103,14 +103,23 @@
 - Pago adelantado → se aplica al último pago del nuevo crédito.
 - Salida de: **CAJA** o **RUTA** (campo requerido).
 - Campos calculados automáticamente: Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar.
+- Al confirmar: crédito anterior → estado RENOVADO; pagos pendientes → PAGADO; multas → cobradas=true.
+- Se crea nuevo crédito directamente en estado ACTIVO con calendario de pagos generado.
+- Registro de `renovaciones` vincula credito_anterior_id ↔ credito_nuevo_id para trazabilidad.
+- Evidencias multimedia: `renovaciones.evidencia_urls TEXT[]` (fotos/videos del negocio, opcional).
+- Video de entrega: `renovaciones.video_entrega_url` (opcional, mismo patrón que Créditos Nuevos).
 
-### 6.5 Colocaciones
+### 6.5 Colocaciones ✅ Implementado (Módulo 5)
 
-- Tabla semanal (Lunes–Viernes) por asesor. Incluye créditos nuevos + renovaciones.
-- Columnas: Día | Cliente | Crédito Actual | Crédito Solicitado | Desembolso | Asesor | Tipo (Nuevo/Renovación).
-- Totales al pie: Total Caja y Total Desembolsos.
+- Vista semanal (Lunes–Viernes) por asesor. Incluye créditos nuevos + renovaciones.
+- Columnas: Fecha | Cliente | Crédito Anterior | Crédito Nuevo | Desembolso | Asesor | Tipo.
+- Totales al pie: Total Desembolsos (todos) y Total Caja (solo filas con salida_de=CAJA).
 - Vive en módulo **Renovaciones** → pestaña "Colocaciones Semanales".
-- ⚠️ Confirmar: ¿tabla almacenada o reporte calculado?
+- **Implementación**: reporte calculado por JOIN a creditos (fechaDesembolso) + renovaciones (fecha).
+  No requiere poblar la tabla `colocaciones`; esta queda disponible para Corte de Caja/Reportes.
+- Exportable a PDF via iText 8 — `GET /api/renovaciones/colocaciones/pdf`.
+- Filtros: semanaInicio (date), asesorId, sucursalId. Rol ASESOR_COBRADOR: solo sus filas.
+- Total Caja = suma de desembolsos de renovaciones con salida_de='CAJA' (nuevos no tienen tracking de salida_de).
 
 ### 6.6 Corte de Caja
 

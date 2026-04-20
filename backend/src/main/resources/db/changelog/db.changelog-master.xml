@@ -71,7 +71,15 @@
 
     <changeSet id="V9-eliminar-modalidad-pagos" author="magno">
         <sqlFile
-            path="db/changelog/V9__eliminar_modalidad_pagos.sql"
+            path="db/changelog/V9__eliminar_modalidad_pagos_fix.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V10-renovaciones-video-evidencias" author="magno">
+        <sqlFile
+            path="db/changelog/V10__renovaciones_video_evidencias.sql"
             relativeToChangelogFile="false"
             splitStatements="true"
             stripComments="false"/>

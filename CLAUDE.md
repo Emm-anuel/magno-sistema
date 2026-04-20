@@ -14,7 +14,7 @@ BD: Liquibase migrations en db/changelog/
 - ✅ Módulo 2: Clientes (CRUD completo, validaciones)
 - ✅ Módulo 3: Créditos Nuevos (solicitud→aprobación→desembolso)
 - ✅ Módulo 4: Cobros (ruta del día, multas, historial)
-- 🔄 Módulo 5: Renovaciones (siguiente)
+- ✅ Módulo 5: Renovaciones (backend + frontend completos)
 - ⬜ Módulo 6: Corte de Caja
 - ⬜ Módulo 7: Gastos
 - ⬜ Módulo 8: Reportes
