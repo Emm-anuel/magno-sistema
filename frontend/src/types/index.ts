@@ -591,7 +591,6 @@ export interface RenovacionDetalle {
   multasPendientes: number
   pagoAdelantado: number
   montoDesembolso: number
-  salidaDe: 'CAJA' | 'RUTA'
   garantiaDescripcion: string | null
   videoEntregaUrl: string | null
   evidenciaUrls: string[]
@@ -607,7 +606,6 @@ export interface ColocacionItem {
   desembolso: number
   asesorNombre: string
   tipo: 'NUEVO' | 'RENOVACION'
-  salidaDe: 'CAJA' | 'RUTA' | null
   refId: number
 }
 
@@ -616,7 +614,6 @@ export interface ColocacionesSemana {
   semanaFin: string
   items: ColocacionItem[]
   totalDesembolsos: number
-  totalCaja: number
 }
 
 export interface RenovacionVinculo {
@@ -706,7 +703,6 @@ export interface RenovacionDetalle {
   multasPendientes: number
   pagoAdelantado: number
   montoDesembolso: number
-  salidaDe: 'CAJA' | 'RUTA'
   garantiaDescripcion: string | null
   videoEntregaUrl: string | null
   evidenciaUrls: string[]
@@ -722,7 +718,6 @@ export interface ColocacionItem {
   desembolso: number
   asesorNombre: string
   tipo: 'NUEVO' | 'RENOVACION'
-  salidaDe: 'CAJA' | 'RUTA' | null
   refId: number
 }
 
@@ -731,7 +726,6 @@ export interface ColocacionesSemana {
   semanaFin: string
   items: ColocacionItem[]
   totalDesembolsos: number
-  totalCaja: number
 }
 
 export interface ListoRenovarItem {

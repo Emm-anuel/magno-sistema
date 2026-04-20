@@ -85,4 +85,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V11-renovaciones-eliminar-salida-de" author="magno">
+        <sqlFile
+            path="db/changelog/V11__renovaciones_eliminar_salida_de.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -183,15 +183,6 @@ export default function TabColocacionesSemanales() {
                       </td>
                       <td colSpan={2} />
                     </tr>
-                    <tr className="bg-gray-50">
-                      <td colSpan={4} className="pb-3 pr-4 text-right text-sm font-semibold text-gray-700">
-                        Total Caja
-                      </td>
-                      <td className="pb-3 pr-4 text-right text-sm font-bold text-gray-800">
-                        {fmt(data.totalCaja)}
-                      </td>
-                      <td colSpan={2} />
-                    </tr>
                   </tfoot>
                 </table>
               </div>
@@ -233,10 +224,6 @@ export default function TabColocacionesSemanales() {
                   <div className="flex justify-between text-sm font-semibold">
                     <span className="text-gray-700">Total Desembolsos</span>
                     <span className="text-[#3d6b35]">{fmt(data.totalDesembolsos)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span className="text-gray-700">Total Caja</span>
-                    <span className="text-gray-800">{fmt(data.totalCaja)}</span>
                   </div>
                 </div>
               </div>

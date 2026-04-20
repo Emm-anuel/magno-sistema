@@ -75,7 +75,6 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
   // Form state
   const [montoStr, setMontoStr] = useState('')
   const [tipoPago, setTipoPago] = useState<'DIARIO' | 'SEMANAL'>('DIARIO')
-  const [salidaDe, setSalidaDe] = useState<'CAJA' | 'RUTA'>('RUTA')
   const [garantiaDescripcion, setGarantiaDescripcion] = useState('')
   const [evidenciaUrls, setEvidenciaUrls] = useState<string[]>([])
   const [videoEntregaUrl, setVideoEntregaUrl] = useState('')
@@ -205,7 +204,6 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
         creditoAnteriorId: creditoActivo!.id,
         montoNuevo: monto,
         tipoPago,
-        salidaDe,
         garantiaDescripcion: garantiaDescripcion.trim() || undefined,
         evidenciaUrls,
         videoEntregaUrl: videoEntregaUrl.trim() || undefined,
@@ -418,33 +416,6 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
             </div>
           )}
 
-          {/* Salida de */}
-          {creditoActivo && elegible && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Salida de <span className="text-red-500">*</span>
-              </label>
-              <div className="flex gap-6">
-                {([
-                  { v: 'CAJA' as const, label: 'Caja (cliente en sucursal)' },
-                  { v: 'RUTA' as const, label: 'Ruta (asesor en negocio)' },
-                ]).map(({ v, label }) => (
-                  <label key={v} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="salidaDe"
-                      value={v}
-                      checked={salidaDe === v}
-                      onChange={() => setSalidaDe(v)}
-                      className="w-4 h-4 accent-[#3d6b35]"
-                    />
-                    <span className="text-sm">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Garantía */}
           {creditoActivo && elegible && (
             <div>
@@ -550,10 +521,6 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
             <div className="flex justify-between">
               <span className="text-gray-500">Forma de pago</span>
               <span className="font-medium">{tipoPago}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-500">Salida de</span>
-              <span className="font-medium">{salidaDe === 'CAJA' ? 'Caja (sucursal)' : 'Ruta (campo)'}</span>
             </div>
             {garantiaDescripcion.trim() && (
               <div className="flex justify-between">

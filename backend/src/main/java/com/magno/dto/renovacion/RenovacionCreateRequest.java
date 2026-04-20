@@ -9,20 +9,13 @@ import java.util.List;
 
 public record RenovacionCreateRequest(
 
-        @NotNull(message = "creditoAnteriorId es requerido")
-        Long creditoAnteriorId,
+                @NotNull(message = "creditoAnteriorId es requerido") Long creditoAnteriorId,
 
-        @NotNull(message = "montoNuevo es requerido")
-        @DecimalMin(value = "1000", message = "El monto mínimo es $1,000")
-        BigDecimal montoNuevo,
+                @NotNull(message = "montoNuevo es requerido") @DecimalMin(value = "1000", message = "El monto mínimo es $1,000") BigDecimal montoNuevo,
 
-        @NotBlank(message = "tipoPago es requerido")
-        String tipoPago, // DIARIO | SEMANAL
+                @NotBlank(message = "tipoPago es requerido") String tipoPago, // DIARIO | SEMANAL
 
-        @NotBlank(message = "salidaDe es requerido")
-        String salidaDe, // CAJA | RUTA
-
-        String garantiaDescripcion,
-        List<String> evidenciaUrls,
-        String videoEntregaUrl
-) {}
+                String garantiaDescripcion,
+                List<String> evidenciaUrls,
+                String videoEntregaUrl) {
+}

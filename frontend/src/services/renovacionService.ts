@@ -43,7 +43,6 @@ function normalizeDetalle(raw: any): RenovacionDetalle {
     multasPendientes: raw.multasPendientes ?? raw.multas_pendientes,
     pagoAdelantado: raw.pagoAdelantado ?? raw.pago_adelantado,
     montoDesembolso: raw.montoDesembolso ?? raw.monto_desembolso,
-    salidaDe: raw.salidaDe ?? raw.salida_de,
     garantiaDescripcion: raw.garantiaDescripcion ?? raw.garantia_descripcion ?? null,
     videoEntregaUrl: raw.videoEntregaUrl ?? raw.video_entrega_url ?? null,
     evidenciaUrls: raw.evidenciaUrls ?? raw.evidencia_urls ?? [],
@@ -64,11 +63,9 @@ function normalizeColocaciones(raw: any): ColocacionesSemana {
       desembolso: item.desembolso,
       asesorNombre: item.asesorNombre ?? item.asesor_nombre,
       tipo: item.tipo,
-      salidaDe: item.salidaDe ?? item.salida_de ?? null,
       refId: item.refId ?? item.ref_id,
     })),
     totalDesembolsos: raw.totalDesembolsos ?? raw.total_desembolsos,
-    totalCaja: raw.totalCaja ?? raw.total_caja,
   }
 }
 
@@ -99,7 +96,6 @@ export const renovacionService = {
     creditoAnteriorId: number
     montoNuevo: number
     tipoPago: string
-    salidaDe: 'CAJA' | 'RUTA'
     garantiaDescripcion?: string
     evidenciaUrls?: string[]
     videoEntregaUrl?: string
@@ -108,7 +104,6 @@ export const renovacionService = {
       creditoAnteriorId: data.creditoAnteriorId,
       montoNuevo: data.montoNuevo,
       tipoPago: data.tipoPago,
-      salidaDe: data.salidaDe,
       garantiaDescripcion: data.garantiaDescripcion,
       evidenciaUrls: data.evidenciaUrls,
       videoEntregaUrl: data.videoEntregaUrl,

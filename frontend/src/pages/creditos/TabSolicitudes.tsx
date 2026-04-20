@@ -13,6 +13,7 @@ const ESTADOS: { value: string; label: string }[] = [
   { value: 'SOLICITADO', label: 'Solicitado' },
   { value: 'APROBADO', label: 'Aprobado' },
   { value: 'ACTIVO', label: 'Activo' },
+  { value: 'RENOVADO', label: 'Renovado' },
   { value: 'PAGADO', label: 'Pagado' },
   { value: 'CANCELADO', label: 'Cancelado' },
 ]

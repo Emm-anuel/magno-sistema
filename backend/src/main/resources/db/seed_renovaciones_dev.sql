@@ -456,12 +456,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, garantia_descripcion, created_by
+  garantia_descripcion, created_by
 ) VALUES (
   v_ca1, v_cn1, v_c1, v_asesor1,
   '2026-04-14', 3, 2232.00,
   0.00, 843.20, 13924.80,
-  'RUTA', 'Licuadora industrial y vitrina de exhibición', v_admin
+  'Licuadora industrial y vitrina de exhibición', v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -522,12 +522,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, garantia_descripcion, created_by
+  garantia_descripcion, created_by
 ) VALUES (
   v_ca2, v_cn2, v_c2, v_asesor2,
   '2026-04-14', 2, 1040.00,
   0.00, 624.00, 10336.00,
-  'CAJA', 'Herramientas de taller', v_admin
+  'Herramientas de taller', v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -588,12 +588,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, garantia_descripcion, created_by
+  garantia_descripcion, created_by
 ) VALUES (
   v_ca3, v_cn3, v_c3, v_asesor1,
   '2026-04-15', 4, 3306.68,
   0.00, 909.33, 17783.99,
-  'RUTA', 'Silla de estética profesional y espejo', v_admin
+  'Silla de estética profesional y espejo', v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -655,12 +655,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, garantia_descripcion, created_by
+  garantia_descripcion, created_by
 ) VALUES (
   v_ca4, v_cn4, v_c4, v_asesor2,
   '2026-04-16', 1, 744.00,
   50.00, 744.00, 13462.00,
-  'RUTA', 'Refrigerador de vitrina para carnes', v_admin
+  'Refrigerador de vitrina para carnes', v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -721,12 +721,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, garantia_descripcion, created_by
+  garantia_descripcion, created_by
 ) VALUES (
   v_ca5, v_cn5, v_c5, v_asesor1,
   '2026-04-18', 2, 1248.00,
   0.00, 728.00, 12024.00,
-  'CAJA', 'Utensilios de cocina y tanque de gas', v_admin
+  'Utensilios de cocina y tanque de gas', v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -843,12 +843,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, created_by
+  created_by
 ) VALUES (
   v_ca8, v_cn8, v_c8, v_asesor1,
   '2026-04-07', 3, 2232.00,
   0.00, 843.20, 13924.80,
-  'RUTA', v_admin
+  v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -903,12 +903,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, created_by
+  created_by
 ) VALUES (
   v_ca9, v_cn9, v_c9, v_asesor2,
   '2026-04-08', 2, 1653.34,
   0.00, 826.67, 17519.99,
-  'RUTA', v_admin
+  v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────
@@ -963,12 +963,12 @@ INSERT INTO renovaciones (
   credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes,
   multas_pendientes, pago_adelantado, monto_desembolso,
-  salida_de, created_by
+  created_by
 ) VALUES (
   v_ca10, v_cn10, v_c10, v_asesor1,
   '2026-04-10', 1, 520.00,
   0.00, 624.00, 10856.00,
-  'CAJA', v_admin
+  v_admin
 );
 
 -- ──────────────────────────────────────────────────────────────

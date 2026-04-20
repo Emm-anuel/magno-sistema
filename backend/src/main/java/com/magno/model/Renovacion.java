@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"creditoAnterior", "creditoNuevo", "cliente", "asesor", "createdBy"})
+@ToString(exclude = { "creditoAnterior", "creditoNuevo", "cliente", "asesor", "createdBy" })
 public class Renovacion {
 
     @Id
@@ -53,9 +53,6 @@ public class Renovacion {
 
     @Column(name = "monto_desembolso", nullable = false, precision = 12, scale = 2)
     private BigDecimal montoDesembolso;
-
-    @Column(name = "salida_de", nullable = false, length = 10)
-    private String salidaDe; // CAJA | RUTA
 
     @Column(name = "garantia_descripcion", columnDefinition = "TEXT")
     private String garantiaDescripcion;
