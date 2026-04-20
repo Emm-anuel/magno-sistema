@@ -111,6 +111,30 @@ La página de detalle del cliente incluye un tab **"Documentos"** para gestionar
 
 ---
 
+## 8.1. Detalle de Crédito — Bloques de Vínculo de Renovación (CreditoDetallePage)
+
+Aparecen al final del detalle de crédito, después del card de tabs, como tarjetas independientes:
+
+#### "Liquidado por Renovación" (borde/fondo azul)
+
+Visible únicamente cuando el crédito tiene estado `RENOVADO`. Muestra:
+- Fecha y hora de la renovación
+- Pagos cubiertos y su monto total
+- Monto del crédito nuevo generado
+- Desembolso entregado al cliente
+- Botón "Ver crédito #N →" que navega al crédito nuevo
+
+#### "Originado por Renovación" (borde/fondo ámbar)
+
+Visible cuando el crédito fue generado a partir de una renovación (es el crédito nuevo en la cadena). Muestra:
+- ID y monto del crédito anterior
+- Pagos del anterior que fueron cubiertos
+- Botón "← Ver crédito anterior #N" para navegar al crédito predecesor
+
+**Cadena completa de renovaciones:** ambos bloques permiten navegar la cadena completa de créditos de un cliente (crédito #1 → renovado → crédito #2 → renovado → crédito #3). No se muestran en créditos ACTIVOS, PAGADOS ni CANCELADOS sin vínculo de renovación.
+
+---
+
 ## 9. Alta de Usuario — Campos Completos (según mock)
 
 - Nombre Completo _, Correo Electrónico _, Contraseña _, Teléfono _
