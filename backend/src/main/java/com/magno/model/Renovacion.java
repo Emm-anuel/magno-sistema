@@ -25,7 +25,7 @@ public class Renovacion {
     private Credito creditoAnterior;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "credito_nuevo_id", nullable = false)
+    @JoinColumn(name = "credito_nuevo_id")
     private Credito creditoNuevo;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -35,6 +35,39 @@ public class Renovacion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "asesor_id", nullable = false)
     private Usuario asesor;
+
+    // ── Estado del flujo de aprobación ──────────────────────────
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false, length = 20)
+    private EstadoRenovacion estado;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "aprobado_por")
+    private Usuario aprobadoPor;
+
+    @Column(name = "fecha_aprobacion")
+    private OffsetDateTime fechaAprobacion;
+
+    @Column(name = "motivo_rechazo", columnDefinition = "TEXT")
+    private String motivoRechazo;
+
+    @Column(name = "monto_aprobado", precision = 12, scale = 2)
+    private BigDecimal montoAprobado;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "confirmado_por")
+    private Usuario confirmadoPor;
+
+    @Column(name = "fecha_confirmacion")
+    private OffsetDateTime fechaConfirmacion;
+
+    // ── Datos del nuevo crédito solicitado ───────────────────────
+    @Column(name = "monto_nuevo", nullable = false, precision = 12, scale = 2)
+    private BigDecimal montoNuevo;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_pago", nullable = false, length = 10)
+    private TipoPago tipoPago;
 
     @Column(name = "fecha", nullable = false)
     private LocalDate fecha;
@@ -81,6 +114,8 @@ public class Renovacion {
         OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (estado == null)
+            estado = EstadoRenovacion.SOLICITADO;
     }
 
     @PreUpdate
