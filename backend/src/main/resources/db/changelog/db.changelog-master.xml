@@ -93,4 +93,20 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V12-renovaciones-flujo-aprobacion" author="magno">
+        <sqlFile
+            path="db/changelog/V12__renovaciones_flujo_aprobacion.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V13-renovaciones-desembolso-en-dos-pasos" author="magno">
+        <sqlFile
+            path="db/changelog/V13__renovaciones_desembolso_en_dos_pasos.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
