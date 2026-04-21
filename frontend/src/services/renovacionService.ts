@@ -34,10 +34,20 @@ function normalizeDetalle(raw: any): RenovacionDetalle {
     asesor: {
       id: raw.asesor?.id,
       nombreCompleto: raw.asesor?.nombreCompleto ?? raw.asesor?.nombre_completo,
+      sucursalNombre: raw.asesor?.sucursalNombre ?? raw.asesor?.sucursal_nombre ?? '',
     },
     creditoAnterior: raw.creditoAnterior ?? raw.credito_anterior,
-    creditoNuevo: raw.creditoNuevo ?? raw.credito_nuevo,
+    creditoNuevo: raw.creditoNuevo ?? raw.credito_nuevo ?? null,
     fecha: raw.fecha,
+    estado: raw.estado ?? 'APROBADO',
+    aprobadoPor: raw.aprobadoPor ?? raw.aprobado_por ?? null,
+    fechaAprobacion: raw.fechaAprobacion ?? raw.fecha_aprobacion ?? null,
+    motivoRechazo: raw.motivoRechazo ?? raw.motivo_rechazo ?? null,
+    montoNuevo: raw.montoNuevo ?? raw.monto_nuevo,
+    montoAprobado: raw.montoAprobado ?? raw.monto_aprobado ?? null,
+    confirmadoPor: raw.confirmadoPor ?? raw.confirmado_por ?? null,
+    fechaConfirmacion: raw.fechaConfirmacion ?? raw.fecha_confirmacion ?? null,
+    tipoPago: raw.tipoPago ?? raw.tipo_pago,
     pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
     montoPagosRestantes: raw.montoPagosRestantes ?? raw.monto_pagos_restantes,
     multasPendientes: raw.multasPendientes ?? raw.multas_pendientes,
@@ -109,6 +119,27 @@ export const renovacionService = {
       videoEntregaUrl: data.videoEntregaUrl,
     }).then((r) => normalizeDetalle(r.data)),
 
+  aprobar: (renovacionId: number, montoAprobado?: number): Promise<RenovacionDetalle> =>
+    api.patch(`/renovaciones/${renovacionId}/aprobar`, { montoAprobado: montoAprobado ?? null })
+      .then((r) => normalizeDetalle(r.data)),
+
+  confirmarDesembolso: (renovacionId: number, videoEntregaUrl?: string): Promise<RenovacionDetalle> =>
+    api.patch(`/renovaciones/${renovacionId}/confirmar-desembolso`, {
+      videoEntregaUrl: videoEntregaUrl ?? null,
+    }).then((r) => normalizeDetalle(r.data)),
+
+  getPendientesDesembolso: (): Promise<RenovacionDetalle[]> =>
+    api.get('/renovaciones/pendientes-desembolso')
+      .then((r) => (r.data as any[]).map(normalizeDetalle)),
+
+  rechazar: (renovacionId: number, motivo?: string): Promise<RenovacionDetalle> =>
+    api.patch(`/renovaciones/${renovacionId}/rechazar`, { motivo: motivo ?? '' })
+      .then((r) => normalizeDetalle(r.data)),
+
+  getPendientes: (params?: { asesorId?: number; sucursalId?: number }): Promise<RenovacionDetalle[]> =>
+    api.get('/renovaciones/pendientes', { params })
+      .then((r) => (r.data as any[]).map(normalizeDetalle)),
+
   getColocaciones: (params?: {
     semanaInicio?: string
     asesorId?: number
@@ -131,4 +162,8 @@ export const renovacionService = {
   }): Promise<ListoRenovarItem[]> =>
     api.get('/renovaciones/listos', { params })
       .then((r) => (r.data as any[]).map(normalizeListoItem)),
+
+  getMisSolicitudes: (): Promise<RenovacionDetalle[]> =>
+    api.get('/renovaciones/mis-solicitudes')
+      .then((r) => (r.data as any[]).map(normalizeDetalle)),
 }

@@ -18,6 +18,8 @@ export type EstadoCredito =
   | 'PAGADO'
   | 'RENOVADO'
   | 'CANCELADO'
+export type TipoCredito      = 'NUEVO' | 'RENOVACION'
+export type EstadoRenovacion = 'SOLICITADO' | 'APROBADO' | 'RECHAZADO' | 'ACTIVO'
 export type EstadoPago    = 'PENDIENTE' | 'PAGADO' | 'NO_PAGADO' | 'PARCIAL' | 'ADELANTADO'
 export type TipoPago      = 'DIARIO' | 'SEMANAL'
 export type TipoMulta     = 'NO_PAGO' | 'INCOMPLETO'
@@ -546,6 +548,7 @@ export interface CreditoResumen {
   pagoPeriodico: number
   plazoDias: number
   tipoPago: TipoPago
+  tipo: TipoCredito
   estado: EstadoCredito
   fechaInicio: string | null
   fechaVencimiento: string | null
@@ -582,10 +585,19 @@ export interface RenovacionCalculo {
 export interface RenovacionDetalle {
   id: number
   cliente: { id: number; nombreCompleto: string; celular: string }
-  asesor: { id: number; nombreCompleto: string }
+  asesor: { id: number; nombreCompleto: string; sucursalNombre: string }
   creditoAnterior: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string }
-  creditoNuevo: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string }
+  creditoNuevo: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string } | null
   fecha: string
+  estado: EstadoRenovacion
+  aprobadoPor: { id: number; nombreCompleto: string } | null
+  fechaAprobacion: string | null
+  motivoRechazo: string | null
+  montoNuevo: number
+  montoAprobado: number | null
+  confirmadoPor: { id: number; nombreCompleto: string } | null
+  fechaConfirmacion: string | null
+  tipoPago: TipoPago
   pagosRestantes: number
   montoPagosRestantes: number
   multasPendientes: number
@@ -640,6 +652,7 @@ export interface CreditoDetalle {
   pagoPeriodico: number
   plazoDias: number
   tipoPago: TipoPago
+  tipo: TipoCredito
   fechaInicio: string | null
   fechaVencimiento: string | null
   pagoAdelantado: number
@@ -665,67 +678,6 @@ export interface CreditoDetalle {
   }
   liquidadoPorRenovacion: RenovacionVinculo | null
   originadoPorRenovacion: RenovacionVinculo | null
-}
-
-// ------------------------------------------------------------------
-// Renovaciones
-// ------------------------------------------------------------------
-
-export interface RenovacionCalculo {
-  creditoAnteriorId: number
-  montoAnterior: number
-  pagoPeriodicoAnterior: number
-  plazoDiasAnterior: number
-  montoNuevo: number
-  pagosRestantes: number
-  montoPagosRestantes: number
-  multasPendientes: number
-  pagoAdelantadoNuevo: number
-  montoDesembolso: number
-  plazoDiasNuevo: number
-  tasaNueva: number
-  cargoFinancieroNuevo: number
-  totalAPagarNuevo: number
-  pagoPeriodicoNuevo: number
-  puedeAumentarMonto: boolean
-  advertenciaMonto: string | null
-}
-
-export interface RenovacionDetalle {
-  id: number
-  cliente: { id: number; nombreCompleto: string; celular: string }
-  asesor: { id: number; nombreCompleto: string }
-  creditoAnterior: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string }
-  creditoNuevo: { id: number; montoCapital: number; plazoDias: number; pagoPeriodico: number; estado: string }
-  fecha: string
-  pagosRestantes: number
-  montoPagosRestantes: number
-  multasPendientes: number
-  pagoAdelantado: number
-  montoDesembolso: number
-  garantiaDescripcion: string | null
-  videoEntregaUrl: string | null
-  evidenciaUrls: string[]
-  createdAt: string
-}
-
-export interface ColocacionItem {
-  fecha: string
-  clienteNombre: string
-  clienteId: number
-  creditoAnterior: number | null
-  creditoNuevo: number
-  desembolso: number
-  asesorNombre: string
-  tipo: 'NUEVO' | 'RENOVACION'
-  refId: number
-}
-
-export interface ColocacionesSemana {
-  semanaInicio: string
-  semanaFin: string
-  items: ColocacionItem[]
-  totalDesembolsos: number
 }
 
 export interface ListoRenovarItem {
