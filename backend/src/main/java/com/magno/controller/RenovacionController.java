@@ -31,7 +31,6 @@ public class RenovacionController {
 
     // ────────────────────────────────────────────────────────────────────
     // GET /api/renovaciones/calcular?creditoId=X&montoNuevo=Y
-    // Preview en tiempo real para el formulario (mismo patrón que /creditos/calcular)
     // ────────────────────────────────────────────────────────────────────
 
     @GetMapping("/calcular")
@@ -47,23 +46,127 @@ public class RenovacionController {
     }
 
     // ────────────────────────────────────────────────────────────────────
-    // POST /api/renovaciones — Confirmar renovación
-    // Todos los roles pueden crear renovaciones (asesor: solo sus clientes)
+    // POST /api/renovaciones — Crear solicitud (estado SOLICITADO)
+    // Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR pueden crear solicitudes.
+    // Gerentes solo revisan y aprueban/rechazan.
     // ────────────────────────────────────────────────────────────────────
 
     @PostMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
     public ResponseEntity<RenovacionDetalleDTO> crear(
             @Valid @RequestBody RenovacionCreateRequest req,
             Authentication auth) {
 
         JwtPrincipal p = principal(auth);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(renovacionService.procesarRenovacion(req, p.userId()));
+                .body(renovacionService.crearSolicitud(req, p.userId()));
     }
 
     // ────────────────────────────────────────────────────────────────────
-    // GET /api/renovaciones/colocaciones?semanaInicio=2026-04-14&asesorId=X&sucursalId=Y
+    // PATCH /api/renovaciones/{id}/aprobar
+    // Solo ADMINISTRADOR y SUPERVISOR — guarda montoAprobado, NO toca créditos
+    // ────────────────────────────────────────────────────────────────────
+
+    @PatchMapping("/{id}/aprobar")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<RenovacionDetalleDTO> aprobar(
+            @PathVariable Long id,
+            @RequestBody(required = false) RenovacionAprobarRequest req,
+            Authentication auth) {
+
+        JwtPrincipal p = principal(auth);
+        java.math.BigDecimal montoAprobado = (req != null) ? req.montoAprobado() : null;
+        return ResponseEntity.ok(renovacionService.aprobarRenovacion(id, montoAprobado, p.userId()));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // PATCH /api/renovaciones/{id}/confirmar-desembolso
+    // Todos los roles — confirma entrega del efectivo; activa el crédito
+    // ────────────────────────────────────────────────────────────────────
+
+    @PatchMapping("/{id}/confirmar-desembolso")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<RenovacionDetalleDTO> confirmarDesembolso(
+            @PathVariable Long id,
+            @RequestBody(required = false) RenovacionConfirmarDesembolsoRequest req,
+            Authentication auth) {
+
+        JwtPrincipal p = principal(auth);
+        String videoUrl = (req != null) ? req.videoEntregaUrl() : null;
+        return ResponseEntity.ok(renovacionService.confirmarDesembolso(id, p.userId(), videoUrl));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // GET /api/renovaciones/pendientes-desembolso
+    // Renovaciones APROBADAS pendientes — solo ADMINISTRADOR y SUPERVISOR
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/pendientes-desembolso")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<List<RenovacionDetalleDTO>> pendientesDesembolso(
+            @AuthenticationPrincipal JwtPrincipal p) {
+
+        Long effectiveSucursalId = null;
+        if ("SUPERVISOR".equals(p.rol())) {
+            effectiveSucursalId = p.sucursalId();
+        }
+        return ResponseEntity.ok(renovacionService.getPendientesDesembolso(effectiveSucursalId));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // PATCH /api/renovaciones/{id}/rechazar
+    // Solo ADMINISTRADOR y SUPERVISOR
+    // ────────────────────────────────────────────────────────────────────
+
+    @PatchMapping("/{id}/rechazar")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<RenovacionDetalleDTO> rechazar(
+            @PathVariable Long id,
+            @RequestBody(required = false) RenovacionRechazarRequest req,
+            Authentication auth) {
+
+        JwtPrincipal p = principal(auth);
+        String motivo = req != null ? req.motivo() : "";
+        return ResponseEntity.ok(renovacionService.rechazarRenovacion(id, motivo, p.userId()));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // GET /api/renovaciones/mis-solicitudes
+    // Solicitudes enviadas por el asesor autenticado
+    // Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/mis-solicitudes")
+    @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
+    public ResponseEntity<List<RenovacionDetalleDTO>> misSolicitudes(
+            @AuthenticationPrincipal JwtPrincipal p) {
+
+        return ResponseEntity.ok(renovacionService.getMisSolicitudes(p.userId()));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // GET /api/renovaciones/pendientes
+    // Cola de aprobación para ADMINISTRADOR y SUPERVISOR
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/pendientes")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<List<RenovacionDetalleDTO>> pendientes(
+            @RequestParam(required = false) Long asesorId,
+            @RequestParam(required = false) Long sucursalId,
+            @AuthenticationPrincipal JwtPrincipal p) {
+
+        // Gerente de Sucursal solo ve su propia sucursal
+        Long effectiveSucursalId = sucursalId;
+        if ("SUPERVISOR".equals(p.rol())) {
+            effectiveSucursalId = p.sucursalId();
+        }
+
+        return ResponseEntity.ok(renovacionService.getPendientes(asesorId, effectiveSucursalId));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // GET /api/renovaciones/colocaciones
     // ────────────────────────────────────────────────────────────────────
 
     @GetMapping("/colocaciones")
@@ -77,7 +180,6 @@ public class RenovacionController {
         JwtPrincipal p = principal(auth);
         LocalDate inicio = resolveSemanaInicio(semanaInicio);
 
-        // Restricciones por rol
         Long effectiveAsesorId = asesorId;
         Long effectiveSucursalId = sucursalId;
         switch (p.rol()) {
@@ -122,7 +224,7 @@ public class RenovacionController {
     }
 
     // ────────────────────────────────────────────────────────────────────
-    // GET /api/renovaciones/listos?asesorId=X&sucursalId=Y
+    // GET /api/renovaciones/listos
     // ────────────────────────────────────────────────────────────────────
 
     @GetMapping("/listos")

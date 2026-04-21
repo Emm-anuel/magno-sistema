@@ -217,17 +217,52 @@ public class RenovacionService {
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // Aprobar solicitud (APROBADO — procesa el crédito)
+        // Aprobar solicitud (APROBADO — solo visto bueno, sin tocar créditos)
         // Solo ADMINISTRADOR y SUPERVISOR
         // ────────────────────────────────────────────────────────────────────
 
         @Transactional
-        public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, Long aprobadorId) {
+        public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, BigDecimal montoAprobadoParam, Long aprobadorId) {
                 Renovacion renovacion = findRenovacion(renovacionId);
 
                 if (renovacion.getEstado() != EstadoRenovacion.SOLICITADO) {
                         throw new IllegalArgumentException(
                                         "Solo se puede aprobar una renovación en estado SOLICITADO. Estado actual: "
+                                                        + renovacion.getEstado());
+                }
+
+                Usuario aprobador = usuarioRepo.findById(aprobadorId)
+                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + aprobadorId));
+
+                BigDecimal montoAprobado = (montoAprobadoParam != null && montoAprobadoParam.compareTo(BigDecimal.ZERO) > 0)
+                                ? montoAprobadoParam
+                                : renovacion.getMontoNuevo();
+
+                renovacion.setEstado(EstadoRenovacion.APROBADO);
+                renovacion.setMontoAprobado(montoAprobado);
+                renovacion.setAprobadoPor(aprobador);
+                renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
+                renovacionRepo.save(renovacion);
+
+                log.info("Renovación APROBADA (pendiente desembolso) — renovacion.id=" + renovacion.getId()
+                                + " monto_aprobado=" + montoAprobado
+                                + " aprobado_por=" + aprobador.getNombreCompleto());
+
+                return RenovacionDetalleDTO.from(renovacion);
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // Confirmar desembolso (ACTIVO — procesa el crédito)
+        // Todos los roles
+        // ────────────────────────────────────────────────────────────────────
+
+        @Transactional
+        public RenovacionDetalleDTO confirmarDesembolso(Long renovacionId, Long confirmadorId, String videoEntregaUrl) {
+                Renovacion renovacion = findRenovacion(renovacionId);
+
+                if (renovacion.getEstado() != EstadoRenovacion.APROBADO) {
+                        throw new IllegalArgumentException(
+                                        "Solo se puede confirmar el desembolso de una renovación APROBADA. Estado actual: "
                                                         + renovacion.getEstado());
                 }
 
@@ -238,15 +273,19 @@ public class RenovacionService {
                                                         + creditoAnterior.getEstado());
                 }
 
-                Usuario aprobador = usuarioRepo.findById(aprobadorId)
-                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + aprobadorId));
+                Usuario confirmador = usuarioRepo.findById(confirmadorId)
+                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + confirmadorId));
 
-                // Re-leer pagos pendientes al momento de la aprobación
+                BigDecimal montoAprobado = renovacion.getMontoAprobado() != null
+                                ? renovacion.getMontoAprobado()
+                                : renovacion.getMontoNuevo();
+
+                // Re-leer pagos y multas al momento del desembolso real
                 List<CalendarioPago> pagosPendientes = calendarioPagoRepo
                                 .findByCreditoIdAndEstadoIn(creditoAnterior.getId(), ESTADOS_PENDIENTES);
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(creditoAnterior.getId());
-                ResumenCalculo calculoNuevo = calculoService.calcularCredito(renovacion.getMontoNuevo());
-                BigDecimal montoDesembolso = renovacion.getMontoNuevo()
+                ResumenCalculo calculoNuevo = calculoService.calcularCredito(montoAprobado);
+                BigDecimal montoDesembolso = montoAprobado
                                 .subtract(renovacion.getMontoPagosRestantes())
                                 .subtract(multasPendientesAmt)
                                 .subtract(calculoNuevo.pagoAdelantado());
@@ -270,17 +309,16 @@ public class RenovacionService {
                 creditoAnterior.setEstado(EstadoCredito.RENOVADO);
                 creditoRepo.save(creditoAnterior);
 
-                // 4. Crear nuevo crédito ACTIVO (tipo = RENOVACION)
+                // 4. Crear nuevo crédito ACTIVO
                 String[] evidenciaUrls = renovacion.getEvidenciaUrls();
-
                 Credito creditoNuevo = Credito.builder()
                                 .cliente(creditoAnterior.getCliente())
                                 .asesor(creditoAnterior.getAsesor())
                                 .sucursal(creditoAnterior.getSucursal())
                                 .tipo(TipoCredito.RENOVACION)
-                                .montoSolicitado(renovacion.getMontoNuevo())
+                                .montoSolicitado(montoAprobado)
                                 .montoCapital(calculoNuevo.capital())
-                                .montoAprobado(renovacion.getMontoNuevo())
+                                .montoAprobado(montoAprobado)
                                 .tasaInteres(calculoNuevo.tasa())
                                 .cargoFinanciero(calculoNuevo.cargoFinanciero())
                                 .totalAPagar(calculoNuevo.totalAPagar())
@@ -290,13 +328,13 @@ public class RenovacionService {
                                 .pagoAdelantado(calculoNuevo.pagoAdelantado())
                                 .garantiaDescripcion(renovacion.getGarantiaDescripcion())
                                 .evidenciaUrls(evidenciaUrls)
-                                .videoEntregaUrl(renovacion.getVideoEntregaUrl())
+                                .videoEntregaUrl(videoEntregaUrl)
                                 .estado(EstadoCredito.ACTIVO)
                                 .fechaInicio(hoy)
                                 .fechaDesembolso(DateTimeUtils.ahoraEnMagno())
-                                .aprobadoPor(aprobador)
-                                .fechaAprobacion(DateTimeUtils.ahoraEnMagno())
-                                .createdBy(aprobador)
+                                .aprobadoPor(renovacion.getAprobadoPor())
+                                .fechaAprobacion(renovacion.getFechaAprobacion())
+                                .createdBy(confirmador)
                                 .build();
                 creditoRepo.save(creditoNuevo);
 
@@ -306,21 +344,37 @@ public class RenovacionService {
                                 creditoAnterior.getSucursal().getId());
                 creditoRepo.save(creditoNuevo);
 
-                // 6. Actualizar renovación
+                // 6. Actualizar renovación → ACTIVO
                 renovacion.setCreditoNuevo(creditoNuevo);
-                renovacion.setEstado(EstadoRenovacion.APROBADO);
-                renovacion.setAprobadoPor(aprobador);
-                renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
-                renovacion.setFecha(hoy);                               // fecha de desembolso real
+                renovacion.setEstado(EstadoRenovacion.ACTIVO);
+                renovacion.setConfirmadoPor(confirmador);
+                renovacion.setFechaConfirmacion(DateTimeUtils.ahoraEnMagno());
+                renovacion.setFecha(hoy);
                 renovacion.setMontoDesembolso(montoDesembolso);
+                if (videoEntregaUrl != null && !videoEntregaUrl.isBlank()) {
+                        renovacion.setVideoEntregaUrl(videoEntregaUrl);
+                }
                 renovacionRepo.save(renovacion);
 
-                log.info("Renovación APROBADA — renovacion.id=" + renovacion.getId()
+                log.info("Renovación ACTIVA (desembolso confirmado) — renovacion.id=" + renovacion.getId()
                                 + " credito_anterior=" + creditoAnterior.getId()
                                 + " credito_nuevo=" + creditoNuevo.getId()
-                                + " aprobado_por=" + aprobador.getNombreCompleto());
+                                + " confirmado_por=" + confirmador.getNombreCompleto());
 
                 return RenovacionDetalleDTO.from(renovacion);
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // Renovaciones APROBADAS pendientes de desembolso
+        // Solo ADMINISTRADOR y SUPERVISOR
+        // ────────────────────────────────────────────────────────────────────
+
+        public List<RenovacionDetalleDTO> getPendientesDesembolso(Long sucursalId) {
+                return renovacionRepo
+                                .findPendientesDesembolso(sucursalId)
+                                .stream()
+                                .map(RenovacionDetalleDTO::from)
+                                .toList();
         }
 
         // ────────────────────────────────────────────────────────────────────
