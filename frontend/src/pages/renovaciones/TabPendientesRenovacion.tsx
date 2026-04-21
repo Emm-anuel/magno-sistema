@@ -10,7 +10,6 @@ import {
   User,
   Calendar,
   ExternalLink,
-  TrendingUp,
 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
 import type { RenovacionDetalle } from '@/types'

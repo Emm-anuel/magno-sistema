@@ -4,8 +4,6 @@ import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import {
   Clock,
-  CheckCircle,
-  XCircle,
   TrendingUp,
   AlertTriangle,
   ExternalLink,
