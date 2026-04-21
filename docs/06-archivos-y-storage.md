@@ -11,7 +11,7 @@
 | ------------------- | --------------------- | -------------------------- | ------------------------------------------------------ | ----------- | ---------------------------------------- |
 | **Créditos Nuevos** | Nueva Solicitud       | Evidencia del Negocio      | Fotos y/o videos del negocio                           | ✅ Sí       | `creditos.evidencia_urls TEXT[]`         |
 | **Créditos Nuevos** | Aprobación/Desembolso | Video de entrega de dinero | Video grabado al entregar el efectivo al cliente       | ✅ Sí       | `creditos.video_entrega_url VARCHAR`     |
-| **Renovaciones**    | Nueva Renovación      | Video de entrega de dinero | Video grabado al entregar el efectivo en la renovación | ✅ Sí       | `renovaciones.video_entrega_url VARCHAR` |
+| **Renovaciones**    | Confirmación de Desembolso | Video de entrega de dinero | Video grabado al entregar el efectivo en la renovación | ❌ No (opcional) | `renovaciones.video_entrega_url VARCHAR` |
 | **Usuarios**        | Alta de Usuario       | Imagen INE                 | Foto o escaneo de INE (imagen)                         | ✅ Sí       | `usuarios.ine_imagen_url VARCHAR`        |
 | **Gastos**          | Registrar Gasto       | Comprobante / Referencia   | ⚠️ Campo de TEXTO libre — folio, número de ticket      | ❌ No       | `gastos.comprobante_referencia VARCHAR`  |
 | **Clientes** | Alta/Edición de Cliente | Documentos del cliente | Imágenes (jpg, png) y PDF | ❌ No | `cliente_documentos.url VARCHAR` |
@@ -66,6 +66,13 @@ Bucket: magno-files/
 │           ├── foto_01.jpg
 │           ├── foto_02.jpg
 │           └── video_01.mp4
+├── video-entrega/
+│   ├── creditos/
+│   │   └── {credito_id}/
+│   │       └── video.mp4
+│   └── renovaciones/
+│       └── {renovacion_id}/
+│           └── video.mp4
 ├── usuarios-ine/
 │   └── {usuario_id}/
 │       └── ine.jpg

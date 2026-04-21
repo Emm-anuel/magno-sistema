@@ -91,23 +91,37 @@
 - Las multas pendientes **se descuentan del desembolso en renovaciones**.
 - Configuración en módulo Administración → Config. Multas: Sucursal | Rango Mín | Rango Máx | Multa/Día | Multa por 2 Incompletos.
 
-### 6.4 Renovaciones ✅ Implementado (Módulo 5)
+### 6.4 Renovaciones ✅ Implementado (Módulo 5 — flujo de dos pasos V13)
+
+#### Flujo de estados
+**SOLICITADO → APROBADO → ACTIVO / RECHAZADO**
+
+- **SOLICITADO**: El asesor/supervisor llena el formulario. El crédito anterior permanece ACTIVO. La solicitud queda pendiente de revisión por el gerente.
+- **APROBADO**: El gerente da el visto bueno. Puede ajustar el monto aprobado. El crédito anterior **no se toca** todavía — la solicitud queda en cola de desembolso.
+- **ACTIVO**: El gerente (o asesor) confirma que el efectivo fue entregado. En ese momento: crédito anterior → RENOVADO, pagos pendientes → PAGADO, multas → cobradas, nuevo crédito creado en ACTIVO con tipo=RENOVACION y calendario completo.
+- **RECHAZADO**: El gerente rechaza con motivo. El crédito anterior permanece ACTIVO sin cambios.
+
+#### Restricciones de rol
+- Solo **Supervisor (campo)** y **Asesor** pueden crear solicitudes de renovación.
+- Solo **Gerente de Sucursal** y **Gerente General** pueden aprobar o rechazar.
+- La confirmación del desembolso (APROBADO → ACTIVO) la puede hacer cualquier rol autenticado.
+- Se valida en backend con `@PreAuthorize`.
 
 - Elegibilidad: pago **#16** (25 días) / pago **#19** (30 días). El sistema bloquea antes.
-- 0–1 pagos pendientes → puede aumentar monto. 2–3 pendientes → igual o menor.
+- El monto del crédito nuevo es a criterio del asesor y puede crecer conforme al historial. **No hay restricción basada en pagos pendientes.**
+- El gerente puede ajustar el monto aprobado inline al aprobar; el ajuste se guarda en `monto_aprobado`.
 - **Fórmula del desembolso (confirmada):**
   ```
-  Desembolso = Crédito Nuevo − Pagos Restantes − Multas Pendientes − Pago Adelantado nuevo
+  Desembolso = monto_aprobado − Pagos Restantes − Multas Pendientes − Pago Adelantado nuevo
   ```
   Ejemplo: $8,000 − (8 × $416 = $3,328) − $0 − $416 = **$4,256**
 - Pago adelantado → se aplica al último pago del nuevo crédito.
-- Salida de: **CAJA** o **RUTA** (campo requerido).
 - Campos calculados automáticamente: Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar.
-- Al confirmar: crédito anterior → estado RENOVADO; pagos pendientes → PAGADO; multas → cobradas=true.
+- Al confirmar desembolso: crédito anterior → estado RENOVADO; pagos pendientes → PAGADO; multas → cobradas=true.
 - Se crea nuevo crédito directamente en estado ACTIVO con calendario de pagos generado.
 - Registro de `renovaciones` vincula credito_anterior_id ↔ credito_nuevo_id para trazabilidad.
 - Evidencias multimedia: `renovaciones.evidencia_urls TEXT[]` (fotos/videos del negocio, opcional).
-- Video de entrega: `renovaciones.video_entrega_url` (opcional, mismo patrón que Créditos Nuevos).
+- Video de entrega: `renovaciones.video_entrega_url` (opcional, se sube al confirmar el desembolso).
 
 ### 6.5 Colocaciones ✅ Implementado (Módulo 5)
 

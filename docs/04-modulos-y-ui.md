@@ -7,7 +7,7 @@
 | 1   | **dashboard**           | —                                                             |
 | 2   | **cobros**              | Ruta del Día · Historial de Cobros                            |
 | 3   | **creditos-nuevos**     | Solicitudes · Nueva Solicitud · Evaluación · Tabla de Pagos   |
-| 4   | **renovaciones** ✅     | Listos para Renovar · Nueva Renovación                        |
+| 4   | **renovaciones** ✅     | Listos para Renovar · Pendientes de Aprobación · Pendientes de Desembolso · Nueva Solicitud · Mis Solicitudes |
 | 5   | **colocaciones** ✅     | (reporte semanal de colocaciones — todos los roles)           |
 | 6   | **clientes**            | (listado + modal alta + ficha detalle)                        |
 | 7   | **cliente-detalle**     | (pantalla completa por cliente)                               |
@@ -22,10 +22,44 @@
 
 > "Préstamos" fue renombrado a **"Créditos Nuevos"** en toda la aplicación — NUNCA usar "Préstamos".
 
-### Módulo Renovaciones — Pestañas
+### Módulo Renovaciones — Pestañas (flujo de dos pasos V13)
 
-- **Listos para Renovar:** lista de solo lectura con los clientes elegibles para renovación. Umbral: 16 pagos completados (créditos a 25 días) o 19 pagos completados (créditos a 30 días). La lista se filtra por rol (ver `02-roles-y-permisos.md`).
-- **Nueva Renovación:** formulario para registrar la renovación de un crédito.
+Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZADO**. La aprobación (visto bueno) y el desembolso (entrega del efectivo) son pasos separados.
+
+- **Listos para Renovar** (todos los roles): lista de solo lectura con los clientes elegibles. Umbral: 16 pagos completados (créditos a 25 días) o 19 pagos completados (créditos a 30 días). La lista se filtra por rol (ver `02-roles-y-permisos.md`). Los créditos que ya tienen una solicitud SOLICITADO pendiente **no aparecen** en esta lista. Botón "Renovar →" navega a la pestaña "Nueva Solicitud" con el cliente preseleccionado.
+
+- **Pendientes de Aprobación** (solo Gerente General y Gerente de Sucursal): cola de tarjetas elaboradas, una por solicitud SOLICITADO, ordenadas de más antigua a más reciente. Cada tarjeta tiene:
+  - **Header**: nombre del cliente + badge "Renovación"; asesor, sucursal y fecha/hora exacta de la solicitud.
+  - **Cuerpo izquierdo**: barra de progreso de pagos, alerta roja con monto si hay multas, garantía material si existe.
+  - **Cuerpo derecho**: crédito anterior vs monto solicitado; campo editable **"Monto Aprobado"** (pre-cargado con el monto solicitado, puede modificarse); recálculo en tiempo real del monto a desembolsar (400ms debounce vía `/api/renovaciones/calcular`).
+  - **Footer de acciones**: botón "Aprobar" guarda el visto bueno + monto aprobado. **No crea el crédito todavía** — la renovación pasa a APROBADO y queda en cola de desembolso. Botón "Rechazar" abre modal para capturar motivo. Link "Ver historial del cliente".
+
+- **Pendientes de Desembolso** (solo Gerente General y Gerente de Sucursal): cola de renovaciones APROBADAS pendientes de confirmar el desembolso físico. Ordenadas por fecha de aprobación ascendente. Endpoint: `GET /api/renovaciones/pendientes-desembolso`. Cada tarjeta tiene:
+  - **Header**: nombre, sucursal, asesor, fecha en que fue aprobada y por quién.
+  - **Cuerpo izquierdo**: estado de multas + zona de **FileUpload de video** (opcional, `video-entrega/renovaciones/{id}/`).
+  - **Cuerpo derecho**: crédito anterior vs monto aprobado (con nota si fue ajustado respecto al solicitado); pagos restantes; monto a desembolsar.
+  - **Botón "Confirmar desembolso"**: ejecuta el flujo real — crédito anterior → RENOVADO, nuevo crédito ACTIVO, calendario generado. Navega al nuevo crédito.
+
+- **Mis Solicitudes** (solo Supervisor y Asesor): historial personal de todas las solicitudes de renovación enviadas, ordenadas de más reciente a más antigua. Endpoint: `/api/renovaciones/mis-solicitudes` (filtra por `asesor_id` en backend). Cada tarjeta muestra:
+  - **Header**: nombre del cliente, fecha/hora de envío y badge de estado (`SOLICITADO` → ámbar+pulso, `APROBADO` → naranja+pulso, `ACTIVO` → teal, `RECHAZADO` → rojo).
+  - **Cuerpo**: cuadro comparativo crédito anterior vs monto aprobado; pagos restantes y multas al momento del envío; monto a desembolsar.
+  - **Caso RECHAZADO**: bloque prominente (fondo rojo suave) con motivo y nombre del revisor.
+  - **Caso APROBADO**: bloque ámbar con "El gerente aprobó esta renovación", nota si el monto fue ajustado, FileUpload de video (opcional) y botón **"Confirmar desembolso →"** para que el asesor confirme la entrega del efectivo.
+  - **Caso ACTIVO**: enlace al nuevo crédito ("Ver crédito activo →"), confirmado por nombre del confirmador y fecha.
+  - **Filtro por estado**: chips "Todas / En revisión / Pendiente desembolso / Activas / Rechazadas".
+  - **Estado vacío**: mensaje claro con botón "Nueva Renovación".
+
+- **Nueva Solicitud** (solo Supervisor y Asesor): formulario de dos pasos para enviar solicitud de renovación.
+  - **Paso 1:** selección de cliente (o preseleccionado desde "Listos para Renovar").
+  - **Paso 2:** campos calculados automáticamente (Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar) + campos editables (Monto Nuevo, Forma de Pago). Sin restricción de monto — el asesor puede proponer cualquier monto dentro del rango del sistema ($1,000–$50,000). Banner informativo indica que la solicitud quedará pendiente de aprobación. Al confirmar: toast "Solicitud enviada — pendiente de aprobación del gerente".
+
+#### Badges visuales
+
+- **`TipoCreditoBadge`**: aparece en listas de créditos y detalle de crédito junto al badge de estado.
+  - `NUEVO` → badge verde (`bg-emerald-100 text-emerald-800`)
+  - `RENOVACION` → badge azul (`bg-blue-100 text-blue-800`)
+- **`EstadoRenovacionBadge`**: aparece en la cola de pendientes.
+  - `SOLICITADO` → azul | `APROBADO` → verde | `RECHAZADO` → rojo
 
 ### Módulo Colocaciones Semanales — Descripción
 
