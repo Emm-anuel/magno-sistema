@@ -1,22 +1,33 @@
 import { useState } from 'react'
 import TabListosRenovar from './TabListosRenovar'
 import TabNuevaRenovacion from './TabNuevaRenovacion'
+import TabPendientesRenovacion from './TabPendientesRenovacion'
+import TabPendientesDesembolso from './TabPendientesDesembolso'
+import TabMisSolicitudes from './TabMisSolicitudes'
+import { useAuthStore } from '@/hooks/useAuthStore'
 import type { ClienteResumen } from '@/types'
 
-type Tab = 'listos' | 'nueva'
+type Tab = 'listos' | 'nueva' | 'pendientes' | 'desembolso' | 'mis-solicitudes'
 
 export default function RenovacionesPage() {
+  const { usuario } = useAuthStore()
   const [activeTab, setActiveTab] = useState<Tab>('listos')
   const [clientePreseleccionado, setClientePreseleccionado] = useState<ClienteResumen | null>(null)
+
+  const isGerente = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const puedeCrear  = usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
 
   function handleRenovar(cliente: ClienteResumen) {
     setClientePreseleccionado(cliente)
     setActiveTab('nueva')
   }
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'listos', label: 'Listos para Renovar' },
-    { id: 'nueva', label: 'Nueva Renovación' },
+  const tabs: { id: Tab; label: string; visible: boolean }[] = [
+    { id: 'listos',          label: 'Listos para Renovar',      visible: true },
+    { id: 'pendientes',      label: 'Pendientes de Aprobación', visible: isGerente },
+    { id: 'desembolso',      label: 'Pendientes de Desembolso', visible: isGerente },
+    { id: 'nueva',           label: 'Nueva Solicitud',          visible: puedeCrear },
+    { id: 'mis-solicitudes', label: 'Mis Solicitudes',          visible: puedeCrear },
   ]
 
   return (
@@ -24,14 +35,16 @@ export default function RenovacionesPage() {
       <div>
         <h1 className="text-xl font-bold text-gray-900">Renovaciones</h1>
         <p className="text-sm text-gray-500 mt-0.5">
-          Consulta clientes listos para renovar y procesa renovaciones de crédito
+          {isGerente
+            ? 'Aprueba solicitudes y confirma los desembolsos de renovación'
+            : 'Consulta clientes listos para renovar y envía solicitudes'}
         </p>
       </div>
 
       {/* Tab bar */}
       <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6" aria-label="Pestañas">
-          {tabs.map((tab) => (
+        <nav className="-mb-px flex gap-6 overflow-x-auto" aria-label="Pestañas">
+          {tabs.filter((t) => t.visible).map((tab) => (
             <button
               key={tab.id}
               type="button"
@@ -52,11 +65,20 @@ export default function RenovacionesPage() {
       {activeTab === 'listos' && (
         <TabListosRenovar onRenovar={handleRenovar} />
       )}
-      {activeTab === 'nueva' && (
+      {activeTab === 'pendientes' && isGerente && (
+        <TabPendientesRenovacion />
+      )}
+      {activeTab === 'desembolso' && isGerente && (
+        <TabPendientesDesembolso />
+      )}
+      {activeTab === 'nueva' && puedeCrear && (
         <TabNuevaRenovacion
           initialCliente={clientePreseleccionado}
           onClearInitial={() => setClientePreseleccionado(null)}
         />
+      )}
+      {activeTab === 'mis-solicitudes' && puedeCrear && (
+        <TabMisSolicitudes />
       )}
     </div>
   )
