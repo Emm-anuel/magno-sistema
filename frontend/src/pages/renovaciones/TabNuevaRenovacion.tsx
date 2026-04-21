@@ -5,18 +5,17 @@ import toast from 'react-hot-toast'
 import {
   Search,
   CheckCircle,
-  AlertTriangle,
   ChevronRight,
   ChevronLeft,
   Send,
-  Info,
+  Clock,
 } from 'lucide-react'
 import { clienteService } from '@/services/api'
 import { renovacionService } from '@/services/renovacionService'
 import { creditoService } from '@/services/creditoService'
 import MultiFileUpload from '@/components/MultiFileUpload'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
-import type { ClienteResumen, RenovacionCalculo, CreditoDetalle } from '@/types'
+import type { ClienteResumen, RenovacionCalculo, CreditoDetalle, ListoRenovarItem } from '@/types'
 
 type Step = 1 | 2
 
@@ -186,15 +185,12 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
   const monto = parseFloat(montoStr)
   const montoValido = !isNaN(monto) && monto >= 1000 && monto <= 50000
   const elegible = creditoActivo?.estadisticas?.elegibleRenovacion === true
-  const montoViolado = calculo?.advertenciaMonto != null
-
   const canContinue =
     clienteSeleccionado != null &&
     creditoActivo != null &&
     elegible &&
     montoValido &&
-    calculo != null &&
-    !montoViolado
+    calculo != null
 
   // ── Submit ─────────────────────────────────────────────────────
 
@@ -208,13 +204,18 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
         evidenciaUrls,
         videoEntregaUrl: videoEntregaUrl.trim() || undefined,
       }),
-    onSuccess: (data) => {
-      toast.success('Renovación procesada correctamente')
+    onSuccess: () => {
+      toast.success('Solicitud enviada — pendiente de aprobación del gerente')
       queryClient.invalidateQueries({ queryKey: ['creditos'] })
-      navigate(`/creditos/${data.creditoNuevo.id}`)
+      queryClient.setQueriesData<ListoRenovarItem[]>({ queryKey: ['listos-renovar'] }, (old) => {
+        if (!old) return old
+        return old.filter((item) => item.creditoId !== creditoActivo?.id)
+      })
+      queryClient.invalidateQueries({ queryKey: ['listos-renovar'] })
+      navigate('/renovaciones')
     },
     onError: (err: any) => {
-      toast.error(err?.message ?? 'Error al procesar la renovación')
+      toast.error(err?.message ?? 'Error al enviar la solicitud')
     },
   })
 
@@ -326,15 +327,6 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Monto del Crédito Nuevo <span className="text-red-500">*</span>
               </label>
-              {!calculo?.puedeAumentarMonto && (
-                <div className="mb-2 flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-200 p-2.5">
-                  <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-amber-700">
-                    Con {creditoActivo.estadisticas.pagosPendientes} pago(s) pendiente(s), el monto nuevo debe ser
-                    igual o menor al crédito anterior ({fmt(creditoActivo.montoCapital)}).
-                  </p>
-                </div>
-              )}
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">$</span>
                 <input
@@ -351,13 +343,6 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
               {montoStr && !montoValido && (
                 <p className="text-xs text-red-500 mt-1">El monto debe estar entre $1,000 y $50,000</p>
               )}
-              {calculo?.advertenciaMonto && (
-                <div className="mt-2 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-2.5">
-                  <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-xs text-red-700">{calculo.advertenciaMonto}</p>
-                </div>
-              )}
-
               {/* Resumen de cálculo */}
               {calculoLoading && (
                 <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 animate-pulse h-32" />
@@ -473,6 +458,18 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
       <Stepper current={2} />
       <div className="space-y-4">
 
+        {/* Aviso: flujo de aprobación */}
+        <div className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <Clock className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm text-blue-800">
+            <p className="font-semibold mb-0.5">La solicitud quedará en revisión</p>
+            <p className="text-blue-700">
+              El Gerente de Sucursal recibirá esta solicitud y la aprobará o rechazará.
+              El crédito anterior permanece activo hasta que sea aprobada.
+            </p>
+          </div>
+        </div>
+
         {/* Cliente y crédito anterior */}
         <div className="card p-4">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Cliente</h3>
@@ -585,7 +582,7 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
               </>
             ) : (
               <>
-                <Send className="w-4 h-4" /> Confirmar Renovación
+                <Send className="w-4 h-4" /> Enviar Solicitud de Renovación
               </>
             )}
           </button>
@@ -594,8 +591,8 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
 
       <ProcessingOverlay
         visible={mutation.isPending || isProcessing}
-        title="Procesando renovación"
-        message="Estamos registrando la renovación y generando el nuevo calendario de pagos."
+        title="Enviando solicitud"
+        message="Estamos registrando la solicitud de renovación. El gerente la revisará en breve."
       />
     </div>
   )
