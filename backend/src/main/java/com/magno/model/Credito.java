@@ -90,6 +90,11 @@ public class Credito {
     @Column(name = "lugar", length = 100)
     private String lugar;
 
+    // ── Tipo (NUEVO | RENOVACION) ─────────────────────────────────
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo", nullable = false, length = 20)
+    private TipoCredito tipo;
+
     // ── Estado ───────────────────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)
@@ -135,6 +140,8 @@ public class Credito {
         OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
+        if (tipo == null)
+            tipo = TipoCredito.NUEVO;
         if (estado == null)
             estado = EstadoCredito.SOLICITADO;
         if (pagoAdelantado == null)

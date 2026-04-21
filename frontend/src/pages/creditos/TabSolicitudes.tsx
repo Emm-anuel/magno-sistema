@@ -6,7 +6,8 @@ import { creditoService } from '@/services/creditoService'
 import { usuarioService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
-import type { CreditoResumen, EstadoCredito } from '@/types'
+import TipoCreditoBadge from '@/components/TipoCreditoBadge'
+import type { CreditoResumen, EstadoCredito, TipoCredito } from '@/types'
 
 const ESTADOS: { value: string; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -72,6 +73,7 @@ export default function TabSolicitudes({
 
   const [buscar, setBuscar] = useState('')
   const [estado, setEstado] = useState('')
+  const [tipoFilter, setTipoFilter] = useState<'' | 'NUEVO' | 'RENOVACION'>('')
   const [asesorId, setAsesorId] = useState<number | undefined>()
   const [page, setPage] = useState(0)
 
@@ -89,14 +91,15 @@ export default function TabSolicitudes({
 
   const creditos = data?.content ?? []
 
-  // Client-side filter by name
-  const filtered = buscar.trim()
-    ? creditos.filter((c) =>
-        (c.cliente.nombreCompleto ?? (c.cliente as { nombre_completo?: string }).nombre_completo ?? '')
-          .toLowerCase()
-          .includes(buscar.toLowerCase()),
-      )
-    : creditos
+  // Client-side filter by name and tipo
+  const filtered = creditos.filter((c) => {
+    if (buscar.trim()) {
+      const nombre = c.cliente.nombreCompleto ?? (c.cliente as { nombre_completo?: string }).nombre_completo ?? ''
+      if (!nombre.toLowerCase().includes(buscar.toLowerCase())) return false
+    }
+    if (tipoFilter && (c.tipo ?? 'NUEVO') !== tipoFilter) return false
+    return true
+  })
 
   // Metrics from current page data
   const total = data?.total_elements ?? 0
@@ -152,6 +155,18 @@ export default function TabSolicitudes({
               </option>
             ))}
           </select>
+          <select
+            value={tipoFilter}
+            onChange={(e) => {
+              setTipoFilter(e.target.value as '' | 'NUEVO' | 'RENOVACION')
+              setPage(0)
+            }}
+            className="input w-full sm:w-36"
+          >
+            <option value="">Todos los tipos</option>
+            <option value="NUEVO">Nuevo</option>
+            <option value="RENOVACION">Renovación</option>
+          </select>
           {isAdminOrSup && asesores && (
             <select
               value={asesorId ?? ''}
@@ -204,6 +219,7 @@ export default function TabSolicitudes({
                   <th>Monto</th>
                   <th>Pago/día</th>
                   <th>Plazo</th>
+                  <th>Tipo</th>
                   <th>Estado</th>
                   <th>Asesor</th>
                   <th>Fecha de solicitud</th>
@@ -265,6 +281,12 @@ export default function TabSolicitudes({
                         {fmtPlazoDias(
                           c.plazoDias ?? (c as { plazo_dias?: number | string }).plazo_dias,
                         )}
+                      </td>
+                      <td>
+                        <TipoCreditoBadge
+                          tipo={(c.tipo ?? 'NUEVO') as TipoCredito}
+                          size="sm"
+                        />
                       </td>
                       <td>
                         <CreditoEstadoBadge
@@ -408,7 +430,7 @@ function MobileCard({
 
   return (
     <div className="card p-4 space-y-3">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-2">
         <div>
           <div className="font-semibold text-gray-800">
             {c.cliente.nombreCompleto ??
@@ -416,7 +438,10 @@ function MobileCard({
           </div>
           <div className="text-sm text-gray-500">{c.cliente.celular}</div>
         </div>
-        <CreditoEstadoBadge estado={c.estado as EstadoCredito} size="sm" />
+        <div className="flex flex-col items-end gap-1">
+          <TipoCreditoBadge tipo={(c.tipo ?? 'NUEVO') as TipoCredito} size="sm" />
+          <CreditoEstadoBadge estado={c.estado as EstadoCredito} size="sm" />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-sm">

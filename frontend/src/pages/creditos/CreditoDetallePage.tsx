@@ -7,6 +7,7 @@ import { creditoService } from '@/services/creditoService'
 import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
+import TipoCreditoBadge from '@/components/TipoCreditoBadge'
 import FileUpload from '@/components/FileUpload'
 import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
@@ -215,7 +216,10 @@ export default function CreditoDetallePage() {
               <h1 className="text-lg font-bold text-[#212529]">
                 Crédito #{credito.id} — {credito.cliente.nombreCompleto}
               </h1>
-              <CreditoEstadoBadge estado={credito.estado} />
+              <div className="flex items-center gap-2">
+                <TipoCreditoBadge tipo={credito.tipo ?? 'NUEVO'} />
+                <CreditoEstadoBadge estado={credito.estado} />
+              </div>
             </div>
             <p className="text-sm text-gray-500 mt-0.5">
               {credito.sucursal.nombre} · {credito.asesor.nombreCompleto}

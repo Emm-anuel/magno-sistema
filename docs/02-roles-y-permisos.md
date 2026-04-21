@@ -45,9 +45,25 @@
 | Bitácora            |             ✅             |             ✅             |                    ❌                     |              ❌              |
 | Administración      |             ✅             |             ❌             |                    ❌                     |              ❌              |
 
-### Renovaciones — Tab "Listos para Renovar" (acceso por rol)
+### Renovaciones — Flujo de aprobación (permisos por acción)
 
-Esta pestaña es de solo lectura y muestra los clientes elegibles para renovación según el umbral de pagos cumplidos (16 pagos para créditos de 25 días, 19 pagos para créditos de 30 días). La visibilidad está acotada por rol:
+Las renovaciones siguen el mismo flujo de estados que los Créditos Nuevos: SOLICITADO → APROBADO / RECHAZADO.
+
+| Acción                               | Gerente General | Gerente Sucursal | Supervisor | Asesor |
+| ------------------------------------ | :-------------: | :--------------: | :--------: | :----: |
+| Crear solicitud de renovación        | ❌              | ❌               | ✅         | ✅     |
+| Ver cola de pendientes               | ✅              | ✅               | ❌         | ❌     |
+| Aprobar solicitud                    | ✅              | ✅               | ❌         | ❌     |
+| Rechazar solicitud                   | ✅              | ✅               | ❌         | ❌     |
+| Ver tab "Listos para Renovar"        | ✅              | ✅               | ✅         | ✅     |
+| Ver tab "Mis Solicitudes"            | ❌              | ❌               | ✅         | ✅     |
+| Ver colocaciones semanales           | ✅              | ✅               | ✅         | ✅     |
+
+> ⚠️ Gerente General y Gerente de Sucursal **NO** pueden crear solicitudes de renovación ni ven el tab "Mis Solicitudes". Ambas restricciones se validan en backend con `@PreAuthorize`.
+
+### Renovaciones — Tab "Listos para Renovar" (visibilidad por rol)
+
+Esta pestaña es de solo lectura y muestra los clientes elegibles según el umbral de pagos cumplidos (16 pagos para créditos de 25 días, 19 pagos para créditos de 30 días). Los créditos con solicitud SOLICITADA pendiente no aparecen en la lista.
 
 | Rol                     | Clientes visibles                                          |
 | ----------------------- | ---------------------------------------------------------- |

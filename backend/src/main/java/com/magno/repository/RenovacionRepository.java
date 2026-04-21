@@ -19,14 +19,16 @@ public interface RenovacionRepository extends JpaRepository<Renovacion, Long> {
     boolean existsByCreditoAnteriorIdAndEstadoAndDeletedAtIsNull(
             Long creditoAnteriorId, EstadoRenovacion estado);
 
-    // Renovación APROBADA que liquidó el crédito anterior (para vínculo en detalle)
+    // Renovación que liquidó el crédito anterior (para vínculo en detalle)
+    // Busca renovaciones APROBADAS o ACTIVAS que hayan liquidado un crédito anterior
     @Query("SELECT r FROM Renovacion r WHERE r.creditoAnterior.id = :creditoId " +
-           "AND r.deletedAt IS NULL AND r.estado = com.magno.model.EstadoRenovacion.APROBADO")
+           "AND r.deletedAt IS NULL AND r.estado IN (com.magno.model.EstadoRenovacion.APROBADO, com.magno.model.EstadoRenovacion.ACTIVO)")
     Optional<Renovacion> findActivaByCreditoAnteriorId(@Param("creditoId") Long creditoId);
 
-    // Renovación APROBADA que originó el crédito nuevo (para vínculo en detalle)
+    // Renovación que originó el crédito nuevo (para vínculo en detalle)
+    // Busca renovaciones APROBADAS o ACTIVAS que hayan originado un crédito nuevo
     @Query("SELECT r FROM Renovacion r WHERE r.creditoNuevo.id = :creditoId " +
-           "AND r.deletedAt IS NULL AND r.estado = com.magno.model.EstadoRenovacion.APROBADO")
+           "AND r.deletedAt IS NULL AND r.estado IN (com.magno.model.EstadoRenovacion.APROBADO, com.magno.model.EstadoRenovacion.ACTIVO)")
     Optional<Renovacion> findActivaByCreditoNuevoId(@Param("creditoId") Long creditoId);
 
     // Renovaciones APROBADAS de una semana (para colocaciones)

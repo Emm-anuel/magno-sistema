@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -9,6 +9,8 @@ import {
   ExternalLink,
   User,
   ClipboardList,
+  Search,
+  X,
 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
 import FileUpload from '@/components/FileUpload'
@@ -30,6 +32,40 @@ function fmtDateTime(s: string | null | undefined): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+
+type PresetFecha = 'todos' | 'hoy' | 'ayer' | 'semana' | 'mes' | 'rango'
+
+const PRESETS_FECHA: { key: PresetFecha; label: string }[] = [
+  { key: 'todos',  label: 'Todas las fechas' },
+  { key: 'hoy',    label: 'Hoy' },
+  { key: 'ayer',   label: 'Ayer' },
+  { key: 'semana', label: 'Esta semana' },
+  { key: 'mes',    label: 'Este mes' },
+  { key: 'rango',  label: 'Rango' },
+]
+
+function todayStr() { return new Date().toISOString().slice(0, 10) }
+function yesterdayStr() { const d = new Date(); d.setDate(d.getDate() - 1); return d.toISOString().slice(0, 10) }
+function weekStartStr() {
+  const d = new Date(); const day = d.getDay()
+  d.setDate(d.getDate() - day + (day === 0 ? -6 : 1)); return d.toISOString().slice(0, 10)
+}
+function monthStartStr() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+}
+function getPresetRange(p: PresetFecha): { desde: string; hasta: string } {
+  const hoy = todayStr()
+  switch (p) {
+    case 'hoy':    return { desde: hoy, hasta: hoy }
+    case 'ayer':   return { desde: yesterdayStr(), hasta: yesterdayStr() }
+    case 'semana': return { desde: weekStartStr(), hasta: hoy }
+    case 'mes':    return { desde: monthStartStr(), hasta: hoy }
+    default:       return { desde: hoy, hasta: hoy }
+  }
 }
 
 // ── Estado badge ──────────────────────────────────────────────────────────────
@@ -281,6 +317,29 @@ export default function TabMisSolicitudes() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [filtro, setFiltro] = useState<FiltroEstado>('TODOS')
+  const [busqueda, setBusqueda] = useState('')
+  const [presetFecha, setPresetFecha] = useState<PresetFecha>('todos')
+  const [fechaDesde, setFechaDesde] = useState(todayStr())
+  const [fechaHasta, setFechaHasta] = useState(todayStr())
+
+  function applyPreset(p: PresetFecha) {
+    setPresetFecha(p)
+    if (p !== 'rango' && p !== 'todos') {
+      const r = getPresetRange(p)
+      setFechaDesde(r.desde)
+      setFechaHasta(r.hasta)
+    }
+  }
+
+  function limpiarFiltros() {
+    setFiltro('TODOS')
+    setBusqueda('')
+    setPresetFecha('todos')
+    setFechaDesde(todayStr())
+    setFechaHasta(todayStr())
+  }
+
+  const hayFiltrosActivos = filtro !== 'TODOS' || busqueda.trim() !== '' || presetFecha !== 'todos'
 
   const { data: solicitudes = [], isLoading, isError } = useQuery({
     queryKey: ['mis-solicitudes-renovacion'],
@@ -295,7 +354,25 @@ export default function TabMisSolicitudes() {
     }
   }
 
-  const visibles = filtro === 'TODOS' ? solicitudes : solicitudes.filter((r) => r.estado === filtro)
+  const visibles = useMemo(() => {
+    return solicitudes.filter((r) => {
+      if (filtro !== 'TODOS' && r.estado !== filtro) return false
+      if (busqueda.trim()) {
+        const q = busqueda.toLowerCase()
+        if (!r.cliente.nombreCompleto.toLowerCase().includes(q)) return false
+      }
+      if (presetFecha !== 'todos' && r.createdAt) {
+        const fecha = r.createdAt.slice(0, 10)
+        if (presetFecha === 'rango') {
+          if (fecha < fechaDesde || fecha > fechaHasta) return false
+        } else {
+          const { desde, hasta } = getPresetRange(presetFecha)
+          if (fecha < desde || fecha > hasta) return false
+        }
+      }
+      return true
+    })
+  }, [solicitudes, filtro, busqueda, presetFecha, fechaDesde, fechaHasta])
 
   if (isLoading) {
     return <div className="card p-10 text-center text-gray-500">Cargando solicitudes…</div>
@@ -326,6 +403,61 @@ export default function TabMisSolicitudes() {
 
   return (
     <div className="space-y-4">
+      {/* Búsqueda y fecha */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar cliente..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              className="input pl-9 w-full text-sm"
+            />
+          </div>
+          {PRESETS_FECHA.map(({ key, label }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => applyPreset(key)}
+              className={`rounded-full px-3 py-1.5 text-xs font-medium border transition-colors ${
+                presetFecha === key
+                  ? 'bg-[#3d6b35] text-white border-[#3d6b35]'
+                  : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {presetFecha === 'rango' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 whitespace-nowrap">Desde</label>
+              <input
+                type="date"
+                className="input text-sm py-1.5"
+                value={fechaDesde}
+                max={fechaHasta}
+                onChange={(e) => setFechaDesde(e.target.value)}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 whitespace-nowrap">Hasta</label>
+              <input
+                type="date"
+                className="input text-sm py-1.5"
+                value={fechaHasta}
+                min={fechaDesde}
+                max={todayStr()}
+                onChange={(e) => setFechaHasta(e.target.value)}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Filtro por estado */}
       <div className="flex flex-wrap gap-2">
         {FILTROS.map((f) => {
@@ -350,8 +482,19 @@ export default function TabMisSolicitudes() {
       </div>
 
       {visibles.length === 0 ? (
-        <div className="card p-10 text-center text-gray-500 text-sm">
-          No tienes solicitudes con ese estado
+        <div className="card p-10 text-center space-y-3">
+          <p className="text-gray-500 text-sm">
+            {hayFiltrosActivos ? 'No hay solicitudes con esos filtros' : 'No tienes solicitudes con ese estado'}
+          </p>
+          {hayFiltrosActivos && (
+            <button
+              type="button"
+              onClick={limpiarFiltros}
+              className="inline-flex items-center gap-1.5 text-xs text-[#3d6b35] hover:underline font-medium"
+            >
+              <X className="w-3.5 h-3.5" /> Limpiar filtros
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

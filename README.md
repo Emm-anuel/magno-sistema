@@ -50,7 +50,7 @@ magno-sistema/
 │       ├── types/
 │       └── utils/
 ├── docker-compose.yml               # Stack de producción
-├── docker-compose.dev.yaml          # Infraestructura local (postgres + redis)
+├── docker-compose.dev.yml           # Infraestructura local (postgres + redis)
 ├── .env.example
 └── CLAUDE.md                        # Contexto completo del proyecto
 ```
@@ -74,10 +74,11 @@ cp .env.example .env
 ### 2. Levantar infraestructura
 
 ```bash
-docker compose -f docker-compose.dev.yaml up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 Esto levanta PostgreSQL en `localhost:5432` y Redis en `localhost:6379`.
+Si el backend arranca antes de que PostgreSQL esté arriba, Spring fallará con `Connection refused` al ejecutar Liquibase.
 
 ### 3. Backend
 

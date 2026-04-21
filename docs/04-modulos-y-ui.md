@@ -47,7 +47,10 @@ Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZA
   - **Caso APROBADO**: bloque ámbar con "El gerente aprobó esta renovación", nota si el monto fue ajustado, FileUpload de video (opcional) y botón **"Confirmar desembolso →"** para que el asesor confirme la entrega del efectivo.
   - **Caso ACTIVO**: enlace al nuevo crédito ("Ver crédito activo →"), confirmado por nombre del confirmador y fecha.
   - **Filtro por estado**: chips "Todas / En revisión / Pendiente desembolso / Activas / Rechazadas".
-  - **Estado vacío**: mensaje claro con botón "Nueva Renovación".
+  - **Búsqueda por cliente**: campo de texto con ícono lupa; filtra en tiempo real sobre las solicitudes cargadas.
+  - **Filtro por fecha de envío**: preset chips "Todas las fechas / Hoy / Ayer / Esta semana / Este mes / Rango"; cuando se selecciona "Rango" aparecen inputs Desde/Hasta. Filtra sobre `createdAt`. Los tres filtros (estado, búsqueda, fecha) se combinan entre sí.
+  - **Estado vacío con filtros activos**: muestra "No hay solicitudes con esos filtros" y botón "Limpiar filtros" que resetea los tres filtros a su valor por defecto.
+  - **Estado vacío sin filtros**: mensaje claro con botón "Nueva Renovación".
 
 - **Nueva Solicitud** (solo Supervisor y Asesor): formulario de dos pasos para enviar solicitud de renovación.
   - **Paso 1:** selección de cliente (o preseleccionado desde "Listos para Renovar").
@@ -55,9 +58,11 @@ Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZA
 
 #### Badges visuales
 
-- **`TipoCreditoBadge`**: aparece en listas de créditos y detalle de crédito junto al badge de estado.
+- **`TipoCreditoBadge`**: aparece en la columna "Tipo" de TabSolicitudes y en la ficha de detalle.
   - `NUEVO` → badge verde (`bg-emerald-100 text-emerald-800`)
   - `RENOVACION` → badge azul (`bg-blue-100 text-blue-800`)
+  - El campo `tipo` viene del backend como string `"NUEVO"` o `"RENOVACION"` en ambos DTOs (`CreditoResumenDTO` y `CreditoDetalleDTO`); el frontend lo mapea en los normalizadores de `creditoService.ts`.
+  - **Filtro por tipo** en TabSolicitudes: dropdown "Todos los tipos / Nuevo / Renovación"; filtra client-side sobre los créditos de la página actual. Se combina con los filtros de estado y asesor.
 - **`EstadoRenovacionBadge`**: aparece en la cola de pendientes.
   - `SOLICITADO` → azul | `APROBADO` → verde | `RECHAZADO` → rojo
 

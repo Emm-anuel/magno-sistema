@@ -41,7 +41,8 @@ public record CreditoDetalleDTO(
                 String[] evidenciaUrls,
                 String lugar,
 
-                // ── Estado ───────────────────────────────────────────────
+                // ── Tipo y Estado ────────────────────────────────────────
+                String tipo,
                 String estado,
 
                 // ── Aprobación (V4) ───────────────────────────────────────
@@ -115,6 +116,7 @@ public record CreditoDetalleDTO(
                                 c.getGarantiaDescripcion(),
                                 c.getEvidenciaUrls(),
                                 c.getLugar(),
+                                c.getTipo() != null ? c.getTipo().name() : "NUEVO",
                                 c.getEstado().name(),
                                 c.getMontoAprobado(),
                                 c.getObservaciones(),

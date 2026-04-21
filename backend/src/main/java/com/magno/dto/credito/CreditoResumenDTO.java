@@ -6,9 +6,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-/**
- * DTO liviano para listados de créditos.
- */
 public record CreditoResumenDTO(
                 Long id,
                 ClienteInfo cliente,
@@ -20,6 +17,7 @@ public record CreditoResumenDTO(
                 BigDecimal pagoPeriodico,
                 Integer plazoDias,
                 String tipoPago,
+                String tipo,
                 String estado,
                 LocalDate fechaInicio,
                 LocalDate fechaVencimiento,
@@ -58,6 +56,7 @@ public record CreditoResumenDTO(
                                 c.getPagoPeriodico(),
                                 c.getPlazoDias(),
                                 c.getTipoPago().name(),
+                                c.getTipo() != null ? c.getTipo().name() : "NUEVO",
                                 c.getEstado().name(),
                                 c.getFechaInicio(),
                                 c.getFechaVencimiento(),

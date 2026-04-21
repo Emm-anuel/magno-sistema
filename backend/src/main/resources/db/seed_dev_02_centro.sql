@@ -442,26 +442,26 @@ FOR i IN 1..17 LOOP
     ('2026-03-18'::date + (i-1))::timestamptz + '08:45:00');
 END LOOP;
 
--- Renovación 1→2 (APROBADO)
+-- Renovación 1→2 (ACTIVO — desembolso confirmado)
 -- pagos_restantes=3, monto=1560, multas=0, adelantado=624
 -- desembolso: 12000 - 1560 - 0 - 624 = 9816
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion, created_by)
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion, created_by)
 VALUES (v_elena_cr1, v_elena_cr2, v_c1, v_ase_c1,
   '2026-02-17', 3, 1560, 0, 624,
-  9816, 12000, 'DIARIO', 'APROBADO', v_admin, '2026-02-17 09:00:00-06', v_admin);
+  9816, 12000, 12000, 'DIARIO', 'ACTIVO', v_admin, '2026-02-17 09:00:00-06', v_admin);
 
--- Renovación 2→3 (APROBADO)
+-- Renovación 2→3 (ACTIVO — desembolso confirmado)
 -- pagos_restantes=3, monto=1872, multas=0, adelantado=728
 -- desembolso: 14000 - 1872 - 0 - 728 = 11400
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion,
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion,
   garantia_descripcion, created_by)
 VALUES (v_elena_cr2, v_elena_cr3, v_c1, v_ase_c1,
   '2026-03-18', 3, 1872, 0, 728,
-  11400, 14000, 'DIARIO', 'APROBADO', v_admin, '2026-03-18 09:30:00-06',
+  11400, 14000, 14000, 'DIARIO', 'ACTIVO', v_admin, '2026-03-18 09:30:00-06',
   'Báscula comercial y estantería metálica', v_admin);
 
 -- ──────────────────────────────────────────────────────────────
@@ -511,10 +511,10 @@ END LOOP;
 
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion,
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion,
   garantia_descripcion, created_by)
 VALUES (v_ca, v_cn, v_c2, v_ase_c1, '2026-04-14', 3,2232, 0,843.20,
-  13924.80, 17000,'DIARIO','APROBADO',v_admin,'2026-04-14 09:45:00-06',
+  13924.80, 17000, 17000,'DIARIO','ACTIVO',v_admin,'2026-04-14 09:45:00-06',
   'Licuadora industrial y vitrina de exhibición',v_admin);
 
 -- JOSÉ MARTÍNEZ: $10,000 → $12,000 (Lun 14 abr)
@@ -559,10 +559,10 @@ END LOOP;
 
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion,
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion,
   garantia_descripcion, created_by)
 VALUES (v_ca, v_cn, v_c3, v_ase_c2, '2026-04-14', 2,1040, 0,624,
-  10336, 12000,'DIARIO','APROBADO',v_admin,'2026-04-14 08:45:00-06',
+  10336, 12000, 12000,'DIARIO','ACTIVO',v_admin,'2026-04-14 08:45:00-06',
   'Herramientas de taller y compresor de aire',v_admin);
 
 -- ANA LÓPEZ: $20,000 → $22,000 30d (Mié 15 abr)
@@ -608,10 +608,10 @@ END LOOP;
 
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion,
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion,
   garantia_descripcion, created_by)
 VALUES (v_ca, v_cn, v_c4, v_ase_c1, '2026-04-15', 4,3306.68, 0,909.33,
-  17783.99, 22000,'DIARIO','APROBADO',v_admin,'2026-04-15 10:00:00-06',
+  17783.99, 22000, 22000,'DIARIO','ACTIVO',v_admin,'2026-04-15 10:00:00-06',
   'Silla de estética profesional y espejo grande',v_admin);
 
 -- PEDRO RAMÍREZ: $15,000 → $15,000 con multa $100 (Jue 16 abr)
@@ -657,10 +657,10 @@ END LOOP;
 
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion,
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion,
   garantia_descripcion, created_by)
 VALUES (v_ca, v_cn, v_c5, v_ase_c2, '2026-04-16', 1,744, 100,744,
-  13412, 15000,'DIARIO','APROBADO',v_admin,'2026-04-16 09:00:00-06',
+  13412, 15000, 15000,'DIARIO','ACTIVO',v_admin,'2026-04-16 09:00:00-06',
   'Refrigerador de vitrina para carnes',v_admin);
 
 -- LUCÍA TORRES: $12,000 → $14,000 (Vie 18 abr)
@@ -705,10 +705,10 @@ END LOOP;
 
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion,
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion,
   garantia_descripcion, created_by)
 VALUES (v_ca, v_cn, v_c6, v_ase_c1, '2026-04-18', 2,1248, 0,728,
-  12024, 14000,'DIARIO','APROBADO',v_admin,'2026-04-18 09:45:00-06',
+  12024, 14000, 14000,'DIARIO','ACTIVO',v_admin,'2026-04-18 09:45:00-06',
   'Utensilios de cocina y tanque de gas',v_admin);
 
 -- ──────────────────────────────────────────────────────────────
@@ -1205,9 +1205,9 @@ END LOOP;
 
 INSERT INTO renovaciones (credito_anterior_id, credito_nuevo_id, cliente_id, asesor_id,
   fecha, pagos_restantes, monto_pagos_restantes, multas_pendientes, pago_adelantado,
-  monto_desembolso, monto_nuevo, tipo_pago, estado, aprobado_por, fecha_aprobacion, created_by)
+  monto_desembolso, monto_nuevo, monto_aprobado, tipo_pago, estado, aprobado_por, fecha_aprobacion, created_by)
 VALUES (v_ca, v_cn, v_c20, v_ase_c2, '2026-04-06', 3,2232, 0,843.20,
-  13924.80, 17000,'DIARIO','APROBADO',v_admin,'2026-04-06 09:45:00-06',v_admin);
+  13924.80, 17000, 17000,'DIARIO','ACTIVO',v_admin,'2026-04-06 09:45:00-06',v_admin);
 
 -- ════════════════════════════════════════════════════════════════
 -- C. EXPORTAR IDs de clientes para Parte 3

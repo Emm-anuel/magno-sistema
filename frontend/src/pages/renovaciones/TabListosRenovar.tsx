@@ -21,6 +21,7 @@ export default function TabListosRenovar({ onRenovar }: Props) {
 
   const esAdmin = rol === 'ADMINISTRADOR' || rol === 'SUPERVISOR'
   const esSupervisorCampo = rol === 'SUPERVISOR_CAMPO'
+  const puedeCrearRenovacion = rol === 'SUPERVISOR_CAMPO' || rol === 'ASESOR_COBRADOR'
   const puedeVerFiltros = esAdmin || esSupervisorCampo
 
   const [asesorFiltro, setAsesorFiltro] = useState<number | undefined>(undefined)
@@ -156,7 +157,7 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                   <th className="py-3 pr-4 font-medium text-center">Progreso</th>
                   <th className="py-3 pr-4 font-medium text-center">Restantes</th>
                   <th className="py-3 pr-4 font-medium text-right">Multas</th>
-                  <th className="py-3 font-medium" />
+                  {puedeCrearRenovacion && <th className="py-3 font-medium" />}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -191,15 +192,17 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                         <span className="text-gray-400 text-xs">—</span>
                       )}
                     </td>
-                    <td className="py-3">
-                      <button
-                        type="button"
-                        onClick={() => handleRenovar(item)}
-                        className="btn flex items-center gap-1 text-xs py-1.5 px-3"
-                      >
-                        Renovar <ChevronRight className="w-3 h-3" />
-                      </button>
-                    </td>
+                    {puedeCrearRenovacion && (
+                      <td className="py-3">
+                        <button
+                          type="button"
+                          onClick={() => handleRenovar(item)}
+                          className="btn flex items-center gap-1 text-xs py-1.5 px-3"
+                        >
+                          Renovar <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -216,13 +219,15 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                     <div className="text-xs text-gray-500 mt-0.5">{item.asesorNombre}</div>
                     {esAdmin && <div className="text-xs text-gray-400">{item.sucursalNombre}</div>}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleRenovar(item)}
-                    className="btn flex items-center gap-1 text-xs py-1.5 px-3 flex-shrink-0"
-                  >
-                    Renovar <ChevronRight className="w-3 h-3" />
-                  </button>
+                  {puedeCrearRenovacion && (
+                    <button
+                      type="button"
+                      onClick={() => handleRenovar(item)}
+                      className="btn flex items-center gap-1 text-xs py-1.5 px-3 flex-shrink-0"
+                    >
+                      Renovar <ChevronRight className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-1 text-sm">
                   <span className="text-gray-500">Monto</span>
