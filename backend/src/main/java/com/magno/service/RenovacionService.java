@@ -15,8 +15,10 @@ import com.magno.repository.*;
 import com.magno.service.CreditoCalculoService.ResumenCalculo;
 import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
@@ -104,13 +106,8 @@ public class RenovacionService {
                                 .subtract(multasPendientes)
                                 .subtract(pagoAdelantado);
 
-                boolean puedeAumentar = numPagosRestantes <= 1;
+                boolean puedeAumentar = true;
                 String advertencia = null;
-                if (!puedeAumentar && montoNuevo.compareTo(credito.getMontoCapital()) > 0) {
-                        advertencia = "Con " + numPagosRestantes + " pagos pendientes, el monto nuevo no puede superar "
-                                        + "$" + credito.getMontoCapital().toPlainString()
-                                        + " (monto del crédito anterior).";
-                }
 
                 return new RenovacionCalculoDTO(
                                 creditoId,
@@ -133,17 +130,27 @@ public class RenovacionService {
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // Procesar renovación
+        // Crear solicitud (estado SOLICITADO — no procesa el crédito aún)
+        // Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR
         // ────────────────────────────────────────────────────────────────────
 
         @Transactional
-        public RenovacionDetalleDTO procesarRenovacion(RenovacionCreateRequest req, Long usuarioId) {
+        public RenovacionDetalleDTO crearSolicitud(RenovacionCreateRequest req, Long usuarioId) {
                 Credito creditoAnterior = findCredito(req.creditoAnteriorId());
 
                 if (creditoAnterior.getEstado() != EstadoCredito.ACTIVO) {
                         throw new IllegalArgumentException(
-                                        "Solo se puede renovar un crédito ACTIVO. Estado actual: "
+                                        "Solo se puede solicitar renovación de un crédito ACTIVO. Estado actual: "
                                                         + creditoAnterior.getEstado());
+                }
+
+                // Verificar que no exista ya una solicitud pendiente para este crédito
+                boolean tieneSolicitudPendiente = renovacionRepo
+                                .existsByCreditoAnteriorIdAndEstadoAndDeletedAtIsNull(
+                                                req.creditoAnteriorId(), EstadoRenovacion.SOLICITADO);
+                if (tieneSolicitudPendiente) {
+                        throw new IllegalArgumentException(
+                                        "Ya existe una solicitud de renovación pendiente para este crédito.");
                 }
 
                 // Verificar elegibilidad
@@ -153,24 +160,15 @@ public class RenovacionService {
                 if (pagosRealizados < umbral) {
                         throw new IllegalArgumentException(
                                         "El cliente no es elegible para renovación. Pagos realizados: "
-                                                        + pagosRealizados
-                                                        + "/" + umbral);
+                                                        + pagosRealizados + "/" + umbral);
                 }
 
-                // Calcular pagos restantes y monto
+                // Calcular montos (se almacenan en la solicitud para que el gerente los vea)
                 List<CalendarioPago> pagosPendientes = calendarioPagoRepo
                                 .findByCreditoIdAndEstadoIn(req.creditoAnteriorId(), ESTADOS_PENDIENTES);
                 int numPagosRestantes = pagosPendientes.size();
                 BigDecimal montoPagosRestantes = creditoAnterior.getPagoPeriodico()
                                 .multiply(BigDecimal.valueOf(numPagosRestantes));
-
-                // Validar restricción de monto
-                if (numPagosRestantes >= 2 && req.montoNuevo().compareTo(creditoAnterior.getMontoCapital()) > 0) {
-                        throw new IllegalArgumentException(
-                                        "Con " + numPagosRestantes
-                                                        + " pagos pendientes, el monto nuevo no puede superar "
-                                                        + "$" + creditoAnterior.getMontoCapital().toPlainString());
-                }
 
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(req.creditoAnteriorId());
                 ResumenCalculo calculoNuevo = calculoService.calcularCredito(req.montoNuevo());
@@ -179,75 +177,24 @@ public class RenovacionService {
                                 .subtract(multasPendientesAmt)
                                 .subtract(calculoNuevo.pagoAdelantado());
 
-                TipoPago tipoPago;
-                try {
-                        tipoPago = TipoPago.valueOf(req.tipoPago().toUpperCase());
-                } catch (IllegalArgumentException e) {
-                        throw new IllegalArgumentException("tipoPago inválido: " + req.tipoPago());
-                }
+                TipoPago tipoPago = parseTipoPago(req.tipoPago());
 
                 Usuario asesor = creditoAnterior.getAsesor();
                 Usuario creador = usuarioRepo.findById(usuarioId).orElse(null);
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 
-                // 1. Saldar pagos pendientes del crédito anterior
-                for (CalendarioPago pago : pagosPendientes) {
-                        pago.setEstado(EstadoCalendarioPago.PAGADO);
-                        calendarioPagoRepo.save(pago);
-                }
-
-                // 2. Marcar multas pendientes como cobradas (descontadas del desembolso)
-                multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(req.creditoAnteriorId())
-                                .forEach(m -> {
-                                        m.setCobrada(true);
-                                        multaRepo.save(m);
-                                });
-
-                // 3. Cerrar crédito anterior
-                creditoAnterior.setEstado(EstadoCredito.RENOVADO);
-                creditoRepo.save(creditoAnterior);
-
-                // 4. Crear nuevo crédito directamente ACTIVO
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
                                 ? req.evidenciaUrls().toArray(String[]::new)
                                 : null;
 
-                Credito creditoNuevo = Credito.builder()
-                                .cliente(creditoAnterior.getCliente())
-                                .asesor(asesor)
-                                .sucursal(creditoAnterior.getSucursal())
-                                .montoSolicitado(req.montoNuevo())
-                                .montoCapital(calculoNuevo.capital())
-                                .montoAprobado(req.montoNuevo())
-                                .tasaInteres(calculoNuevo.tasa())
-                                .cargoFinanciero(calculoNuevo.cargoFinanciero())
-                                .totalAPagar(calculoNuevo.totalAPagar())
-                                .pagoPeriodico(calculoNuevo.pagoPeriodico())
-                                .plazoDias(calculoNuevo.plazo())
-                                .tipoPago(tipoPago)
-                                .pagoAdelantado(calculoNuevo.pagoAdelantado())
-                                .garantiaDescripcion(req.garantiaDescripcion())
-                                .evidenciaUrls(evidenciaUrls)
-                                .videoEntregaUrl(req.videoEntregaUrl())
-                                .estado(EstadoCredito.ACTIVO)
-                                .fechaInicio(hoy)
-                                .fechaDesembolso(DateTimeUtils.ahoraEnMagno())
-                                .createdBy(creador)
-                                .build();
-                creditoRepo.save(creditoNuevo);
-
-                // 5. Generar calendario de pagos para el nuevo crédito
-                calculoService.generarCalendario(
-                                creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
-                                creditoAnterior.getSucursal().getId());
-                creditoRepo.save(creditoNuevo); // persiste fechaVencimiento actualizada por generarCalendario
-
-                // 6. Registrar la renovación
-                Renovacion renovacion = Renovacion.builder()
+                Renovacion solicitud = Renovacion.builder()
                                 .creditoAnterior(creditoAnterior)
-                                .creditoNuevo(creditoNuevo)
+                                .creditoNuevo(null)                     // se crea al aprobar
                                 .cliente(creditoAnterior.getCliente())
                                 .asesor(asesor)
+                                .estado(EstadoRenovacion.SOLICITADO)
+                                .montoNuevo(req.montoNuevo())
+                                .tipoPago(tipoPago)
                                 .fecha(hoy)
                                 .pagosRestantes(numPagosRestantes)
                                 .montoPagosRestantes(montoPagosRestantes)
@@ -259,19 +206,181 @@ public class RenovacionService {
                                 .videoEntregaUrl(req.videoEntregaUrl())
                                 .createdBy(creador)
                                 .build();
+                renovacionRepo.save(solicitud);
+
+                log.info("Solicitud de renovación creada — renovacion.id=" + solicitud.getId()
+                                + " credito_anterior=" + creditoAnterior.getId()
+                                + " monto_nuevo=" + req.montoNuevo()
+                                + " asesor=" + asesor.getNombreCompleto());
+
+                return RenovacionDetalleDTO.from(solicitud);
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // Aprobar solicitud (APROBADO — procesa el crédito)
+        // Solo ADMINISTRADOR y SUPERVISOR
+        // ────────────────────────────────────────────────────────────────────
+
+        @Transactional
+        public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, Long aprobadorId) {
+                Renovacion renovacion = findRenovacion(renovacionId);
+
+                if (renovacion.getEstado() != EstadoRenovacion.SOLICITADO) {
+                        throw new IllegalArgumentException(
+                                        "Solo se puede aprobar una renovación en estado SOLICITADO. Estado actual: "
+                                                        + renovacion.getEstado());
+                }
+
+                Credito creditoAnterior = renovacion.getCreditoAnterior();
+                if (creditoAnterior.getEstado() != EstadoCredito.ACTIVO) {
+                        throw new IllegalArgumentException(
+                                        "El crédito anterior ya no está ACTIVO. Estado: "
+                                                        + creditoAnterior.getEstado());
+                }
+
+                Usuario aprobador = usuarioRepo.findById(aprobadorId)
+                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + aprobadorId));
+
+                // Re-leer pagos pendientes al momento de la aprobación
+                List<CalendarioPago> pagosPendientes = calendarioPagoRepo
+                                .findByCreditoIdAndEstadoIn(creditoAnterior.getId(), ESTADOS_PENDIENTES);
+                BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(creditoAnterior.getId());
+                ResumenCalculo calculoNuevo = calculoService.calcularCredito(renovacion.getMontoNuevo());
+                BigDecimal montoDesembolso = renovacion.getMontoNuevo()
+                                .subtract(renovacion.getMontoPagosRestantes())
+                                .subtract(multasPendientesAmt)
+                                .subtract(calculoNuevo.pagoAdelantado());
+
+                LocalDate hoy = DateTimeUtils.hoyEnMagno();
+
+                // 1. Saldar pagos pendientes del crédito anterior
+                for (CalendarioPago pago : pagosPendientes) {
+                        pago.setEstado(EstadoCalendarioPago.PAGADO);
+                        calendarioPagoRepo.save(pago);
+                }
+
+                // 2. Marcar multas como cobradas (descontadas del desembolso)
+                multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(creditoAnterior.getId())
+                                .forEach(m -> {
+                                        m.setCobrada(true);
+                                        multaRepo.save(m);
+                                });
+
+                // 3. Cerrar crédito anterior
+                creditoAnterior.setEstado(EstadoCredito.RENOVADO);
+                creditoRepo.save(creditoAnterior);
+
+                // 4. Crear nuevo crédito ACTIVO (tipo = RENOVACION)
+                String[] evidenciaUrls = renovacion.getEvidenciaUrls();
+
+                Credito creditoNuevo = Credito.builder()
+                                .cliente(creditoAnterior.getCliente())
+                                .asesor(creditoAnterior.getAsesor())
+                                .sucursal(creditoAnterior.getSucursal())
+                                .tipo(TipoCredito.RENOVACION)
+                                .montoSolicitado(renovacion.getMontoNuevo())
+                                .montoCapital(calculoNuevo.capital())
+                                .montoAprobado(renovacion.getMontoNuevo())
+                                .tasaInteres(calculoNuevo.tasa())
+                                .cargoFinanciero(calculoNuevo.cargoFinanciero())
+                                .totalAPagar(calculoNuevo.totalAPagar())
+                                .pagoPeriodico(calculoNuevo.pagoPeriodico())
+                                .plazoDias(calculoNuevo.plazo())
+                                .tipoPago(renovacion.getTipoPago())
+                                .pagoAdelantado(calculoNuevo.pagoAdelantado())
+                                .garantiaDescripcion(renovacion.getGarantiaDescripcion())
+                                .evidenciaUrls(evidenciaUrls)
+                                .videoEntregaUrl(renovacion.getVideoEntregaUrl())
+                                .estado(EstadoCredito.ACTIVO)
+                                .fechaInicio(hoy)
+                                .fechaDesembolso(DateTimeUtils.ahoraEnMagno())
+                                .aprobadoPor(aprobador)
+                                .fechaAprobacion(DateTimeUtils.ahoraEnMagno())
+                                .createdBy(aprobador)
+                                .build();
+                creditoRepo.save(creditoNuevo);
+
+                // 5. Generar calendario de pagos
+                calculoService.generarCalendario(
+                                creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
+                                creditoAnterior.getSucursal().getId());
+                creditoRepo.save(creditoNuevo);
+
+                // 6. Actualizar renovación
+                renovacion.setCreditoNuevo(creditoNuevo);
+                renovacion.setEstado(EstadoRenovacion.APROBADO);
+                renovacion.setAprobadoPor(aprobador);
+                renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
+                renovacion.setFecha(hoy);                               // fecha de desembolso real
+                renovacion.setMontoDesembolso(montoDesembolso);
                 renovacionRepo.save(renovacion);
 
-                log.info("Renovación procesada — renovacion.id=" + renovacion.getId()
+                log.info("Renovación APROBADA — renovacion.id=" + renovacion.getId()
                                 + " credito_anterior=" + creditoAnterior.getId()
                                 + " credito_nuevo=" + creditoNuevo.getId()
-                                + " monto_nuevo=" + req.montoNuevo()
-                                + " desembolso=" + montoDesembolso);
+                                + " aprobado_por=" + aprobador.getNombreCompleto());
 
                 return RenovacionDetalleDTO.from(renovacion);
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // Colocaciones semanales
+        // Rechazar solicitud
+        // Solo ADMINISTRADOR y SUPERVISOR
+        // ────────────────────────────────────────────────────────────────────
+
+        @Transactional
+        public RenovacionDetalleDTO rechazarRenovacion(Long renovacionId, String motivo, Long rechazadorId) {
+                Renovacion renovacion = findRenovacion(renovacionId);
+
+                if (renovacion.getEstado() != EstadoRenovacion.SOLICITADO) {
+                        throw new IllegalArgumentException(
+                                        "Solo se puede rechazar una renovación en estado SOLICITADO. Estado actual: "
+                                                        + renovacion.getEstado());
+                }
+
+                Usuario rechazador = usuarioRepo.findById(rechazadorId)
+                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + rechazadorId));
+
+                renovacion.setEstado(EstadoRenovacion.RECHAZADO);
+                renovacion.setAprobadoPor(rechazador);
+                renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
+                renovacion.setMotivoRechazo(motivo != null ? motivo.trim() : "");
+                renovacionRepo.save(renovacion);
+
+                log.info("Renovación RECHAZADA — renovacion.id=" + renovacion.getId()
+                                + " motivo=" + motivo
+                                + " rechazado_por=" + rechazador.getNombreCompleto());
+
+                return RenovacionDetalleDTO.from(renovacion);
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // Renovaciones pendientes de aprobación
+        // Solo ADMINISTRADOR y SUPERVISOR
+        // ────────────────────────────────────────────────────────────────────
+
+        public List<RenovacionDetalleDTO> getPendientes(Long asesorId, Long sucursalId) {
+                return renovacionRepo
+                                .findPendientes(asesorId, sucursalId)
+                                .stream()
+                                .map(RenovacionDetalleDTO::from)
+                                .toList();
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // Mis Solicitudes — todas las del asesor autenticado (SUPERVISOR_CAMPO / ASESOR_COBRADOR)
+        // ────────────────────────────────────────────────────────────────────
+
+        public List<RenovacionDetalleDTO> getMisSolicitudes(Long asesorId) {
+                return renovacionRepo
+                                .findMisSolicitudes(asesorId)
+                                .stream()
+                                .map(RenovacionDetalleDTO::from)
+                                .toList();
+        }
+
+        // ────────────────────────────────────────────────────────────────────
+        // Colocaciones semanales (solo renovaciones APROBADAS)
         // ────────────────────────────────────────────────────────────────────
 
         public ColocacionesSemanaDTO getColocaciones(LocalDate semanaInicio, Long asesorId, Long sucursalId) {
@@ -279,7 +388,7 @@ public class RenovacionService {
 
                 List<ColocacionItemDTO> items = new ArrayList<>();
 
-                // Renovaciones de la semana
+                // Renovaciones APROBADAS de la semana
                 renovacionRepo.findColocaciones(semanaInicio, semanaFin, asesorId, sucursalId)
                                 .forEach(r -> items.add(new ColocacionItemDTO(
                                                 r.getFecha(),
@@ -292,7 +401,7 @@ public class RenovacionService {
                                                 "RENOVACION",
                                                 r.getId())));
 
-                // Créditos nuevos activados en la semana (fechaDesembolso en rango)
+                // Créditos nuevos activados en la semana
                 java.time.OffsetDateTime inicioTs = semanaInicio.atStartOfDay(DateTimeUtils.MAGNO_ZONE)
                                 .toOffsetDateTime();
                 java.time.OffsetDateTime finTs = semanaFin.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE)
@@ -330,6 +439,8 @@ public class RenovacionService {
 
                 return creditoRepo.findListosParaRenovar(asesorId, sucursalId, realizados)
                                 .stream()
+                                .filter(c -> !renovacionRepo.existsByCreditoAnteriorIdAndEstadoAndDeletedAtIsNull(
+                                                c.getId(), EstadoRenovacion.SOLICITADO))
                                 .map(c -> {
                                         long pagosRealizados = calendarioPagoRepo
                                                         .countByCreditoIdAndEstadoIn(c.getId(), realizados);
@@ -418,6 +529,23 @@ public class RenovacionService {
                         throw new EntityNotFoundException("Crédito no encontrado: " + id);
                 }
                 return c;
+        }
+
+        private Renovacion findRenovacion(Long id) {
+                Renovacion r = renovacionRepo.findById(id)
+                                .orElseThrow(() -> new EntityNotFoundException("Renovación no encontrada: " + id));
+                if (r.getDeletedAt() != null) {
+                        throw new EntityNotFoundException("Renovación no encontrada: " + id);
+                }
+                return r;
+        }
+
+        private TipoPago parseTipoPago(String s) {
+                try {
+                        return TipoPago.valueOf(s.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                        throw new IllegalArgumentException("tipoPago inválido: " + s);
+                }
         }
 
         private static Cell cell(String text) {
