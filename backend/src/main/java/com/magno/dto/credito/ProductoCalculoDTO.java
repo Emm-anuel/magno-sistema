@@ -1,5 +1,6 @@
 package com.magno.dto.credito;
 
+import com.magno.model.TipoPago;
 import com.magno.service.CreditoCalculoService.ResumenCalculo;
 
 import java.math.BigDecimal;
@@ -16,9 +17,10 @@ public record ProductoCalculoDTO(
         BigDecimal totalAPagar,
         BigDecimal pagoPeriodico,
         BigDecimal pagoAdelantado,
-        String descripcionProducto
+        String descripcionProducto,
+        TipoPago tipoPago
 ) {
-    public static ProductoCalculoDTO from(ResumenCalculo c, String descripcion) {
+    public static ProductoCalculoDTO from(ResumenCalculo c, String descripcion, TipoPago tipoPago) {
         return new ProductoCalculoDTO(
                 c.capital(),
                 c.plazo(),
@@ -27,7 +29,8 @@ public record ProductoCalculoDTO(
                 c.totalAPagar(),
                 c.pagoPeriodico(),
                 c.pagoAdelantado(),
-                descripcion
+                descripcion,
+                tipoPago
         );
     }
 }

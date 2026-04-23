@@ -15,7 +15,6 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,10 +61,13 @@ public class CobrosService {
      * Devuelve la ruta del día con créditos ACTIVO de la sucursal del solicitante,
      * con filtro opcional por asesor y estado de cobro del día solicitado.
      */
-    public RutaDiaDTO getRutaDia(Long asesorId, LocalDate fecha, String rolSolicitante,
+    public RutaDiaDTO getRutaDia(Long asesorId, Long sucursalId, LocalDate fecha, String rolSolicitante,
             Long usuarioIdSolicitante, Long sucursalIdSolicitante) {
         Long asesorIdEfectivo = resolverAsesorIdEfectivo(
                 asesorId, rolSolicitante, usuarioIdSolicitante);
+
+        Long sucursalIdEfectiva = resolverSucursalIdEfectiva(
+                sucursalId, rolSolicitante, sucursalIdSolicitante);
 
         Usuario asesorEspecifico = null;
         if (asesorIdEfectivo != null) {
@@ -76,18 +78,18 @@ public class CobrosService {
         // Obtener todos los créditos activos de la sucursal del solicitante.
         // Para ADMIN/SUPERVISOR sin asesorId específico, no se filtra por asesor.
         List<Credito> creditosActivos = creditoRepo.findRutaDiaCreditosActivos(
-                sucursalIdSolicitante,
+                sucursalIdEfectiva,
                 asesorIdEfectivo,
                 EstadoCredito.ACTIVO,
                 hoyNegocio());
 
         // Obtener días festivos de la sucursal para la fecha consultada
-        List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalIdSolicitante);
+        List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalIdEfectiva);
         boolean esDiaInhabil = esInhabil(fecha, diasFestivos);
 
         // Pagos ya registrados hoy para la sucursal (asesor opcional)
         List<Pago> pagosHoy = pagoRepo.findBySucursalAndAsesorIdAndFecha(
-                sucursalIdSolicitante,
+                sucursalIdEfectiva,
                 asesorIdEfectivo,
                 fecha);
 
@@ -164,6 +166,7 @@ public class CobrosService {
                     credito.getId(),
                     credito.getMontoCapital(),
                     credito.getPagoPeriodico(),
+                    credito.getTipoPago().toString(),
                     cp.getNumeroPago(),
                     credito.getPlazoDias(),
                     estadoHoy,
@@ -378,8 +381,8 @@ public class CobrosService {
     private Pago registrarNoPago(Credito credito, Cliente cliente, CalendarioPago cp,
             Usuario registrador, PagoRegistrarRequest req,
             Long sucursalId, BigDecimal montoCapital, LocalDate hoy) {
-        // Obtener monto de multa desde configuración
-        BigDecimal montoMulta = obtenerMontoMultaNoPago(sucursalId, montoCapital);
+        // Obtener monto de multa desde configuración, considerando tipo de crédito
+        BigDecimal montoMulta = obtenerMontoMultaNoPago(sucursalId, montoCapital, credito.getTipoPago());
 
         // Crear registro de pago con monto_recibido = 0
         Pago pago = Pago.builder()
@@ -489,7 +492,7 @@ public class CobrosService {
 
     /**
      * Verifica si se alcanzó un múltiplo de 2 en pagos incompletos y genera multa
-     * INCOMPLETO.
+     * INCOMPLETO. Considera el tipo de crédito para determinar el monto de multa.
      */
     private void verificarMultaIncompletos(Credito credito, Cliente cliente, LocalDate hoy,
             Long sucursalId, BigDecimal montoCapital, Pago pagoActual) {
@@ -498,21 +501,22 @@ public class CobrosService {
         // El pago actual ya está guardado, así que contamos incluyéndolo
         // Si el total de incompletos es múltiplo de 2 → generar multa
         if (pagosIncompletos > 0 && pagosIncompletos % 2 == 0) {
-            BigDecimal montoMulta = obtenerMontoMultaIncompletos(sucursalId, montoCapital);
+            BigDecimal montoMultaIncompletos = obtenerMontoMultaIncompletos(sucursalId, montoCapital,
+                    credito.getTipoPago());
 
             Multa multa = Multa.builder()
                     .pago(pagoActual)
                     .cliente(cliente)
                     .credito(credito)
                     .tipo("INCOMPLETO")
-                    .monto(montoMulta)
+                    .monto(montoMultaIncompletos)
                     .fecha(hoy)
                     .cobrada(false)
                     .build();
             multaRepo.save(multa);
 
             log.info("Multa INCOMPLETO generada — crédito=" + credito.getId()
-                    + " acumulados=" + pagosIncompletos + " monto=" + montoMulta);
+                    + " acumulados=" + pagosIncompletos + " monto=" + montoMultaIncompletos);
         }
     }
 
@@ -533,31 +537,6 @@ public class CobrosService {
             creditoRepo.save(credito);
             log.info("Crédito marcado como PAGADO — id=" + credito.getId());
         }
-    }
-
-    /**
-     * Obtiene el próximo pago PENDIENTE del calendario, ordenado por número de
-     * pago.
-     * Si no hay pagos vencidos (fecha <= hoy), toma el próximo futuro.
-     */
-    private CalendarioPago obtenerProximoPagoPendiente(Credito credito) {
-        List<CalendarioPago> pendientes = calendarioPagoRepo
-                .findByCreditoIdAndEstado(credito.getId(), EstadoCalendarioPago.PENDIENTE);
-
-        if (pendientes.isEmpty())
-            return null;
-
-        LocalDate hoy = hoyNegocio();
-
-        // Preferir el pendiente más antiguo vencido (fecha <= hoy)
-        return pendientes.stream()
-                .filter(cp -> !cp.getFechaProgramada().isAfter(hoy))
-                .min(Comparator.comparingInt(CalendarioPago::getNumeroPago))
-                .orElseGet(() ->
-                // Si no hay vencidos, tomar el próximo futuro
-                pendientes.stream()
-                        .min(Comparator.comparingInt(CalendarioPago::getNumeroPago))
-                        .orElse(null));
     }
 
     private CalendarioPago obtenerPagoPendienteParaFecha(Credito credito, LocalDate fechaOperacion) {
@@ -586,16 +565,22 @@ public class CobrosService {
         return fechaSolicitada;
     }
 
-    private BigDecimal obtenerMontoMultaNoPago(Long sucursalId, BigDecimal montoCapital) {
-        return configMultaRepo.findBySucursalAndMonto(sucursalId, montoCapital)
-                .map(ConfigMulta::getMultaNoPago)
-                .orElse(new BigDecimal("50.00")); // fallback si no hay config
+    private BigDecimal obtenerMontoMultaNoPago(Long sucursalId, BigDecimal montoCapital, TipoPago tipoPago) {
+        ConfigMulta config = configMultaRepo.findBySucursalAndMonto(sucursalId, montoCapital).orElse(null);
+        if (config == null) {
+            // Fallback si no hay configuración
+            return tipoPago == TipoPago.SEMANAL ? new BigDecimal("300.00") : new BigDecimal("50.00");
+        }
+        return tipoPago == TipoPago.SEMANAL ? config.getMultaSemanalNoPago() : config.getMultaNoPago();
     }
 
-    private BigDecimal obtenerMontoMultaIncompletos(Long sucursalId, BigDecimal montoCapital) {
-        return configMultaRepo.findBySucursalAndMonto(sucursalId, montoCapital)
-                .map(ConfigMulta::getMultaIncompletos)
-                .orElse(new BigDecimal("50.00")); // fallback
+    private BigDecimal obtenerMontoMultaIncompletos(Long sucursalId, BigDecimal montoCapital, TipoPago tipoPago) {
+        ConfigMulta config = configMultaRepo.findBySucursalAndMonto(sucursalId, montoCapital).orElse(null);
+        if (config == null) {
+            // Fallback si no hay configuración
+            return tipoPago == TipoPago.SEMANAL ? new BigDecimal("300.00") : new BigDecimal("50.00");
+        }
+        return tipoPago == TipoPago.SEMANAL ? config.getMultaSemanalIncompletos() : config.getMultaIncompletos();
     }
 
     private LocalDate hoyNegocio() {
@@ -619,6 +604,7 @@ public class CobrosService {
                 credito.getId(),
                 credito.getMontoCapital(),
                 credito.getPagoPeriodico(),
+                credito.getTipoPago().toString(),
                 null,
                 credito.getPlazoDias(),
                 "INHABIL",
@@ -643,6 +629,17 @@ public class CobrosService {
         }
 
         return usuarioIdSolicitante;
+    }
+
+    private Long resolverSucursalIdEfectiva(Long sucursalId, String rolSolicitante, Long sucursalIdSolicitante) {
+        boolean puedeElegirSucursal = "ADMINISTRADOR".equals(rolSolicitante)
+                || "SUPERVISOR".equals(rolSolicitante);
+
+        if (puedeElegirSucursal && sucursalId != null) {
+            return sucursalId;
+        }
+
+        return sucursalIdSolicitante;
     }
 
     private int ordenEstado(String estado) {

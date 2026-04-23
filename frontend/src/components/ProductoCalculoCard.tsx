@@ -78,7 +78,7 @@ export default function ProductoCalculoCard({ calculo, loading }: Props) {
         <span className="text-sm font-semibold text-[#3d6b35]">Producto detectado</span>
       </div>
       <div className="text-xs text-gray-500 mb-2">
-        Plazo: <strong>{safeNumber(getCalculoValue(calculo, 'plazo', 'plazo_dias'))} días</strong> &nbsp;|&nbsp; Tasa:{' '}
+        Plazo: <strong>{safeNumber(getCalculoValue(calculo, 'plazo', 'plazo_dias'))} {calculo.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}</strong> &nbsp;|&nbsp; Tasa:{' '}
         <strong>{(safeNumber(getCalculoValue(calculo, 'tasa', 'tasa_interes')) * 100).toFixed(0)}%</strong>
       </div>
       <Row label="Capital:" value={fmt(safeNumber(getCalculoValue(calculo, 'capital')))} />

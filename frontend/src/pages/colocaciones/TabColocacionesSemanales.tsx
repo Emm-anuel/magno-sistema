@@ -4,7 +4,8 @@ import { Download, ChevronLeft, ChevronRight } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { api } from '@/services/api'
-import type { ColocacionItem } from '@/types'
+import TipoPagoBadge from '@/components/TipoPagoBadge'
+import type { ColocacionItem, TipoPago } from '@/types'
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
@@ -150,6 +151,7 @@ export default function TabColocacionesSemanales() {
                       <th className="py-3 pr-4 font-medium text-right">Créd. Anterior</th>
                       <th className="py-3 pr-4 font-medium text-right">Créd. Nuevo</th>
                       <th className="py-3 pr-4 font-medium text-right">Desembolso</th>
+                      <th className="py-3 pr-4 font-medium">Forma de Pago</th>
                       <th className="py-3 pr-4 font-medium">Asesor</th>
                       <th className="py-3 font-medium">Tipo</th>
                     </tr>
@@ -166,6 +168,9 @@ export default function TabColocacionesSemanales() {
                         <td className="py-3 pr-4 text-gray-600 text-right">{fmt(item.creditoAnterior)}</td>
                         <td className="py-3 pr-4 text-gray-800 font-medium text-right">{fmt(item.creditoNuevo)}</td>
                         <td className="py-3 pr-4 text-[#3d6b35] font-semibold text-right">{fmt(item.desembolso)}</td>
+                        <td className="py-3 pr-4">
+                          <TipoPagoBadge tipo={item.tipoPago as TipoPago} size="sm" />
+                        </td>
                         <td className="py-3 pr-4 text-gray-600">{item.asesorNombre}</td>
                         <td className="py-3">
                           <TipoBadge tipo={item.tipo} />
@@ -175,7 +180,7 @@ export default function TabColocacionesSemanales() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t-2 border-gray-300 bg-gray-50">
-                      <td colSpan={4} className="py-3 pr-4 text-right text-sm font-semibold text-gray-700">
+                      <td colSpan={5} className="py-3 pr-4 text-right text-sm font-semibold text-gray-700">
                         Total Desembolsos
                       </td>
                       <td className="py-3 pr-4 text-right text-sm font-bold text-[#3d6b35]">
@@ -213,6 +218,10 @@ export default function TabColocacionesSemanales() {
                       <span className="text-right font-medium">{fmt(item.creditoNuevo)}</span>
                       <span className="text-gray-500">Desembolso</span>
                       <span className="text-right font-bold text-[#3d6b35]">{fmt(item.desembolso)}</span>
+                      <span className="text-gray-500">Forma de pago</span>
+                      <span className="text-right">
+                        <TipoPagoBadge tipo={item.tipoPago as TipoPago} size="sm" />
+                      </span>
                       <span className="text-gray-500">Asesor</span>
                       <span className="text-right text-gray-700">{item.asesorNombre}</span>
                     </div>

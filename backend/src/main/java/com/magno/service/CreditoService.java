@@ -164,11 +164,13 @@ public class CreditoService {
                                 .orElseThrow(() -> new EntityNotFoundException(
                                                 "Sucursal no encontrada: " + sucursalId));
 
-                // 5. Calcular
-                ResumenCalculo calculo = calculoService.calcularCredito(req.montoSolicitado());
-
-                // 6. Tipo de pago
+                // 5. Tipo de pago
                 TipoPago tipoPago = parseTipoPago(req.tipoPago());
+
+                // 6. Calcular (según tipo de pago)
+                ResumenCalculo calculo = tipoPago == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado())
+                                : calculoService.calcularCredito(req.montoSolicitado());
 
                 // 7. Evidencia URLs (ya subidas a S3 antes de llamar este endpoint)
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
@@ -226,7 +228,10 @@ public class CreditoService {
                                                 "Asesor no encontrado: " + req.asesorId()));
                 Sucursal sucursal = asesor.getSucursal();
 
-                ResumenCalculo calculo = calculoService.calcularCredito(req.montoSolicitado());
+                // Calcular según tipo de pago (considerar tipoPago actual del crédito)
+                ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado())
+                                : calculoService.calcularCredito(req.montoSolicitado());
 
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
                                 ? req.evidenciaUrls().toArray(String[]::new)
@@ -272,7 +277,10 @@ public class CreditoService {
                 }
 
                 // Recalcular con el monto aprobado (puede diferir del solicitado)
-                ResumenCalculo calculo = calculoService.calcularCredito(req.montoAprobado());
+                // Considerar tipo de pago del crédito
+                ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(req.montoAprobado())
+                                : calculoService.calcularCredito(req.montoAprobado());
 
                 Usuario aprobadoPorUsuario = usuarioRepo.findById(usuarioId)
                                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
@@ -329,12 +337,20 @@ public class CreditoService {
 
                 // Usar monto aprobado si existe, si no el monto capital original
                 BigDecimal montoBase = c.getMontoAprobado() != null ? c.getMontoAprobado() : c.getMontoCapital();
-                ResumenCalculo calculo = calculoService.calcularCredito(montoBase);
+
+                ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(montoBase)
+                                : calculoService.calcularCredito(montoBase);
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 
-                // Generar calendario (modifica c.fechaVencimiento in-place)
-                calculoService.generarCalendario(c, hoy, calculo.plazo(), calculo, c.getSucursal().getId());
+                // Generar calendario según tipo de pago
+                if (c.getTipoPago() == TipoPago.SEMANAL) {
+                        calculoService.generarCalendarioSemanal(c, hoy, calculo.plazo(), calculo,
+                                        c.getSucursal().getId());
+                } else {
+                        calculoService.generarCalendario(c, hoy, calculo.plazo(), calculo, c.getSucursal().getId());
+                }
 
                 c.setFechaInicio(hoy);
                 c.setFechaDesembolso(DateTimeUtils.ahoraEnMagno());
@@ -445,7 +461,15 @@ public class CreditoService {
 
                 BigDecimal multasPendientes = creditoRepo.sumMultasPendientes(c.getId());
 
-                int umbralRenovacion = c.getPlazoDias() == 30 ? 19 : 16;
+                // Calcular umbral de renovación según tipo y plazo de crédito
+                int umbralRenovacion;
+                if (c.getTipoPago() == TipoPago.SEMANAL) {
+                        // Semanales: plazo en semanas (8 o 12)
+                        umbralRenovacion = c.getPlazoDias() == 12 ? 9 : 5; // pago #9 para 12 sem, pago #5 para 8 sem
+                } else {
+                        // Diarios: plazo en días (25 o 30)
+                        umbralRenovacion = c.getPlazoDias() == 30 ? 19 : 16;
+                }
                 boolean elegibleRenovacion = c.getEstado() == EstadoCredito.ACTIVO
                                 && pagosRealizados >= umbralRenovacion;
 

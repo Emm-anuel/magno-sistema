@@ -6,16 +6,18 @@ import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import EstadoCobroBadge from '@/components/cobros/EstadoCobroBadge'
 import MultaBadge from '@/components/cobros/MultaBadge'
+import TipoPagoBadge from '@/components/TipoPagoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
-import type { ClienteRuta, PagoCobroDTO } from '@/types'
+import type { ClienteRuta, PagoCobroDTO, TipoPago } from '@/types'
+import { todayLocalStr } from '@/utils/date'
 
 function fmtMoney(v: number) {
   return `$${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 0 })}`
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return todayLocalStr()
 }
 
 interface Props {
@@ -190,7 +192,8 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
               <tr>
                 <th>Cliente</th>
                 <th>Negocio</th>
-                <th className="text-right">Pago diario</th>
+                <th className="text-right">Pago período</th>
+                <th>Forma de Pago</th>
                 <th className="text-right">Multas</th>
                 <th># Pago</th>
                 <th>Estado</th>
@@ -256,13 +259,14 @@ function ClienteCard({
               {c.nombreCompleto}
             </span>
             <EstadoCobroBadge estado={c.estadoHoy} size="sm" />
+            <TipoPagoBadge tipo={c.tipoPago as TipoPago} size="sm" />
           </div>
           <p className="text-[12px] text-[#6c757d] mt-0.5">{c.negocioNombre || c.celular}</p>
 
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <span className="text-[13px] font-semibold text-[#212529]">
               {fmtMoney(c.pagoPeriodico)}
-              <span className="font-normal text-[#adb5bd]">/día</span>
+              <span className="font-normal text-[#adb5bd]">/{c.tipoPago === 'SEMANAL' ? 'semana' : 'día'}</span>
             </span>
             {c.numeroPagoHoy && (
               <span className="text-[11px] text-[#6c757d]">Pago #{c.numeroPagoHoy}/{c.totalPagos}</span>
@@ -314,6 +318,9 @@ function ClienteRow({
       </td>
       <td className="text-[#6c757d]">{c.negocioNombre ?? '—'}</td>
       <td className="text-right font-semibold">{fmtMoney(c.pagoPeriodico)}</td>
+      <td>
+        <TipoPagoBadge tipo={c.tipoPago as TipoPago} size="sm" />
+      </td>
       <td className="text-right">
         <MultaBadge monto={c.multasPendientes} />
       </td>

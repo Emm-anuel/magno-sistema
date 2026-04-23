@@ -2,23 +2,23 @@
 
 ## 5. Módulos del Sistema (14 módulos)
 
-| #   | Módulo (key navegación) | Pestañas internas                                             |
-| --- | ----------------------- | ------------------------------------------------------------- |
-| 1   | **dashboard**           | —                                                             |
-| 2   | **cobros**              | Ruta del Día · Historial de Cobros                            |
-| 3   | **creditos-nuevos**     | Solicitudes · Nueva Solicitud · Evaluación · Tabla de Pagos   |
+| #   | Módulo (key navegación) | Pestañas internas                                                                                             |
+| --- | ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 1   | **dashboard**           | —                                                                                                             |
+| 2   | **cobros**              | Ruta del Día · Historial de Cobros                                                                            |
+| 3   | **creditos-nuevos**     | Solicitudes · Nueva Solicitud · Evaluación · Tabla de Pagos                                                   |
 | 4   | **renovaciones** ✅     | Listos para Renovar · Pendientes de Aprobación · Pendientes de Desembolso · Nueva Solicitud · Mis Solicitudes |
-| 5   | **colocaciones** ✅     | (reporte semanal de colocaciones — todos los roles)           |
-| 6   | **clientes**            | (listado + modal alta + ficha detalle)                        |
-| 7   | **cliente-detalle**     | (pantalla completa por cliente)                               |
-| 8   | **historial**           | (filtros por asesor y fecha)                                  |
-| 9   | **caja**                | Apertura · Cierre / Corte · Histórico                         |
-| 10  | **gastos**              | Gastos Registrados · Registrar Gasto                          |
-| 11  | **reportes**            | Diario Ingresos/Egresos · Colocaciones · Cartera · Por Asesor |
-| 12  | **sucursales**          | (listado + modal crear/editar)                                |
-| 13  | **usuarios**            | (listado + modal alta)                                        |
-| 14  | **bitacora**            | (log con filtros)                                             |
-| —   | **administracion**      | Config. Multas · Config. Créditos · Días Festivos             |
+| 5   | **colocaciones** ✅     | (reporte semanal de colocaciones — todos los roles)                                                           |
+| 6   | **clientes**            | (listado + modal alta + ficha detalle)                                                                        |
+| 7   | **cliente-detalle**     | (pantalla completa por cliente)                                                                               |
+| 8   | **historial**           | (filtros por asesor y fecha)                                                                                  |
+| 9   | **caja**                | Apertura · Cierre / Corte · Histórico                                                                         |
+| 10  | **gastos**              | Gastos Registrados · Registrar Gasto                                                                          |
+| 11  | **reportes**            | Diario Ingresos/Egresos · Colocaciones · Cartera · Por Asesor                                                 |
+| 12  | **sucursales**          | (listado + modal crear/editar)                                                                                |
+| 13  | **usuarios**            | (listado + modal alta)                                                                                        |
+| 14  | **bitacora**            | (log con filtros)                                                                                             |
+| —   | **administracion**      | Config. Multas · Config. Créditos · Días Festivos                                                             |
 
 > "Préstamos" fue renombrado a **"Créditos Nuevos"** en toda la aplicación — NUNCA usar "Préstamos".
 
@@ -54,7 +54,11 @@ Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZA
 
 - **Nueva Solicitud** (solo Supervisor y Asesor): formulario de dos pasos para enviar solicitud de renovación.
   - **Paso 1:** selección de cliente (o preseleccionado desde "Listos para Renovar").
-  - **Paso 2:** campos calculados automáticamente (Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar) + campos editables (Monto Nuevo, Forma de Pago). Sin restricción de monto — el asesor puede proponer cualquier monto dentro del rango del sistema ($1,000–$50,000). Banner informativo indica que la solicitud quedará pendiente de aprobación. Al confirmar: toast "Solicitud enviada — pendiente de aprobación del gerente".
+  - **Paso 2:** campos calculados automáticamente (Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar) + campos editables (Monto Nuevo, Forma de Pago).
+  - Validación por forma de pago:
+    - Diario: $1,000–$50,000
+    - Semanal: $2,000–$30,000
+  - Banner informativo indica que la solicitud quedará pendiente de aprobación. Al confirmar: toast "Solicitud enviada — pendiente de aprobación del gerente".
 
 #### Badges visuales
 
@@ -65,6 +69,11 @@ Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZA
   - **Filtro por tipo** en TabSolicitudes: dropdown "Todos los tipos / Nuevo / Renovación"; filtra client-side sobre los créditos de la página actual. Se combina con los filtros de estado y asesor.
 - **`EstadoRenovacionBadge`**: aparece en la cola de pendientes.
   - `SOLICITADO` → azul | `APROBADO` → verde | `RECHAZADO` → rojo
+
+- **`TipoPagoBadge`**: distingue modalidad de pago en listados y detalle.
+  - `DIARIO` → gris (`bg-gray-100 text-gray-700`)
+  - `SEMANAL` → azul (`bg-blue-100 text-blue-700`)
+  - Se muestra en: Créditos Nuevos (tabla de solicitudes), detalle de crédito, Ruta del Día, Historial de Cobros, Listos para Renovar y Colocaciones Semanales.
 
 ### Módulo Colocaciones Semanales — Descripción
 
@@ -136,6 +145,9 @@ La página de detalle del cliente incluye un tab **"Documentos"** para gestionar
 
 - Cliente _, Lugar _, Fecha, Asesor \*
 - Monto Solicitado _, Forma de Pago _ (Diario/Semanal)
+- Validación del monto según forma de pago:
+  - Diario: $1,000–$50,000
+  - Semanal: $2,000–$30,000
 - Plazo (autocalculado y deshabilitado)
 - Garantía Material (texto opcional)
 - **Evidencia del Negocio \*** → upload de fotos/videos (ver `06-archivos-y-storage.md`)
@@ -157,6 +169,7 @@ Aparecen al final del detalle de crédito, después del card de tabs, como tarje
 #### "Liquidado por Renovación" (borde/fondo azul)
 
 Visible únicamente cuando el crédito tiene estado `RENOVADO`. Muestra:
+
 - Fecha y hora de la renovación
 - Pagos cubiertos y su monto total
 - Monto del crédito nuevo generado
@@ -166,6 +179,7 @@ Visible únicamente cuando el crédito tiene estado `RENOVADO`. Muestra:
 #### "Originado por Renovación" (borde/fondo ámbar)
 
 Visible cuando el crédito fue generado a partir de una renovación (es el crédito nuevo en la cadena). Muestra:
+
 - ID y monto del crédito anterior
 - Pagos del anterior que fueron cubiertos
 - Botón "← Ver crédito anterior #N" para navegar al crédito predecesor

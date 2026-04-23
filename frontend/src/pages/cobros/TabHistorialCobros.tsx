@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom'
 import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
-import type { PagoCobroDTO } from '@/types'
+import TipoPagoBadge from '@/components/TipoPagoBadge'
+import type { PagoCobroDTO, TipoPago } from '@/types'
 import { api } from '@/services/api'
+import { formatLocalDate, todayLocalStr } from '@/utils/date'
 
 function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
@@ -34,13 +36,13 @@ function fmtDateTime(iso: string | null | undefined) {
 }
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return todayLocalStr()
 }
 
 function yesterdayStr() {
   const d = new Date()
   d.setDate(d.getDate() - 1)
-  return d.toISOString().slice(0, 10)
+  return formatLocalDate(d)
 }
 
 function weekStartStr() {
@@ -48,7 +50,7 @@ function weekStartStr() {
   const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   d.setDate(diff)
-  return d.toISOString().slice(0, 10)
+  return formatLocalDate(d)
 }
 
 function monthStartStr() {
@@ -271,6 +273,7 @@ export default function TabHistorialCobros() {
                     Pago #{p.numeroPago} · {fmtDate(p.fechaPago)}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
+                    <TipoPagoBadge tipo={p.tipoPago as TipoPago} size="sm" />
                     <span className={`badge ${
                       estado === 'NO_PAGADO' ? 'badge-rojo'
                       : estado === 'PAGADO'  ? 'badge-verde'
@@ -339,6 +342,7 @@ export default function TabHistorialCobros() {
                   <th className="text-right">Esperado</th>
                   <th className="text-right">Recibido</th>
                   <th className="text-right">Diferencia</th>
+                  <th>Forma de Pago</th>
                   <th>Estado</th>
                   <th>Fecha cobro</th>
                   <th>Registrado</th>
@@ -365,6 +369,9 @@ export default function TabHistorialCobros() {
                       </td>
                       <td className={`text-right font-semibold ${difNeg ? 'text-[#dc2626]' : 'text-[#6c757d]'}`}>
                         {estado === 'NO_PAGADO' ? '—' : (difNeg ? '-' : '') + fmtMoney(Math.abs(diferencia))}
+                      </td>
+                      <td>
+                        <TipoPagoBadge tipo={p.tipoPago as TipoPago} size="sm" />
                       </td>
                       <td>
                         <span className={`badge ${

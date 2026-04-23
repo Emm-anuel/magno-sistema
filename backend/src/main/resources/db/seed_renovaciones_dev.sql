@@ -8,6 +8,7 @@
 --   \i seed_dev_01_base.sql
 --   \i seed_dev_02_centro.sql
 --   \i seed_dev_03_norte_sur.sql
+--   \i seed_dev_04_semanales.sql
 --
 -- Contraseña de todos los usuarios demo: password123
 -- Hash BCrypt v2a:
@@ -27,6 +28,8 @@
 --   [NEW] Coordenadas de negocio, documentos de clientes
 -- ============================================================
 
-\i seed_dev_01_base.sql
+\i
+seed_dev_01_base.sql
 \i seed_dev_02_centro.sql
 \i seed_dev_03_norte_sur.sql
+\i seed_dev_04_semanales.sql

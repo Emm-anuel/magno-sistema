@@ -34,7 +34,7 @@ public class CreditoCalculoService {
     private final CalendarioPagoRepository calendarioPagoRepo;
 
     public CreditoCalculoService(DiaFestivoRepository diaFestivoRepo,
-                                 CalendarioPagoRepository calendarioPagoRepo) {
+            CalendarioPagoRepository calendarioPagoRepo) {
         this.diaFestivoRepo = diaFestivoRepo;
         this.calendarioPagoRepo = calendarioPagoRepo;
     }
@@ -47,11 +47,13 @@ public class CreditoCalculoService {
      * Parámetros del producto determinado según el capital solicitado.
      * Fuente: CLAUDE.md sección 6.1.
      */
-    public record ProductoCredito(int plazo, BigDecimal tasa, String descripcion) {}
+    public record ProductoCredito(int plazo, BigDecimal tasa, String descripcion) {
+    }
 
     /**
      * Resumen completo del cálculo de un crédito.
-     * pagoPeriodicoExacto: sin redondear (para distribuir correctamente el último pago).
+     * pagoPeriodicoExacto: sin redondear (para distribuir correctamente el último
+     * pago).
      * pagoPeriodico: redondeado al entero más cercano.
      */
     public record ResumenCalculo(
@@ -62,8 +64,8 @@ public class CreditoCalculoService {
             BigDecimal totalAPagar,
             BigDecimal pagoPeriodicoExacto,
             BigDecimal pagoPeriodico,
-            BigDecimal pagoAdelantado
-    ) {}
+            BigDecimal pagoAdelantado) {
+    }
 
     // ────────────────────────────────────────────────────────────────────
     // Lógica de producto (sección 6.1 del CLAUDE.md)
@@ -92,12 +94,13 @@ public class CreditoCalculoService {
      * Calcula todos los valores financieros del crédito a partir del capital.
      *
      * Verificaciones de la tabla del CLAUDE.md:
-     *  capital=$2,000  → cargo=$600,  total=$2,600,  pago=$104  ✓
-     *  capital=$8,000  → cargo=$2,400, total=$10,400, pago=$416  ✓
-     *  capital=$15,000 → cargo=$3,600, total=$18,600, pago=$744  ✓
-     *  capital=$20,000 → cargo=$4,800, total=$24,800, pago=$827  ✓
-     *   (nota: la tabla del cliente muestra $4,810 por redondear el pago primero;
-     *    la fórmula correcta es capital×tasa=4800, total=24800, pago=round(24800/30)=827)
+     * capital=$2,000 → cargo=$600, total=$2,600, pago=$104 ✓
+     * capital=$8,000 → cargo=$2,400, total=$10,400, pago=$416 ✓
+     * capital=$15,000 → cargo=$3,600, total=$18,600, pago=$744 ✓
+     * capital=$20,000 → cargo=$4,800, total=$24,800, pago=$827 ✓
+     * (nota: la tabla del cliente muestra $4,810 por redondear el pago primero;
+     * la fórmula correcta es capital×tasa=4800, total=24800,
+     * pago=round(24800/30)=827)
      */
     public ResumenCalculo calcularCredito(BigDecimal capital) {
         ProductoCredito producto = determinarProducto(capital);
@@ -106,8 +109,8 @@ public class CreditoCalculoService {
         BigDecimal total = capital.add(cargo).setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
-        BigDecimal pagoExacto   = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
-        BigDecimal pago         = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
+        BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
+        BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
 
         return new ResumenCalculo(
                 capital,
@@ -117,7 +120,7 @@ public class CreditoCalculoService {
                 total,
                 pagoExacto,
                 pago,
-                pago           // pagoAdelantado = primer pago (mismo monto)
+                pago // pagoAdelantado = primer pago (mismo monto)
         );
     }
 
@@ -131,25 +134,25 @@ public class CreditoCalculoService {
      * la sucursal indicada (Opción C, confirmada con el cliente).
      *
      * <ul>
-     *   <li>Pago #1: estado=ADELANTADO (ya se cobró al desembolsar)</li>
-     *   <li>Pago #N: monto ajustado para que la suma exacta = totalAPagar</li>
+     * <li>Pago #1: estado=ADELANTADO (ya se cobró al desembolsar)</li>
+     * <li>Pago #N: monto ajustado para que la suma exacta = totalAPagar</li>
      * </ul>
      *
      * Actualiza {@code credito.fechaVencimiento} con la fecha del último pago.
      *
-     * @param credito         entidad gestionada (se modifica fechaVencimiento in-place)
-     * @param fechaInicio     primer día hábil del calendario
-     * @param plazo           número de pagos (25 o 30)
-     * @param calculo         resumen financiero para saber montos exactos
-     * @param sucursalId      para filtrar días festivos
+     * @param credito     entidad gestionada (se modifica fechaVencimiento in-place)
+     * @param fechaInicio primer día hábil del calendario
+     * @param plazo       número de pagos (25 o 30)
+     * @param calculo     resumen financiero para saber montos exactos
+     * @param sucursalId  para filtrar días festivos
      * @return lista de CalendarioPago persistida
      */
     @Transactional
     public List<CalendarioPago> generarCalendario(Credito credito,
-                                                   LocalDate fechaInicio,
-                                                   int plazo,
-                                                   ResumenCalculo calculo,
-                                                   Long sucursalId) {
+            LocalDate fechaInicio,
+            int plazo,
+            ResumenCalculo calculo,
+            Long sucursalId) {
         // Obtener días festivos de la sucursal (+ globales)
         Set<LocalDate> diasFestivos = new HashSet<>(diaFestivoRepo.findFechasBySucursalId(sucursalId));
 
@@ -199,13 +202,161 @@ public class CreditoCalculoService {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // Créditos Semanales (tipo de pago = SEMANAL)
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Determina plazo y tasa en función del capital para créditos semanales.
+     *
+     * <pre>
+     * capital < $10,000  → 8 semanas, tasa 40%
+     * capital ≥ $10,000  → 12 semanas, tasa 40%
+     * </pre>
+     */
+    public ProductoCredito determinarProductoSemanal(BigDecimal capital) {
+        if (capital.compareTo(new BigDecimal("10000")) < 0) {
+            return new ProductoCredito(8, new BigDecimal("0.40"), "8 semanas · 40% interés");
+        } else {
+            return new ProductoCredito(12, new BigDecimal("0.40"), "12 semanas · 40% interés");
+        }
+    }
+
+    /**
+     * Calcula todos los valores financieros de un crédito semanal a partir del
+     * capital.
+     *
+     * Verificaciones:
+     * capital=$5,000 → cargo=$2,000, total=$7,000, pago semanal=$875 ✓
+     * capital=$8,000 → cargo=$3,200, total=$11,200, pago semanal=$1,400 ✓
+     * capital=$10,000 → cargo=$4,000, total=$14,000, pago semanal=$1,167 ✓
+     * capital=$15,000 → cargo=$6,000, total=$21,000, pago semanal=$1,750 ✓
+     */
+    public ResumenCalculo calcularCreditoSemanal(BigDecimal capital) {
+        ProductoCredito producto = determinarProductoSemanal(capital);
+
+        BigDecimal cargo = capital.multiply(producto.tasa()).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal total = capital.add(cargo).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
+        BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
+        BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
+
+        return new ResumenCalculo(
+                capital,
+                producto.plazo(),
+                producto.tasa(),
+                cargo,
+                total,
+                pagoExacto,
+                pago,
+                pago // pagoAdelantado = primer pago (mismo monto)
+        );
+    }
+
+    /**
+     * Genera exactamente {@code plazo} semanas de pagos (separados por 7 días
+     * hábiles)
+     * a partir de {@code fechaInicio}, saltando sábados, domingos y días festivos.
+     *
+     * <ul>
+     * <li>Pago #1: estado=ADELANTADO (ya se cobró al desembolsar)</li>
+     * <li>Pago #N: monto ajustado para que la suma exacta = totalAPagar</li>
+     * <li>Cada pago se separa del anterior por 7 días hábiles (no 1 día)</li>
+     * </ul>
+     *
+     * Actualiza {@code credito.fechaVencimiento} con la fecha del último pago.
+     *
+     * @param credito     entidad gestionada (se modifica fechaVencimiento in-place)
+     * @param fechaInicio primer día hábil del calendario
+     * @param plazo       número de semanas (8 o 12)
+     * @param calculo     resumen financiero para saber montos exactos
+     * @param sucursalId  para filtrar días festivos
+     * @return lista de CalendarioPago persistida
+     */
+    @Transactional
+    public List<CalendarioPago> generarCalendarioSemanal(Credito credito,
+            LocalDate fechaInicio,
+            int plazo,
+            ResumenCalculo calculo,
+            Long sucursalId) {
+        // Obtener días festivos de la sucursal (+ globales)
+        Set<LocalDate> diasFestivos = new HashSet<>(diaFestivoRepo.findFechasBySucursalId(sucursalId));
+
+        List<CalendarioPago> pagos = new ArrayList<>(plazo);
+        LocalDate cursor = fechaInicio;
+
+        for (int num = 1; num <= plazo; num++) {
+            // Avanzar al siguiente día hábil
+            while (esInhabil(cursor, diasFestivos)) {
+                cursor = cursor.plusDays(1);
+            }
+
+            BigDecimal monto;
+            EstadoCalendarioPago estadoInicial;
+
+            if (num == 1) {
+                // Primer pago: ya cobrado como adelantado
+                monto = calculo.pagoPeriodico();
+                estadoInicial = EstadoCalendarioPago.ADELANTADO;
+            } else if (num == plazo) {
+                // Último pago: absorbe el residuo del redondeo para que la suma sea exacta
+                BigDecimal pagados = calculo.pagoPeriodico().multiply(BigDecimal.valueOf(plazo - 1L));
+                monto = calculo.totalAPagar().subtract(pagados).setScale(2, RoundingMode.HALF_UP);
+                estadoInicial = EstadoCalendarioPago.PENDIENTE;
+            } else {
+                monto = calculo.pagoPeriodico();
+                estadoInicial = EstadoCalendarioPago.PENDIENTE;
+            }
+
+            CalendarioPago cp = CalendarioPago.builder()
+                    .credito(credito)
+                    .numeroPago(num)
+                    .fechaProgramada(cursor)
+                    .montoEsperado(monto)
+                    .estado(estadoInicial)
+                    .build();
+
+            pagos.add(calendarioPagoRepo.save(cp));
+
+            // Avanzar 7 días hábiles para el siguiente pago
+            // (no 1 día como en diarios)
+            cursor = avanzar7DiasHabiles(cursor, diasFestivos);
+        }
+
+        // Actualizar fecha de vencimiento en el crédito
+        credito.setFechaVencimiento(pagos.get(pagos.size() - 1).getFechaProgramada());
+
+        return pagos;
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // Helpers privados
     // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Avanza exactamente 7 días hábiles a partir de la fecha dada.
+     * Se salta sábados, domingos y días festivos.
+     */
+    private LocalDate avanzar7DiasHabiles(LocalDate desde, Set<LocalDate> diasFestivos) {
+        LocalDate cursor = desde.plusDays(1);
+        int diasHabilesAvanzados = 0;
+
+        while (diasHabilesAvanzados < 7) {
+            if (!esInhabil(cursor, diasFestivos)) {
+                diasHabilesAvanzados++;
+            }
+            if (diasHabilesAvanzados < 7) {
+                cursor = cursor.plusDays(1);
+            }
+        }
+
+        return cursor;
+    }
 
     private boolean esInhabil(LocalDate fecha, Set<LocalDate> festivos) {
         DayOfWeek dow = fecha.getDayOfWeek();
         return dow == DayOfWeek.SATURDAY
-               || dow == DayOfWeek.SUNDAY
-               || festivos.contains(fecha);
+                || dow == DayOfWeek.SUNDAY
+                || festivos.contains(fecha);
     }
 }

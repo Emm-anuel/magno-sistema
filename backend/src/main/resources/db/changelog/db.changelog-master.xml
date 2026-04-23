@@ -109,4 +109,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V14-creditos-semanales-multas" author="magno">
+        <sqlFile
+            path="db/changelog/V14__creditos_semanales_multas.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

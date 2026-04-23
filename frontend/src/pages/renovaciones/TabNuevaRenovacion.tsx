@@ -161,7 +161,12 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
     if (!creditoActivo) return
 
     const num = parseFloat(clean)
-    if (!clean || isNaN(num) || num < 1000 || num > 50000) {
+    
+    // Determinar rangos válidos según el tipo de pago
+    const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
+    const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
+    
+    if (!clean || isNaN(num) || num < rangoMin || num > rangoMax) {
       setCalculoLoading(false)
       return
     }
@@ -169,7 +174,7 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
     setCalculoLoading(true)
     calcDebounceRef.current = setTimeout(async () => {
       try {
-        const result = await renovacionService.calcular(creditoActivo.id, num)
+        const result = await renovacionService.calcular(creditoActivo.id, num, tipoPago)
         setCalculo(result)
       } catch (err: any) {
         toast.error(err?.message ?? 'Error al calcular')
@@ -183,7 +188,9 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
   // ── Validation ─────────────────────────────────────────────────
 
   const monto = parseFloat(montoStr)
-  const montoValido = !isNaN(monto) && monto >= 1000 && monto <= 50000
+  const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
+  const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
+  const montoValido = !isNaN(monto) && monto >= rangoMin && monto <= rangoMax
   const elegible = creditoActivo?.estadisticas?.elegibleRenovacion === true
   const canContinue =
     clienteSeleccionado != null &&
@@ -323,82 +330,100 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
 
           {/* Monto nuevo */}
           {creditoActivo && elegible && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Monto del Crédito Nuevo <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">$</span>
-                <input
-                  type="number"
-                  min={1000}
-                  max={50000}
-                  step={500}
-                  placeholder="Ej: 10000"
-                  value={montoStr}
-                  onChange={(e) => handleMontoChange(e.target.value)}
-                  className="input pl-7 w-full"
-                />
-              </div>
-              {montoStr && !montoValido && (
-                <p className="text-xs text-red-500 mt-1">El monto debe estar entre $1,000 y $50,000</p>
-              )}
-              {/* Resumen de cálculo */}
-              {calculoLoading && (
-                <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 animate-pulse h-32" />
-              )}
-              {calculo && !calculoLoading && (
-                <div className="mt-3 rounded-xl border border-[#3d6b35]/20 bg-green-50 p-4 space-y-2">
-                  <p className="text-xs font-semibold text-[#3d6b35] uppercase tracking-wide">Resumen de la renovación</p>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                    {[
-                      ['Crédito anterior', fmt(calculo.montoAnterior)],
-                      ['Crédito nuevo', fmt(calculo.montoNuevo)],
-                      ['Pagos restantes', `${calculo.pagosRestantes} × ${fmt(calculo.pagoPeriodicoAnterior)} = ${fmt(calculo.montoPagosRestantes)}`],
-                      ['Multas pendientes', fmt(calculo.multasPendientes)],
-                      ['Pago adelantado nuevo', fmt(calculo.pagoAdelantadoNuevo)],
-                      ['Pago diario nuevo', fmt(calculo.pagoPeriodicoNuevo)],
-                      ['Plazo nuevo', `${calculo.plazoDiasNuevo} días`],
-                    ].map(([label, value]) => (
-                      <div key={label} className="contents">
-                        <span className="text-gray-500">{label}</span>
-                        <span className="font-medium text-gray-800 text-right">{value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="border-t border-[#3d6b35]/20 pt-2 flex justify-between items-center">
-                    <span className="text-sm font-bold text-gray-700">Monto a Entregar</span>
-                    <span className={`text-lg font-bold ${calculo.montoDesembolso >= 0 ? 'text-[#3d6b35]' : 'text-red-600'}`}>
-                      {fmt(calculo.montoDesembolso)}
-                    </span>
-                  </div>
+            <>
+              {/* Forma de pago */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Forma de Pago <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-6">
+                  {(['DIARIO', 'SEMANAL'] as const).map((v) => (
+                    <label key={v} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="tipoPago"
+                        value={v}
+                        checked={tipoPago === v}
+                        onChange={() => {
+                          setTipoPago(v)
+                          setMontoStr('')
+                          setCalculo(null)
+                        }}
+                        className="w-4 h-4 accent-[#3d6b35]"
+                      />
+                      <span className="text-sm">{v === 'DIARIO' ? 'Diario (25-30 días)' : 'Semanal (8-12 semanas)'}</span>
+                    </label>
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Forma de pago */}
-          {creditoActivo && elegible && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Forma de Pago <span className="text-red-500">*</span>
-              </label>
-              <div className="flex gap-6">
-                {(['DIARIO', 'SEMANAL'] as const).map((v) => (
-                  <label key={v} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="tipoPago"
-                      value={v}
-                      checked={tipoPago === v}
-                      onChange={() => setTipoPago(v)}
-                      className="w-4 h-4 accent-[#3d6b35]"
-                    />
-                    <span className="text-sm">{v === 'DIARIO' ? 'Diario' : 'Semanal'}</span>
-                  </label>
-                ))}
+                {tipoPago === 'DIARIO' && (
+                  <p className="text-xs text-gray-600 mt-2">📌 Rango: $1,000–$50,000 a 24%–30% de interés</p>
+                )}
+                {tipoPago === 'SEMANAL' && (
+                  <p className="text-xs text-gray-600 mt-2">📌 Rango: $2,000–$30,000 a 40% de interés</p>
+                )}
               </div>
-            </div>
+
+              {/* Monto */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Monto del Crédito Nuevo <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">$</span>
+                  <input
+                    type="number"
+                    min={rangoMin}
+                    max={rangoMax}
+                    step={500}
+                    placeholder="Ej: 10000"
+                    value={montoStr}
+                    onChange={(e) => handleMontoChange(e.target.value)}
+                    className="input pl-7 w-full"
+                  />
+                </div>
+                {montoStr && !montoValido && (
+                  <p className="text-xs text-red-500 mt-1">
+                    Para {tipoPago === 'DIARIO' ? 'créditos diarios' : 'créditos semanales'}, el monto debe estar entre ${rangoMin.toLocaleString()} y ${rangoMax.toLocaleString()}
+                  </p>
+                )}
+                {montoStr && montoValido && tipoPago === 'SEMANAL' && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    💡 Este crédito semanal se pagará en {monto < 10000 ? '8 semanas' : '12 semanas'} a 40% de interés
+                  </p>
+                )}
+                {/* Resumen de cálculo */}
+                {calculoLoading && (
+                  <div className="mt-3 rounded-xl border border-gray-100 bg-gray-50 p-4 animate-pulse h-32" />
+                )}
+                {calculo && !calculoLoading && (
+                  <div className="mt-3 rounded-xl border border-[#3d6b35]/20 bg-green-50 p-4 space-y-2">
+                    <p className="text-xs font-semibold text-[#3d6b35] uppercase tracking-wide">Resumen de la renovación</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      {[
+                        ['Crédito anterior', fmt(calculo.montoAnterior)],
+                        ['Crédito nuevo', fmt(calculo.montoNuevo)],
+                        ['Pagos restantes', `${calculo.pagosRestantes} × ${fmt(calculo.pagoPeriodicoAnterior)} = ${fmt(calculo.montoPagosRestantes)}`],
+                        ['Multas pendientes', fmt(calculo.multasPendientes)],
+                        ['Pago adelantado nuevo', fmt(calculo.pagoAdelantadoNuevo)],
+                        ['Pago diario nuevo', fmt(calculo.pagoPeriodicoNuevo)],
+                        ['Plazo nuevo', `${calculo.plazoDiasNuevo} ${tipoPago === 'SEMANAL' ? 'semanas' : 'días'}`],
+                      ].map(([label, value]) => (
+                        <div key={label} className="contents">
+                          <span className="text-gray-500">{label}</span>
+                          <span className="font-medium text-gray-800 text-right">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="border-t border-[#3d6b35]/20 pt-2 flex justify-between items-center">
+                      <span className="text-sm font-bold text-gray-700">Monto a Entregar</span>
+                      <span className={`text-lg font-bold ${calculo.montoDesembolso >= 0 ? 'text-[#3d6b35]' : 'text-red-600'}`}>
+                        {fmt(calculo.montoDesembolso)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           {/* Garantía */}

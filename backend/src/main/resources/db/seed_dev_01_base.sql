@@ -227,28 +227,52 @@ SELECT id INTO v_ase_s2 FROM usuarios WHERE email='humberto.s@magno.mx';
 -- Rango $1k-$14k: $50/día. Rango $15k+: $100/día
 -- ────────────────────────────────────────────────────────────────
 
-INSERT INTO config_multas (sucursal_id, rango_min, rango_max, multa_no_pago, multa_incompletos)
-SELECT v_suc_centro, 1000.00, 14999.99, 50.00, 50.00
+INSERT INTO config_multas (
+  sucursal_id, rango_min, rango_max,
+  multa_no_pago, multa_incompletos,
+  multa_semanal_no_pago, multa_semanal_incompletos
+)
+SELECT v_suc_centro, 1000.00, 14999.99, 50.00, 50.00, 300.00, 300.00
 WHERE NOT EXISTS (SELECT 1 FROM config_multas WHERE sucursal_id = v_suc_centro AND rango_min = 1000.00);
 
-INSERT INTO config_multas (sucursal_id, rango_min, rango_max, multa_no_pago, multa_incompletos)
-SELECT v_suc_centro, 15000.00, 50000.00, 100.00, 100.00
+INSERT INTO config_multas (
+  sucursal_id, rango_min, rango_max,
+  multa_no_pago, multa_incompletos,
+  multa_semanal_no_pago, multa_semanal_incompletos
+)
+SELECT v_suc_centro, 15000.00, 50000.00, 100.00, 100.00, 300.00, 300.00
 WHERE NOT EXISTS (SELECT 1 FROM config_multas WHERE sucursal_id = v_suc_centro AND rango_min = 15000.00);
 
-INSERT INTO config_multas (sucursal_id, rango_min, rango_max, multa_no_pago, multa_incompletos)
-SELECT v_suc_norte, 1000.00, 14999.99, 50.00, 50.00
+INSERT INTO config_multas (
+  sucursal_id, rango_min, rango_max,
+  multa_no_pago, multa_incompletos,
+  multa_semanal_no_pago, multa_semanal_incompletos
+)
+SELECT v_suc_norte, 1000.00, 14999.99, 50.00, 50.00, 300.00, 300.00
 WHERE NOT EXISTS (SELECT 1 FROM config_multas WHERE sucursal_id = v_suc_norte AND rango_min = 1000.00);
 
-INSERT INTO config_multas (sucursal_id, rango_min, rango_max, multa_no_pago, multa_incompletos)
-SELECT v_suc_norte, 15000.00, 50000.00, 100.00, 100.00
+INSERT INTO config_multas (
+  sucursal_id, rango_min, rango_max,
+  multa_no_pago, multa_incompletos,
+  multa_semanal_no_pago, multa_semanal_incompletos
+)
+SELECT v_suc_norte, 15000.00, 50000.00, 100.00, 100.00, 300.00, 300.00
 WHERE NOT EXISTS (SELECT 1 FROM config_multas WHERE sucursal_id = v_suc_norte AND rango_min = 15000.00);
 
-INSERT INTO config_multas (sucursal_id, rango_min, rango_max, multa_no_pago, multa_incompletos)
-SELECT v_suc_sur, 1000.00, 14999.99, 50.00, 50.00
+INSERT INTO config_multas (
+  sucursal_id, rango_min, rango_max,
+  multa_no_pago, multa_incompletos,
+  multa_semanal_no_pago, multa_semanal_incompletos
+)
+SELECT v_suc_sur, 1000.00, 14999.99, 50.00, 50.00, 300.00, 300.00
 WHERE NOT EXISTS (SELECT 1 FROM config_multas WHERE sucursal_id = v_suc_sur AND rango_min = 1000.00);
 
-INSERT INTO config_multas (sucursal_id, rango_min, rango_max, multa_no_pago, multa_incompletos)
-SELECT v_suc_sur, 15000.00, 50000.00, 100.00, 100.00
+INSERT INTO config_multas (
+  sucursal_id, rango_min, rango_max,
+  multa_no_pago, multa_incompletos,
+  multa_semanal_no_pago, multa_semanal_incompletos
+)
+SELECT v_suc_sur, 15000.00, 50000.00, 100.00, 100.00, 300.00, 300.00
 WHERE NOT EXISTS (SELECT 1 FROM config_multas WHERE sucursal_id = v_suc_sur AND rango_min = 15000.00);
 
 -- ────────────────────────────────────────────────────────────────

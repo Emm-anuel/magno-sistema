@@ -11,6 +11,7 @@ function normalizeProductoCalculo(raw: any): ProductoCalculo {
     pagoPeriodico: raw.pagoPeriodico ?? raw.pago_periodico,
     pagoAdelantado: raw.pagoAdelantado ?? raw.pago_adelantado,
     descripcionProducto: raw.descripcionProducto ?? raw.descripcion_producto,
+    tipoPago: raw.tipoPago ?? raw.tipo_pago,
   }
 }
 
@@ -168,8 +169,8 @@ export const creditoService = {
   getCalendario: (id: number) =>
     api.get<CalendarioPagoDetalle[]>(`/creditos/${id}/calendario`).then((r) => r.data),
 
-  calcularProducto: (capital: number) =>
-    api.get('/creditos/calcular', { params: { capital } }).then((r) => normalizeProductoCalculo(r.data)),
+  calcularProducto: (capital: number, tipoPago?: 'DIARIO' | 'SEMANAL') =>
+    api.get('/creditos/calcular', { params: { capital, tipoPago } }).then((r) => normalizeProductoCalculo(r.data)),
 
   crearSolicitud: (data: {
     clienteId: number

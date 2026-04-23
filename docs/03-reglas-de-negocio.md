@@ -4,11 +4,20 @@
 
 ### 6.1 Productos de Crédito
 
+#### Producto Diario
+
 | Rango de monto    | Plazo   | Tasa | Notas                       |
 | ----------------- | ------- | ---- | --------------------------- |
 | $1,000 – $14,000  | 25 días | 30%  | —                           |
 | $15,000 – $19,999 | 25 días | 24%  | Zona confirmada con cliente |
 | $20,000 – $50,000 | 30 días | 24%  | —                           |
+
+#### Producto Semanal
+
+| Rango de monto    | Plazo      | Tasa | Notas                           |
+| ----------------- | ---------- | ---- | ------------------------------- |
+| $2,000 – $9,999   | 8 semanas  | 40%  | Pago semanal, 1 pago adelantado |
+| $10,000 – $30,000 | 12 semanas | 40%  | Pago semanal, 1 pago adelantado |
 
 - La tabla de referencia del cliente solo muestra ejemplos representativos.
   Para cualquier monto la fórmula es: `cargo_financiero = capital * tasa`
@@ -23,6 +32,10 @@
 - Un cliente solo puede tener **UN crédito activo** a la vez. El sistema
   bloquea nuevas solicitudes si ya existe uno en estado ACTIVO.
 - Modalidad: **diario** (más común) o **semanal** (casos especiales). ⚠️ Confirmar cálculo semanal.
+- Para créditos semanales se usa la misma fórmula financiera:
+  - `cargo_financiero = capital * tasa`
+  - `pago_semanal = (capital + cargo_financiero) / plazo`
+  - calendario en intervalos de **7 días hábiles** (saltando sábados, domingos y festivos).
 - IVA = $0.00
 
 ### Tabla de Pagos Diarios Completa
@@ -82,11 +95,13 @@
 - Ejemplo: créditos $1k–$14k → $50/día; créditos $15k+ → $100/día.
 - Se aplica automáticamente al registrar "No pagó".
 - Días INHÁBIL NO generan multa.
+- Para créditos semanales la multa por no pago usa `config_multas.multa_semanal_no_pago` (base seed: $300).
 
 **Tipo 2 — Por pagos incompletos acumulados:**
 
 - Por cada **2 pagos incompletos acumulados** → multa adicional (configurable, base $50).
 - Contador independiente del Tipo 1.
+- Para créditos semanales la multa por incompletos usa `config_multas.multa_semanal_incompletos` (base seed: $300).
 
 - Las multas pendientes **se descuentan del desembolso en renovaciones**.
 - Configuración en módulo Administración → Config. Multas: Sucursal | Rango Mín | Rango Máx | Multa/Día | Multa por 2 Incompletos.
@@ -94,6 +109,7 @@
 ### 6.4 Renovaciones ✅ Implementado (Módulo 5 — flujo de dos pasos V13)
 
 #### Flujo de estados
+
 **SOLICITADO → APROBADO → ACTIVO / RECHAZADO**
 
 - **SOLICITADO**: El asesor/supervisor llena el formulario. El crédito anterior permanece ACTIVO. La solicitud queda pendiente de revisión por el gerente.
@@ -102,12 +118,14 @@
 - **RECHAZADO**: El gerente rechaza con motivo. El crédito anterior permanece ACTIVO sin cambios.
 
 #### Restricciones de rol
+
 - Solo **Supervisor (campo)** y **Asesor** pueden crear solicitudes de renovación.
 - Solo **Gerente de Sucursal** y **Gerente General** pueden aprobar o rechazar.
 - La confirmación del desembolso (APROBADO → ACTIVO) la puede hacer cualquier rol autenticado.
 - Se valida en backend con `@PreAuthorize`.
 
 - Elegibilidad: pago **#16** (25 días) / pago **#19** (30 días). El sistema bloquea antes.
+- Elegibilidad semanal: pago **#5** (8 semanas) / pago **#9** (12 semanas).
 - El monto del crédito nuevo es a criterio del asesor y puede crecer conforme al historial. **No hay restricción basada en pagos pendientes.**
 - El gerente puede ajustar el monto aprobado inline al aprobar; el ajuste se guarda en `monto_aprobado`.
 - **Fórmula del desembolso (confirmada):**
@@ -127,6 +145,7 @@
 
 - Vista semanal (Lunes–Viernes) por asesor. Incluye créditos nuevos + renovaciones.
 - Columnas: Fecha | Cliente | Crédito Anterior | Crédito Nuevo | Desembolso | Asesor | Tipo.
+- Columnas: Fecha | Cliente | Crédito Anterior | Crédito Nuevo | Desembolso | Forma de Pago | Asesor | Tipo.
 - Totales al pie: Total Desembolsos (todos) y Total Caja (solo filas con salida_de=CAJA).
 - Vive en módulo **Renovaciones** → pestaña "Colocaciones Semanales".
 - **Implementación**: reporte calculado por JOIN a creditos (fechaDesembolso) + renovaciones (fecha).

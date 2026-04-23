@@ -715,11 +715,12 @@ END $$;
   ╚══════════════════════════════════════════════════════════════════╝
 */
 
-RAISE NOTICE '✓ Seed completo: % sucursales, % usuarios, % clientes, % créditos, % renovaciones',
-  (SELECT count(*) FROM sucursales WHERE nombre IN ('Centro','Norte','Sur')),
-  (SELECT count(*) FROM usuarios WHERE email LIKE '%@magno.mx'),
-  (SELECT count(*) FROM clientes WHERE sucursal_id IN (SELECT val FROM magno_seed_ids WHERE clave LIKE 'suc_%')),
-  (SELECT count(*) FROM creditos WHERE sucursal_id IN (SELECT val FROM magno_seed_ids WHERE clave LIKE 'suc_%')),
-  (SELECT count(*) FROM renovaciones);
-
+DO $$
+BEGIN
+  RAISE NOTICE '✓ Seed completo: % sucursales, % usuarios, % clientes, % créditos, % renovaciones',
+    (SELECT count(*) FROM sucursales WHERE nombre IN ('Centro','Norte','Sur')),
+    (SELECT count(*) FROM usuarios WHERE email LIKE '%@magno.mx'),
+    (SELECT count(*) FROM clientes WHERE sucursal_id IN (SELECT val FROM magno_seed_ids WHERE clave LIKE 'suc_%')),
+    (SELECT count(*) FROM creditos WHERE sucursal_id IN (SELECT val FROM magno_seed_ids WHERE clave LIKE 'suc_%')),
+    (SELECT count(*) FROM renovaciones);
 END $$;

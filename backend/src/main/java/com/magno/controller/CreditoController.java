@@ -2,6 +2,7 @@ package com.magno.controller;
 
 import com.magno.dto.credito.*;
 import com.magno.model.EstadoCredito;
+import com.magno.model.TipoPago;
 import com.magno.security.JwtPrincipal;
 import com.magno.security.SecurityHelper;
 import com.magno.service.CreditoCalculoService;
@@ -240,13 +241,20 @@ public class CreditoController {
 
     @GetMapping("/calcular")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ProductoCalculoDTO> calcular(@RequestParam BigDecimal capital) {
+    public ResponseEntity<ProductoCalculoDTO> calcular(
+            @RequestParam BigDecimal capital,
+            @RequestParam(required = false) TipoPago tipoPago) {
         if (capital.compareTo(BigDecimal.ZERO) <= 0) {
             return ResponseEntity.badRequest().build();
         }
-        CreditoCalculoService.ResumenCalculo calculo = calculoService.calcularCredito(capital);
-        CreditoCalculoService.ProductoCredito producto = calculoService.determinarProducto(capital);
-        return ResponseEntity.ok(ProductoCalculoDTO.from(calculo, producto.descripcion()));
+        TipoPago modo = tipoPago == null ? TipoPago.DIARIO : tipoPago;
+        CreditoCalculoService.ResumenCalculo calculo = modo == TipoPago.SEMANAL
+                ? calculoService.calcularCreditoSemanal(capital)
+                : calculoService.calcularCredito(capital);
+        CreditoCalculoService.ProductoCredito producto = modo == TipoPago.SEMANAL
+                ? calculoService.determinarProductoSemanal(capital)
+                : calculoService.determinarProducto(capital);
+        return ResponseEntity.ok(ProductoCalculoDTO.from(calculo, producto.descripcion(), modo));
     }
 
     // ────────────────────────────────────────────────────────────────────

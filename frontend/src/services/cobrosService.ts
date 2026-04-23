@@ -20,6 +20,7 @@ function normalizeClienteRuta(raw: any): ClienteRuta {
     creditoId: raw.creditoId ?? raw.credito_id,
     montoCapital: raw.montoCapital ?? raw.monto_capital,
     pagoPeriodico: raw.pagoPeriodico ?? raw.pago_periodico,
+    tipoPago: raw.tipoPago ?? raw.tipo_pago ?? 'DIARIO',
     numeroPagoHoy: raw.numeroPagoHoy ?? raw.numero_pago_hoy ?? null,
     totalPagos: raw.totalPagos ?? raw.total_pagos ?? 0,
     estadoHoy: raw.estadoHoy ?? raw.estado_hoy,
@@ -74,6 +75,7 @@ function normalizePago(raw: any): PagoCobroDTO {
     esCompleto: raw.esCompleto ?? raw.es_completo,
     razonNoPago: raw.razonNoPago ?? raw.razon_no_pago ?? null,
     multaAplicada: raw.multaAplicada ?? raw.multa_aplicada ?? 0,
+    tipoPago: raw.tipoPago ?? raw.tipo_pago ?? 'DIARIO',
     registradoPor: registradoPor
       ? {
           id: registradoPor.id,
@@ -120,7 +122,7 @@ function normalizePage<T>(raw: any, mapItem: (item: any) => T): Page<T> {
 }
 
 export const cobrosService = {
-  getRutaDia: (params?: { asesorId?: number; fecha?: string }): Promise<RutaDia> =>
+  getRutaDia: (params?: { asesorId?: number; sucursalId?: number; fecha?: string }): Promise<RutaDia> =>
     api.get<any>('/cobros/ruta-dia', { params }).then((r) => normalizeRutaDia(r.data)),
 
   registrar: (req: PagoRegistrarRequest): Promise<PagoCobroDTO> =>

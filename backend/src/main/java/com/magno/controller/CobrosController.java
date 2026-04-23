@@ -49,6 +49,7 @@ public class CobrosController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RutaDiaDTO> getRutaDia(
             @RequestParam(required = false) Long asesorId,
+            @RequestParam(required = false) Long sucursalId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             Authentication auth) {
 
@@ -57,6 +58,7 @@ public class CobrosController {
 
         RutaDiaDTO ruta = cobrosService.getRutaDia(
                 asesorId,
+                sucursalId,
                 fechaEfectiva,
                 principal.rol(),
                 principal.userId(),

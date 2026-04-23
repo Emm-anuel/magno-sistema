@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { X, AlertTriangle, CheckCircle } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
+import { todayLocalStr } from '@/utils/date'
 
 
 const RAZONES = [
@@ -48,7 +49,7 @@ function getRegistrarPagoErrorMessage(error: unknown, fecha: string) {
   const message = rawMessage.toLowerCase()
 
   if (message.includes('no hay pago pendiente para la fecha seleccionada')) {
-    const hoy = new Date().toISOString().slice(0, 10)
+    const hoy = todayLocalStr()
     if (fecha === hoy) {
       return 'No hay pagos pendientes para hoy en este crédito.'
     }

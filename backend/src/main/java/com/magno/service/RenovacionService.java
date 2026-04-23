@@ -71,7 +71,7 @@ public class RenovacionService {
         // Cálculo previo (preview en tiempo real)
         // ────────────────────────────────────────────────────────────────────
 
-        public RenovacionCalculoDTO calcularPreview(Long creditoId, BigDecimal montoNuevo) {
+        public RenovacionCalculoDTO calcularPreview(Long creditoId, BigDecimal montoNuevo, TipoPago tipoPagoNuevo) {
                 Credito credito = findCredito(creditoId);
 
                 if (credito.getEstado() != EstadoCredito.ACTIVO) {
@@ -81,7 +81,17 @@ public class RenovacionService {
                 }
 
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(creditoId, ESTADOS_REALIZADOS);
-                int umbral = credito.getPlazoDias() == 30 ? 19 : 16;
+
+                // Calcular umbral según tipo y plazo de crédito
+                int umbral;
+                if (credito.getTipoPago() == TipoPago.SEMANAL) {
+                        // Semanales: 8 semanas → umbral 5, 12 semanas → umbral 9
+                        umbral = credito.getPlazoDias() == 12 ? 9 : 5;
+                } else {
+                        // Diarios: 25 días → umbral 16, 30 días → umbral 19
+                        umbral = credito.getPlazoDias() == 30 ? 19 : 16;
+                }
+
                 boolean elegible = pagosRealizados >= umbral;
                 if (!elegible) {
                         throw new IllegalArgumentException(
@@ -98,7 +108,10 @@ public class RenovacionService {
 
                 BigDecimal multasPendientes = multaRepo.sumMontosPendientesByCreditoId(creditoId);
 
-                ResumenCalculo calculoNuevo = calculoService.calcularCredito(montoNuevo);
+                TipoPago tipoPagoCalculo = tipoPagoNuevo == null ? credito.getTipoPago() : tipoPagoNuevo;
+                ResumenCalculo calculoNuevo = tipoPagoCalculo == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(montoNuevo)
+                                : calculoService.calcularCredito(montoNuevo);
                 BigDecimal pagoAdelantado = calculoNuevo.pagoAdelantado();
 
                 BigDecimal desembolso = montoNuevo
@@ -156,7 +169,17 @@ public class RenovacionService {
                 // Verificar elegibilidad
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 req.creditoAnteriorId(), ESTADOS_REALIZADOS);
-                int umbral = creditoAnterior.getPlazoDias() == 30 ? 19 : 16;
+
+                // Calcular umbral según tipo y plazo de crédito anterior
+                int umbral;
+                if (creditoAnterior.getTipoPago() == TipoPago.SEMANAL) {
+                        // Semanales: 8 semanas → umbral 5, 12 semanas → umbral 9
+                        umbral = creditoAnterior.getPlazoDias() == 12 ? 9 : 5;
+                } else {
+                        // Diarios: 25 días → umbral 16, 30 días → umbral 19
+                        umbral = creditoAnterior.getPlazoDias() == 30 ? 19 : 16;
+                }
+
                 if (pagosRealizados < umbral) {
                         throw new IllegalArgumentException(
                                         "El cliente no es elegible para renovación. Pagos realizados: "
@@ -171,13 +194,19 @@ public class RenovacionService {
                                 .multiply(BigDecimal.valueOf(numPagosRestantes));
 
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(req.creditoAnteriorId());
-                ResumenCalculo calculoNuevo = calculoService.calcularCredito(req.montoNuevo());
+
+                // Parsear tipo de pago primero para usarlo en cálculo
+                TipoPago tipoPago = parseTipoPago(req.tipoPago());
+
+                // Calcular crédito nuevo según su tipo
+                ResumenCalculo calculoNuevo = tipoPago == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(req.montoNuevo())
+                                : calculoService.calcularCredito(req.montoNuevo());
+
                 BigDecimal montoDesembolso = req.montoNuevo()
                                 .subtract(montoPagosRestantes)
                                 .subtract(multasPendientesAmt)
                                 .subtract(calculoNuevo.pagoAdelantado());
-
-                TipoPago tipoPago = parseTipoPago(req.tipoPago());
 
                 Usuario asesor = creditoAnterior.getAsesor();
                 Usuario creador = usuarioRepo.findById(usuarioId).orElse(null);
@@ -189,7 +218,7 @@ public class RenovacionService {
 
                 Renovacion solicitud = Renovacion.builder()
                                 .creditoAnterior(creditoAnterior)
-                                .creditoNuevo(null)                     // se crea al aprobar
+                                .creditoNuevo(null) // se crea al aprobar
                                 .cliente(creditoAnterior.getCliente())
                                 .asesor(asesor)
                                 .estado(EstadoRenovacion.SOLICITADO)
@@ -222,7 +251,8 @@ public class RenovacionService {
         // ────────────────────────────────────────────────────────────────────
 
         @Transactional
-        public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, BigDecimal montoAprobadoParam, Long aprobadorId) {
+        public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, BigDecimal montoAprobadoParam,
+                        Long aprobadorId) {
                 Renovacion renovacion = findRenovacion(renovacionId);
 
                 if (renovacion.getEstado() != EstadoRenovacion.SOLICITADO) {
@@ -232,11 +262,13 @@ public class RenovacionService {
                 }
 
                 Usuario aprobador = usuarioRepo.findById(aprobadorId)
-                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + aprobadorId));
+                                .orElseThrow(() -> new EntityNotFoundException(
+                                                "Usuario no encontrado: " + aprobadorId));
 
-                BigDecimal montoAprobado = (montoAprobadoParam != null && montoAprobadoParam.compareTo(BigDecimal.ZERO) > 0)
-                                ? montoAprobadoParam
-                                : renovacion.getMontoNuevo();
+                BigDecimal montoAprobado = (montoAprobadoParam != null
+                                && montoAprobadoParam.compareTo(BigDecimal.ZERO) > 0)
+                                                ? montoAprobadoParam
+                                                : renovacion.getMontoNuevo();
 
                 renovacion.setEstado(EstadoRenovacion.APROBADO);
                 renovacion.setMontoAprobado(montoAprobado);
@@ -274,7 +306,8 @@ public class RenovacionService {
                 }
 
                 Usuario confirmador = usuarioRepo.findById(confirmadorId)
-                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + confirmadorId));
+                                .orElseThrow(() -> new EntityNotFoundException(
+                                                "Usuario no encontrado: " + confirmadorId));
 
                 BigDecimal montoAprobado = renovacion.getMontoAprobado() != null
                                 ? renovacion.getMontoAprobado()
@@ -338,10 +371,16 @@ public class RenovacionService {
                                 .build();
                 creditoRepo.save(creditoNuevo);
 
-                // 5. Generar calendario de pagos
-                calculoService.generarCalendario(
-                                creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
-                                creditoAnterior.getSucursal().getId());
+                // 5. Generar calendario de pagos según tipo de crédito
+                if (creditoNuevo.getTipoPago() == TipoPago.SEMANAL) {
+                        calculoService.generarCalendarioSemanal(
+                                        creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
+                                        creditoAnterior.getSucursal().getId());
+                } else {
+                        calculoService.generarCalendario(
+                                        creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
+                                        creditoAnterior.getSucursal().getId());
+                }
                 creditoRepo.save(creditoNuevo);
 
                 // 6. Actualizar renovación → ACTIVO
@@ -393,7 +432,8 @@ public class RenovacionService {
                 }
 
                 Usuario rechazador = usuarioRepo.findById(rechazadorId)
-                                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + rechazadorId));
+                                .orElseThrow(() -> new EntityNotFoundException(
+                                                "Usuario no encontrado: " + rechazadorId));
 
                 renovacion.setEstado(EstadoRenovacion.RECHAZADO);
                 renovacion.setAprobadoPor(rechazador);
@@ -422,7 +462,8 @@ public class RenovacionService {
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // Mis Solicitudes — todas las del asesor autenticado (SUPERVISOR_CAMPO / ASESOR_COBRADOR)
+        // Mis Solicitudes — todas las del asesor autenticado (SUPERVISOR_CAMPO /
+        // ASESOR_COBRADOR)
         // ────────────────────────────────────────────────────────────────────
 
         public List<RenovacionDetalleDTO> getMisSolicitudes(Long asesorId) {
@@ -452,6 +493,7 @@ public class RenovacionService {
                                                 r.getCreditoNuevo().getMontoCapital(),
                                                 r.getMontoDesembolso(),
                                                 r.getAsesor().getNombreCompleto(),
+                                                r.getCreditoNuevo().getTipoPago().toString(),
                                                 "RENOVACION",
                                                 r.getId())));
 
@@ -469,6 +511,7 @@ public class RenovacionService {
                                                 c.getMontoCapital(),
                                                 c.getMontoCapital().subtract(c.getPagoAdelantado()),
                                                 c.getAsesor().getNombreCompleto(),
+                                                c.getTipoPago().toString(),
                                                 "NUEVO",
                                                 c.getId())));
 
@@ -508,6 +551,7 @@ public class RenovacionService {
                                                         c.getMontoCapital(),
                                                         c.getPlazoDias(),
                                                         c.getPagoPeriodico(),
+                                                        c.getTipoPago().toString(),
                                                         c.getAsesor().getId(),
                                                         c.getAsesor().getNombreCompleto(),
                                                         c.getSucursal().getId(),

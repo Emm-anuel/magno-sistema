@@ -7,7 +7,8 @@ import { usuarioService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import TipoCreditoBadge from '@/components/TipoCreditoBadge'
-import type { CreditoResumen, EstadoCredito, TipoCredito } from '@/types'
+import TipoPagoBadge from '@/components/TipoPagoBadge'
+import type { CreditoResumen, EstadoCredito, TipoCredito, TipoPago } from '@/types'
 
 const ESTADOS: { value: string; label: string }[] = [
   { value: '', label: 'Todos' },
@@ -217,9 +218,10 @@ export default function TabSolicitudes({
                 <tr>
                   <th>Cliente</th>
                   <th>Monto</th>
-                  <th>Pago/día</th>
+                  <th>Pago/período</th>
                   <th>Plazo</th>
-                  <th>Tipo</th>
+                  <th>Forma de Pago</th>
+                  <th>Tipo Crédito</th>
                   <th>Estado</th>
                   <th>Asesor</th>
                   <th>Fecha de solicitud</th>
@@ -229,7 +231,7 @@ export default function TabSolicitudes({
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center text-gray-400 py-8">
+                    <td colSpan={10} className="text-center text-gray-400 py-8">
                       Sin registros
                     </td>
                   </tr>
@@ -281,6 +283,12 @@ export default function TabSolicitudes({
                         {fmtPlazoDias(
                           c.plazoDias ?? (c as { plazo_dias?: number | string }).plazo_dias,
                         )}
+                      </td>
+                      <td>
+                        <TipoPagoBadge
+                          tipo={(c.tipoPago ?? 'DIARIO') as TipoPago}
+                          size="sm"
+                        />
                       </td>
                       <td>
                         <TipoCreditoBadge

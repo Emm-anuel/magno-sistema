@@ -1,24 +1,23 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
 import { creditoService } from '@/services/creditoService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { api } from '@/services/api'
+import { addDaysLocal, todayLocalStr } from '@/utils/date'
 import type { CalendarioPagoDetalle } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return todayLocalStr()
 }
 
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayStr()
 
 function addDays(dateStr: string, n: number) {
-  const d = new Date(dateStr + 'T12:00:00')
-  d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return addDaysLocal(dateStr, n)
 }
 
 function fmtDateLabel(dateStr: string) {
@@ -110,17 +109,28 @@ export default function Historial() {
 
   const puedeVerTodosAsesores =
     usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const puedeElegirSucursal = usuario?.rol === 'ADMINISTRADOR'
   const soloSusPropios =
     usuario?.rol === 'ASESOR_COBRADOR' || usuario?.rol === 'SUPERVISOR_CAMPO'
 
   const [fecha, setFecha] = useState(todayStr())
+  const [sucursalId, setSucursalId] = useState<number | undefined>(
+    usuario?.sucursal?.id ?? undefined
+  )
   const [asesorId, setAsesorId] = useState<number | undefined>(
     soloSusPropios ? (usuario?.id ?? undefined) : undefined
   )
 
+  const { data: sucursales = [] } = useQuery({
+    queryKey: ['sucursales-list'],
+    queryFn: () => api.get<{ id: number; nombre: string }[]>('/sucursales').then((r) => r.data),
+    enabled: puedeElegirSucursal,
+    staleTime: 60_000,
+  })
+
   // Lista de asesores para admin/supervisor
   const { data: asesores = [] } = useQuery({
-    queryKey: ['asesores-list'],
+    queryKey: ['asesores-list', sucursalId],
     queryFn: () =>
       api
         .get<{ id: number; nombre_completo: string }[]>('/clientes/asesores')
@@ -129,14 +139,33 @@ export default function Historial() {
     staleTime: 60_000,
   })
 
+  const asesoresSucursal = useMemo(() => {
+    if (!sucursalId) return asesores
+    return asesores.filter((a: any) => a.sucursal_id === sucursalId)
+  }, [asesores, sucursalId])
+
+  useEffect(() => {
+    if (!sucursalId && usuario?.sucursal?.id) {
+      setSucursalId(usuario.sucursal.id)
+    }
+  }, [sucursalId, usuario?.sucursal?.id])
+
+  useEffect(() => {
+    if (!asesorId) return
+    const sigueEnSucursal = asesoresSucursal.some((a: any) => a.id === asesorId)
+    if (!sigueEnSucursal) {
+      setAsesorId(undefined)
+    }
+  }, [asesorId, asesoresSucursal])
+
   const asesorNombre = soloSusPropios
     ? usuario?.nombre_completo
-    : asesores.find((a) => a.id === asesorId)?.nombre_completo
+    : asesoresSucursal.find((a: any) => a.id === asesorId)?.nombre_completo
 
   // Ruta del día → lista de clientes con numeroPagoHoy
   const { data: rutaDia, isLoading: isLoadingRuta } = useQuery({
-    queryKey: ['ruta-dia', asesorId, fecha],
-    queryFn: () => cobrosService.getRutaDia({ asesorId, fecha }),
+    queryKey: ['ruta-dia', sucursalId, asesorId, fecha],
+    queryFn: () => cobrosService.getRutaDia({ asesorId, sucursalId, fecha }),
     enabled: !!asesorId,
     staleTime: 30_000,
   })
@@ -176,6 +205,30 @@ export default function Historial() {
       {/* ── Filtros: asesor + fecha ── */}
       <div className="card p-4">
         <div className="flex flex-wrap items-center gap-4">
+          {puedeElegirSucursal && (
+            <div className="flex items-center gap-2">
+              <label className="text-[12px] text-[#6c757d] whitespace-nowrap font-medium">
+                Sucursal
+              </label>
+              <select
+                className="input text-[13px] py-[5px] min-w-[180px]"
+                value={sucursalId ?? ''}
+                onChange={(e) => {
+                  const nextSucursalId = e.target.value ? Number(e.target.value) : undefined
+                  setSucursalId(nextSucursalId)
+                  setAsesorId(undefined)
+                }}
+              >
+                <option value="">— Seleccionar sucursal —</option>
+                {sucursales.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {puedeVerTodosAsesores ? (
             <div className="flex items-center gap-2">
               <label className="text-[12px] text-[#6c757d] whitespace-nowrap font-medium">
@@ -187,9 +240,12 @@ export default function Historial() {
                 onChange={(e) =>
                   setAsesorId(e.target.value ? Number(e.target.value) : undefined)
                 }
+                disabled={!sucursalId}
               >
-                <option value="">— Seleccionar asesor —</option>
-                {asesores.map((a) => (
+                <option value="">
+                  {sucursalId ? '— Seleccionar asesor —' : '— Selecciona primero una sucursal —'}
+                </option>
+                {asesoresSucursal.map((a: any) => (
                   <option key={a.id} value={a.id}>
                     {a.nombre_completo}
                   </option>
@@ -232,7 +288,13 @@ export default function Historial() {
       </div>
 
       {/* ── Placeholder when no asesor selected ── */}
-      {!asesorId && (
+      {!sucursalId && puedeElegirSucursal && (
+        <div className="card p-8 text-center text-[#adb5bd] text-[14px]">
+          Selecciona una sucursal para ver sus asesores y la ruta del día.
+        </div>
+      )}
+
+      {!sucursalId && !puedeElegirSucursal && (
         <div className="card p-8 text-center text-[#adb5bd] text-[14px]">
           Selecciona un asesor para ver su historial de pago.
         </div>

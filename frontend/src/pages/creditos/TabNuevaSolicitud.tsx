@@ -133,18 +133,18 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
 
     prefillDoneRef.current = true
 
+    const tipoPagoInicial = (creditoInicial.tipoPago ?? creditoInicialRaw?.tipo_pago ?? 'DIARIO') as 'DIARIO' | 'SEMANAL'
     const montoInicial = safeNumber(creditoInicial.montoCapital ?? creditoInicialRaw?.monto_capital)
     if (montoInicial > 0) {
       setMontoStr(String(montoInicial))
       setCalculoLoading(true)
       creditoService
-        .calcularProducto(montoInicial)
+        .calcularProducto(montoInicial, tipoPagoInicial)
         .then((result) => setCalculo(result))
         .catch(() => setCalculo(null))
         .finally(() => setCalculoLoading(false))
     }
 
-    const tipoPagoInicial = (creditoInicial.tipoPago ?? creditoInicialRaw?.tipo_pago ?? 'DIARIO') as 'DIARIO' | 'SEMANAL'
     const asesorInicialId = creditoInicial.asesor?.id ?? creditoInicialRaw?.asesor?.id
     const garantiaInicial = creditoInicial.garantiaDescripcion ?? creditoInicialRaw?.garantia_descripcion ?? ''
     const evidenciaInicial = creditoInicial.evidenciaUrls ?? creditoInicialRaw?.evidencia_urls ?? []
@@ -227,7 +227,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
     setCalculoLoading(true)
     calcDebounceRef.current = setTimeout(async () => {
       try {
-        const result = await creditoService.calcularProducto(num)
+        const result = await creditoService.calcularProducto(num, tipoPago)
         setCalculo(result)
       } catch {
         setCalculo(null)
@@ -240,7 +240,11 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
   // ── Validation ───────────────────────────────────────────────────
 
   const monto = parseFloat(montoStr)
-  const montoValido = !isNaN(monto) && monto >= 1000 && monto <= 50000
+  
+  // Determinar rangos válidos según el tipo de pago
+  const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
+  const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
+  const montoValido = !isNaN(monto) && monto >= rangoMin && monto <= rangoMax
   const tieneCredito = isEditMode ? false : (clienteSeleccionado?.tiene_credito_activo ?? false)
   const clienteIdSeleccionado = isEditMode ? (creditoInicial?.cliente?.id ?? creditoInicialRaw?.cliente?.id) : clienteSeleccionado?.id
   const nombreCliente = isEditMode
@@ -423,36 +427,6 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
             )}
           </div>
 
-          {/* Monto */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Monto Solicitado <span className="text-red-500">*</span>
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">
-                $
-              </span>
-              <input
-                type="number"
-                min={1000}
-                max={50000}
-                step={500}
-                placeholder="2000"
-                value={montoStr}
-                onChange={(e) => handleMontoChange(e.target.value)}
-                className="input pl-7 w-full"
-              />
-            </div>
-            {montoStr && !montoValido && (
-              <p className="text-xs text-red-500 mt-1">
-                El monto debe estar entre $1,000 y $50,000
-              </p>
-            )}
-            <div className="mt-3">
-              <ProductoCalculoCard calculo={calculo} loading={calculoLoading} />
-            </div>
-          </div>
-
           {/* Forma de pago */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -466,12 +440,57 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
                     name="tipoPago"
                     value={v}
                     checked={tipoPago === v}
-                    onChange={() => setTipoPago(v)}
+                    onChange={() => {
+                      setTipoPago(v)
+                      setMontoStr('')
+                      setCalculo(null)
+                    }}
                     className="w-4 h-4 accent-[#3d6b35]"
                   />
-                  <span className="text-sm">{v === 'DIARIO' ? 'Diario' : 'Semanal'}</span>
+                  <span className="text-sm">{v === 'DIARIO' ? 'Diario (25-30 días)' : 'Semanal (8-12 semanas)'}</span>
                 </label>
               ))}
+            </div>
+            {tipoPago === 'DIARIO' && (
+              <p className="text-xs text-gray-600 mt-2">📌 Rango: $1,000–$50,000 a 24%–30% de interés</p>
+            )}
+            {tipoPago === 'SEMANAL' && (
+              <p className="text-xs text-gray-600 mt-2">📌 Rango: $2,000–$30,000 a 40% de interés</p>
+            )}
+          </div>
+
+          {/* Monto */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Monto Solicitado <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">
+                $
+              </span>
+              <input
+                type="number"
+                min={rangoMin}
+                max={rangoMax}
+                step={500}
+                placeholder="2000"
+                value={montoStr}
+                onChange={(e) => handleMontoChange(e.target.value)}
+                className="input pl-7 w-full"
+              />
+            </div>
+            {montoStr && !montoValido && (
+              <p className="text-xs text-red-500 mt-1">
+                Para {tipoPago === 'DIARIO' ? 'créditos diarios' : 'créditos semanales'}, el monto debe estar entre ${rangoMin.toLocaleString()} y ${rangoMax.toLocaleString()}
+              </p>
+            )}
+            {montoStr && montoValido && tipoPago === 'SEMANAL' && (
+              <p className="text-xs text-gray-600 mt-1">
+                💡 Este crédito semanal se pagará en {monto < 10000 ? '8 semanas' : '12 semanas'} a 40% de interés
+              </p>
+            )}
+            <div className="mt-3">
+              <ProductoCalculoCard calculo={calculo} loading={calculoLoading} />
             </div>
           </div>
 

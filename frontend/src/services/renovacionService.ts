@@ -72,6 +72,7 @@ function normalizeColocaciones(raw: any): ColocacionesSemana {
       creditoNuevo: item.creditoNuevo ?? item.credito_nuevo,
       desembolso: item.desembolso,
       asesorNombre: item.asesorNombre ?? item.asesor_nombre,
+      tipoPago: item.tipoPago ?? item.tipo_pago ?? 'DIARIO',
       tipo: item.tipo,
       refId: item.refId ?? item.ref_id,
     })),
@@ -87,6 +88,7 @@ function normalizeListoItem(raw: any): ListoRenovarItem {
     montoCapital: raw.montoCapital ?? raw.monto_capital,
     plazoDias: raw.plazoDias ?? raw.plazo_dias,
     pagoPeriodico: raw.pagoPeriodico ?? raw.pago_periodico,
+    tipoPago: raw.tipoPago ?? raw.tipo_pago ?? 'DIARIO',
     asesorId: raw.asesorId ?? raw.asesor_id,
     asesorNombre: raw.asesorNombre ?? raw.asesor_nombre,
     sucursalId: raw.sucursalId ?? raw.sucursal_id,
@@ -98,8 +100,8 @@ function normalizeListoItem(raw: any): ListoRenovarItem {
 }
 
 export const renovacionService = {
-  calcular: (creditoId: number, montoNuevo: number): Promise<RenovacionCalculo> =>
-    api.get('/renovaciones/calcular', { params: { creditoId, montoNuevo } })
+  calcular: (creditoId: number, montoNuevo: number, tipoPago?: 'DIARIO' | 'SEMANAL'): Promise<RenovacionCalculo> =>
+    api.get('/renovaciones/calcular', { params: { creditoId, montoNuevo, tipoPago } })
       .then((r) => normalizeCalculo(r.data)),
 
   crear: (data: {

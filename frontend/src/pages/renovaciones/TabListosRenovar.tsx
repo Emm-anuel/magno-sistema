@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertCircle, ChevronRight, Loader2 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
 import { useAuthStore } from '@/hooks/useAuthStore'
+import TipoPagoBadge from '@/components/TipoPagoBadge'
 import { api } from '@/services/api'
-import type { ListoRenovarItem, ClienteResumen } from '@/types'
+import type { ListoRenovarItem, ClienteResumen, TipoPago } from '@/types'
 
 function fmt(n: number | null | undefined): string {
   if (n == null) return '—'
@@ -154,6 +155,7 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                   <th className="py-3 pr-4 font-medium">Asesor</th>
                   {esAdmin && <th className="py-3 pr-4 font-medium">Sucursal</th>}
                   <th className="py-3 pr-4 font-medium text-right">Monto crédito</th>
+                  <th className="py-3 pr-4 font-medium">Forma de Pago</th>
                   <th className="py-3 pr-4 font-medium text-center">Progreso</th>
                   <th className="py-3 pr-4 font-medium text-center">Restantes</th>
                   <th className="py-3 pr-4 font-medium text-right">Multas</th>
@@ -167,6 +169,9 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                     <td className="py-3 pr-4 text-gray-600">{item.asesorNombre}</td>
                     {esAdmin && <td className="py-3 pr-4 text-gray-500 text-xs">{item.sucursalNombre}</td>}
                     <td className="py-3 pr-4 text-right text-gray-700">{fmt(item.montoCapital)}</td>
+                    <td className="py-3 pr-4">
+                      <TipoPagoBadge tipo={item.tipoPago as TipoPago} size="sm" />
+                    </td>
                     <td className="py-3 pr-4 text-center text-gray-600 whitespace-nowrap">
                       Pago {item.pagosRealizados} de {item.plazoDias}
                     </td>
@@ -217,6 +222,9 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                   <div>
                     <div className="font-semibold text-gray-800">{item.clienteNombre}</div>
                     <div className="text-xs text-gray-500 mt-0.5">{item.asesorNombre}</div>
+                    <div className="mt-1">
+                      <TipoPagoBadge tipo={item.tipoPago as TipoPago} size="sm" />
+                    </div>
                     {esAdmin && <div className="text-xs text-gray-400">{item.sucursalNombre}</div>}
                   </div>
                   {puedeCrearRenovacion && (

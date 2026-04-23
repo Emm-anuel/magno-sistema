@@ -1,6 +1,7 @@
 package com.magno.controller;
 
 import com.magno.dto.renovacion.*;
+import com.magno.model.TipoPago;
 import com.magno.security.JwtPrincipal;
 import com.magno.service.RenovacionService;
 import jakarta.validation.Valid;
@@ -37,12 +38,13 @@ public class RenovacionController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<RenovacionCalculoDTO> calcular(
             @RequestParam Long creditoId,
-            @RequestParam BigDecimal montoNuevo) {
+            @RequestParam BigDecimal montoNuevo,
+            @RequestParam(required = false) TipoPago tipoPago) {
 
         if (montoNuevo.compareTo(BigDecimal.valueOf(1000)) < 0) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(renovacionService.calcularPreview(creditoId, montoNuevo));
+        return ResponseEntity.ok(renovacionService.calcularPreview(creditoId, montoNuevo, tipoPago));
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -254,7 +256,8 @@ public class RenovacionController {
     }
 
     private LocalDate resolveSemanaInicio(LocalDate requested) {
-        if (requested != null) return RenovacionService.lunesDe(requested);
+        if (requested != null)
+            return RenovacionService.lunesDe(requested);
         return RenovacionService.lunesDe(com.magno.util.DateTimeUtils.hoyEnMagno());
     }
 }

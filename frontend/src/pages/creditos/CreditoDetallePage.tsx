@@ -8,12 +8,13 @@ import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import TipoCreditoBadge from '@/components/TipoCreditoBadge'
+import TipoPagoBadge from '@/components/TipoPagoBadge'
 import FileUpload from '@/components/FileUpload'
 import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
-import type { PagoCobroDTO } from '@/types'
+import type { PagoCobroDTO, TipoPago } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ export default function CreditoDetallePage() {
               </h1>
               <div className="flex items-center gap-2">
                 <TipoCreditoBadge tipo={credito.tipo ?? 'NUEVO'} />
+                <TipoPagoBadge tipo={(credito.tipoPago ?? 'DIARIO') as TipoPago} />
                 <CreditoEstadoBadge estado={credito.estado} />
               </div>
             </div>

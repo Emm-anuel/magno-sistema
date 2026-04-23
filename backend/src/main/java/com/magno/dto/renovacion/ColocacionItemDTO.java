@@ -8,14 +8,15 @@ import java.time.LocalDate;
  * Puede representar un crédito nuevo o una renovación.
  */
 public record ColocacionItemDTO(
-                LocalDate fecha,
-                String clienteNombre,
-                Long clienteId,
-                BigDecimal creditoAnterior, // null para créditos nuevos
-                BigDecimal creditoNuevo,
-                BigDecimal desembolso,
-                String asesorNombre,
-                String tipo, // NUEVO | RENOVACION
-                Long refId // creditoId o renovacionId según tipo
+        LocalDate fecha,
+        String clienteNombre,
+        Long clienteId,
+        BigDecimal creditoAnterior, // null para créditos nuevos
+        BigDecimal creditoNuevo,
+        BigDecimal desembolso,
+        String asesorNombre,
+        String tipoPago, // DIARIO | SEMANAL
+        String tipo, // NUEVO | RENOVACION
+        Long refId // creditoId o renovacionId según tipo
 ) {
 }

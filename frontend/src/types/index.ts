@@ -442,6 +442,7 @@ export interface ClienteRuta {
   creditoId: number
   montoCapital: number
   pagoPeriodico: number
+  tipoPago: TipoPago
   numeroPagoHoy: number | null
   totalPagos: number
   estadoHoy: EstadoCobro
@@ -495,6 +496,7 @@ export interface PagoCobroDTO {
   esCompleto: boolean
   razonNoPago: string | null
   multaAplicada: number
+  tipoPago: TipoPago
   registradoPor: { id: number; nombreCompleto: string } | null
   modificadoPor: { id: number; nombreCompleto: string } | null
   fechaModificacion: string | null
@@ -526,6 +528,7 @@ export interface ProductoCalculo {
   pagoPeriodico: number
   pagoAdelantado: number
   descripcionProducto?: string
+  tipoPago?: 'DIARIO' | 'SEMANAL'
 }
 
 export interface CalendarioPagoDetalle {
@@ -617,6 +620,7 @@ export interface ColocacionItem {
   creditoNuevo: number
   desembolso: number
   asesorNombre: string
+  tipoPago: TipoPago
   tipo: 'NUEVO' | 'RENOVACION'
   refId: number
 }
@@ -687,6 +691,7 @@ export interface ListoRenovarItem {
   montoCapital: number
   plazoDias: number
   pagoPeriodico: number
+  tipoPago: TipoPago
   asesorId: number
   asesorNombre: string
   sucursalId: number

@@ -3,19 +3,18 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { api } from '@/services/api'
+import { addDaysLocal, todayLocalStr } from '@/utils/date'
 import TabRutaDia from './TabRutaDia'
 import TabHistorialCobros from './TabHistorialCobros'
 
 type Tab = 'ruta-dia' | 'historial'
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10)
+  return todayLocalStr()
 }
 
 function addDays(dateStr: string, n: number) {
-  const d = new Date(dateStr)
-  d.setDate(d.getDate() + n)
-  return d.toISOString().slice(0, 10)
+  return addDaysLocal(dateStr, n)
 }
 
 function formatFechaBonita(iso: string) {

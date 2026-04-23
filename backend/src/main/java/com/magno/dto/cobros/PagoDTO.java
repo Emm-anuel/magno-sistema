@@ -17,6 +17,7 @@ public record PagoDTO(
                 Boolean esCompleto,
                 String razonNoPago,
                 BigDecimal multaAplicada,
+                String tipoPago,
                 UsuarioResumenDTO registradoPor,
                 UsuarioResumenDTO modificadoPor,
                 OffsetDateTime fechaModificacion,
@@ -36,6 +37,7 @@ public record PagoDTO(
                                 p.getEsCompleto(),
                                 p.getRazonNoPago(),
                                 p.getMultaAplicada(),
+                                p.getCredito().getTipoPago().toString(),
                                 p.getRegistradoPor() != null
                                                 ? new UsuarioResumenDTO(p.getRegistradoPor().getId(),
                                                                 p.getRegistradoPor().getNombreCompleto())
