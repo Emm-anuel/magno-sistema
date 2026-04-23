@@ -243,17 +243,19 @@ public class CreditoController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ProductoCalculoDTO> calcular(
             @RequestParam BigDecimal capital,
-            @RequestParam(required = false) TipoPago tipoPago) {
+            @RequestParam(required = false) TipoPago tipoPago,
+            Authentication auth) {
         if (capital.compareTo(BigDecimal.ZERO) <= 0) {
             return ResponseEntity.badRequest().build();
         }
         TipoPago modo = tipoPago == null ? TipoPago.DIARIO : tipoPago;
+        Long sucursalId = principal(auth).sucursalId();
         CreditoCalculoService.ResumenCalculo calculo = modo == TipoPago.SEMANAL
-                ? calculoService.calcularCreditoSemanal(capital)
-                : calculoService.calcularCredito(capital);
+                ? calculoService.calcularCreditoSemanal(capital, sucursalId)
+                : calculoService.calcularCredito(capital, sucursalId);
         CreditoCalculoService.ProductoCredito producto = modo == TipoPago.SEMANAL
-                ? calculoService.determinarProductoSemanal(capital)
-                : calculoService.determinarProducto(capital);
+                ? calculoService.determinarProductoSemanal(capital, sucursalId)
+                : calculoService.determinarProducto(capital, sucursalId);
         return ResponseEntity.ok(ProductoCalculoDTO.from(calculo, producto.descripcion(), modo));
     }
 

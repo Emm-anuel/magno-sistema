@@ -169,8 +169,8 @@ public class CreditoService {
 
                 // 6. Calcular (según tipo de pago)
                 ResumenCalculo calculo = tipoPago == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado())
-                                : calculoService.calcularCredito(req.montoSolicitado());
+                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursalId)
+                                : calculoService.calcularCredito(req.montoSolicitado(), sucursalId);
 
                 // 7. Evidencia URLs (ya subidas a S3 antes de llamar este endpoint)
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
@@ -230,8 +230,8 @@ public class CreditoService {
 
                 // Calcular según tipo de pago (considerar tipoPago actual del crédito)
                 ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado())
-                                : calculoService.calcularCredito(req.montoSolicitado());
+                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursal.getId())
+                                : calculoService.calcularCredito(req.montoSolicitado(), sucursal.getId());
 
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
                                 ? req.evidenciaUrls().toArray(String[]::new)
@@ -279,8 +279,8 @@ public class CreditoService {
                 // Recalcular con el monto aprobado (puede diferir del solicitado)
                 // Considerar tipo de pago del crédito
                 ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoAprobado())
-                                : calculoService.calcularCredito(req.montoAprobado());
+                                ? calculoService.calcularCreditoSemanal(req.montoAprobado(), c.getSucursal().getId())
+                                : calculoService.calcularCredito(req.montoAprobado(), c.getSucursal().getId());
 
                 Usuario aprobadoPorUsuario = usuarioRepo.findById(usuarioId)
                                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
@@ -339,8 +339,8 @@ public class CreditoService {
                 BigDecimal montoBase = c.getMontoAprobado() != null ? c.getMontoAprobado() : c.getMontoCapital();
 
                 ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoBase)
-                                : calculoService.calcularCredito(montoBase);
+                                ? calculoService.calcularCreditoSemanal(montoBase, c.getSucursal().getId())
+                                : calculoService.calcularCredito(montoBase, c.getSucursal().getId());
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 

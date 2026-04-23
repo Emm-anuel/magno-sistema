@@ -117,4 +117,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V15-admin-module-config" author="magno">
+        <sqlFile
+            path="db/changelog/V15__admin_module_config.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

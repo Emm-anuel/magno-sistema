@@ -7,10 +7,13 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ConfigMultaRepository extends JpaRepository<ConfigMulta, Long> {
+
+    List<ConfigMulta> findBySucursalId(Long sucursalId);
 
     /**
      * Busca la configuración de multa aplicable a un monto y sucursal.

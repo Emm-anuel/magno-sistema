@@ -52,19 +52,22 @@ public class RenovacionService {
         private final MultaRepository multaRepo;
         private final UsuarioRepository usuarioRepo;
         private final CreditoCalculoService calculoService;
+        private final ConfigUmbralRenovacionRepository configUmbralRepo;
 
         public RenovacionService(RenovacionRepository renovacionRepo,
                         CreditoRepository creditoRepo,
                         CalendarioPagoRepository calendarioPagoRepo,
                         MultaRepository multaRepo,
                         UsuarioRepository usuarioRepo,
-                        CreditoCalculoService calculoService) {
+                        CreditoCalculoService calculoService,
+                        ConfigUmbralRenovacionRepository configUmbralRepo) {
                 this.renovacionRepo = renovacionRepo;
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
                 this.multaRepo = multaRepo;
                 this.usuarioRepo = usuarioRepo;
                 this.calculoService = calculoService;
+                this.configUmbralRepo = configUmbralRepo;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -82,16 +85,7 @@ public class RenovacionService {
 
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(creditoId, ESTADOS_REALIZADOS);
 
-                // Calcular umbral según tipo y plazo de crédito
-                int umbral;
-                if (credito.getTipoPago() == TipoPago.SEMANAL) {
-                        // Semanales: 8 semanas → umbral 5, 12 semanas → umbral 9
-                        umbral = credito.getPlazoDias() == 12 ? 9 : 5;
-                } else {
-                        // Diarios: 25 días → umbral 16, 30 días → umbral 19
-                        umbral = credito.getPlazoDias() == 30 ? 19 : 16;
-                }
-
+                int umbral = resolverUmbral(credito);
                 boolean elegible = pagosRealizados >= umbral;
                 if (!elegible) {
                         throw new IllegalArgumentException(
@@ -109,9 +103,10 @@ public class RenovacionService {
                 BigDecimal multasPendientes = multaRepo.sumMontosPendientesByCreditoId(creditoId);
 
                 TipoPago tipoPagoCalculo = tipoPagoNuevo == null ? credito.getTipoPago() : tipoPagoNuevo;
+                Long sucursalId = credito.getSucursal().getId();
                 ResumenCalculo calculoNuevo = tipoPagoCalculo == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoNuevo)
-                                : calculoService.calcularCredito(montoNuevo);
+                                ? calculoService.calcularCreditoSemanal(montoNuevo, sucursalId)
+                                : calculoService.calcularCredito(montoNuevo, sucursalId);
                 BigDecimal pagoAdelantado = calculoNuevo.pagoAdelantado();
 
                 BigDecimal desembolso = montoNuevo
@@ -170,16 +165,7 @@ public class RenovacionService {
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 req.creditoAnteriorId(), ESTADOS_REALIZADOS);
 
-                // Calcular umbral según tipo y plazo de crédito anterior
-                int umbral;
-                if (creditoAnterior.getTipoPago() == TipoPago.SEMANAL) {
-                        // Semanales: 8 semanas → umbral 5, 12 semanas → umbral 9
-                        umbral = creditoAnterior.getPlazoDias() == 12 ? 9 : 5;
-                } else {
-                        // Diarios: 25 días → umbral 16, 30 días → umbral 19
-                        umbral = creditoAnterior.getPlazoDias() == 30 ? 19 : 16;
-                }
-
+                int umbral = resolverUmbral(creditoAnterior);
                 if (pagosRealizados < umbral) {
                         throw new IllegalArgumentException(
                                         "El cliente no es elegible para renovación. Pagos realizados: "
@@ -199,9 +185,10 @@ public class RenovacionService {
                 TipoPago tipoPago = parseTipoPago(req.tipoPago());
 
                 // Calcular crédito nuevo según su tipo
+                Long sucursalIdCred = creditoAnterior.getSucursal().getId();
                 ResumenCalculo calculoNuevo = tipoPago == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoNuevo())
-                                : calculoService.calcularCredito(req.montoNuevo());
+                                ? calculoService.calcularCreditoSemanal(req.montoNuevo(), sucursalIdCred)
+                                : calculoService.calcularCredito(req.montoNuevo(), sucursalIdCred);
 
                 BigDecimal montoDesembolso = req.montoNuevo()
                                 .subtract(montoPagosRestantes)
@@ -317,7 +304,9 @@ public class RenovacionService {
                 List<CalendarioPago> pagosPendientes = calendarioPagoRepo
                                 .findByCreditoIdAndEstadoIn(creditoAnterior.getId(), ESTADOS_PENDIENTES);
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(creditoAnterior.getId());
-                ResumenCalculo calculoNuevo = calculoService.calcularCredito(montoAprobado);
+                ResumenCalculo calculoNuevo = renovacion.getTipoPago() == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(montoAprobado, creditoAnterior.getSucursal().getId())
+                                : calculoService.calcularCredito(montoAprobado, creditoAnterior.getSucursal().getId());
                 BigDecimal montoDesembolso = montoAprobado
                                 .subtract(renovacion.getMontoPagosRestantes())
                                 .subtract(multasPendientesAmt)
@@ -652,5 +641,20 @@ public class RenovacionService {
 
         public static LocalDate lunesDe(LocalDate fecha) {
                 return fecha.with(DayOfWeek.MONDAY);
+        }
+
+        private int resolverUmbral(Credito credito) {
+                String tipoPagoStr = credito.getTipoPago() == TipoPago.SEMANAL ? "SEMANAL" : "DIARIO";
+                return configUmbralRepo
+                                .findBySucursalIdAndTipoPagoAndPlazo(
+                                                credito.getSucursal().getId(), tipoPagoStr, credito.getPlazoDias())
+                                .map(ConfigUmbralRenovacion::getUmbralPagos)
+                                .orElseGet(() -> {
+                                        if (credito.getTipoPago() == TipoPago.SEMANAL) {
+                                                return credito.getPlazoDias() == 12 ? 9 : 5;
+                                        } else {
+                                                return credito.getPlazoDias() == 30 ? 19 : 16;
+                                        }
+                                });
         }
 }

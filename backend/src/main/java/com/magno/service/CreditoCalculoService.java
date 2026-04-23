@@ -1,9 +1,11 @@
 package com.magno.service;
 
 import com.magno.model.CalendarioPago;
+import com.magno.model.ConfigRangoCredito;
 import com.magno.model.Credito;
 import com.magno.model.EstadoCalendarioPago;
 import com.magno.repository.CalendarioPagoRepository;
+import com.magno.repository.ConfigRangoCreditoRepository;
 import com.magno.repository.DiaFestivoRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -32,11 +35,14 @@ public class CreditoCalculoService {
 
     private final DiaFestivoRepository diaFestivoRepo;
     private final CalendarioPagoRepository calendarioPagoRepo;
+    private final ConfigRangoCreditoRepository configRangoRepo;
 
     public CreditoCalculoService(DiaFestivoRepository diaFestivoRepo,
-            CalendarioPagoRepository calendarioPagoRepo) {
+            CalendarioPagoRepository calendarioPagoRepo,
+            ConfigRangoCreditoRepository configRangoRepo) {
         this.diaFestivoRepo = diaFestivoRepo;
         this.calendarioPagoRepo = calendarioPagoRepo;
+        this.configRangoRepo = configRangoRepo;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -72,15 +78,21 @@ public class CreditoCalculoService {
     // ────────────────────────────────────────────────────────────────────
 
     /**
-     * Determina plazo y tasa en función del capital solicitado/aprobado.
-     *
-     * <pre>
-     * capital < $15,000          → 25 días, tasa 30%
-     * $15,000 ≤ capital < $20,000 → 25 días, tasa 24%
-     * capital ≥ $20,000           → 30 días, tasa 24%
-     * </pre>
+     * Determina plazo y tasa para créditos diarios. Lee desde DB si hay config para
+     * la sucursal; si no, usa los valores predeterminados del sistema.
      */
-    public ProductoCredito determinarProducto(BigDecimal capital) {
+    public ProductoCredito determinarProducto(BigDecimal capital, Long sucursalId) {
+        if (sucursalId != null) {
+            Optional<ConfigRangoCredito> rango = configRangoRepo
+                    .findBySucursalAndTipoPagoAndCapital(sucursalId, "DIARIO", capital);
+            if (rango.isPresent()) {
+                ConfigRangoCredito r = rango.get();
+                String pct = r.getTasaInteres().multiply(BigDecimal.valueOf(100))
+                        .stripTrailingZeros().toPlainString();
+                return new ProductoCredito(r.getPlazo(), r.getTasaInteres(),
+                        r.getPlazo() + " días · " + pct + "% interés");
+            }
+        }
         if (capital.compareTo(new BigDecimal("15000")) < 0) {
             return new ProductoCredito(25, new BigDecimal("0.30"), "25 días · 30% interés");
         } else if (capital.compareTo(new BigDecimal("20000")) < 0) {
@@ -102,8 +114,8 @@ public class CreditoCalculoService {
      * la fórmula correcta es capital×tasa=4800, total=24800,
      * pago=round(24800/30)=827)
      */
-    public ResumenCalculo calcularCredito(BigDecimal capital) {
-        ProductoCredito producto = determinarProducto(capital);
+    public ResumenCalculo calcularCredito(BigDecimal capital, Long sucursalId) {
+        ProductoCredito producto = determinarProducto(capital, sucursalId);
 
         BigDecimal cargo = capital.multiply(producto.tasa()).setScale(2, RoundingMode.HALF_UP);
         BigDecimal total = capital.add(cargo).setScale(2, RoundingMode.HALF_UP);
@@ -206,14 +218,21 @@ public class CreditoCalculoService {
     // ────────────────────────────────────────────────────────────────────
 
     /**
-     * Determina plazo y tasa en función del capital para créditos semanales.
-     *
-     * <pre>
-     * capital < $10,000  → 8 semanas, tasa 40%
-     * capital ≥ $10,000  → 12 semanas, tasa 40%
-     * </pre>
+     * Determina plazo y tasa para créditos semanales. Lee desde DB si hay config
+     * para la sucursal; si no, usa los valores predeterminados del sistema.
      */
-    public ProductoCredito determinarProductoSemanal(BigDecimal capital) {
+    public ProductoCredito determinarProductoSemanal(BigDecimal capital, Long sucursalId) {
+        if (sucursalId != null) {
+            Optional<ConfigRangoCredito> rango = configRangoRepo
+                    .findBySucursalAndTipoPagoAndCapital(sucursalId, "SEMANAL", capital);
+            if (rango.isPresent()) {
+                ConfigRangoCredito r = rango.get();
+                String pct = r.getTasaInteres().multiply(BigDecimal.valueOf(100))
+                        .stripTrailingZeros().toPlainString();
+                return new ProductoCredito(r.getPlazo(), r.getTasaInteres(),
+                        r.getPlazo() + " semanas · " + pct + "% interés");
+            }
+        }
         if (capital.compareTo(new BigDecimal("10000")) < 0) {
             return new ProductoCredito(8, new BigDecimal("0.40"), "8 semanas · 40% interés");
         } else {
@@ -231,8 +250,8 @@ public class CreditoCalculoService {
      * capital=$10,000 → cargo=$4,000, total=$14,000, pago semanal=$1,167 ✓
      * capital=$15,000 → cargo=$6,000, total=$21,000, pago semanal=$1,750 ✓
      */
-    public ResumenCalculo calcularCreditoSemanal(BigDecimal capital) {
-        ProductoCredito producto = determinarProductoSemanal(capital);
+    public ResumenCalculo calcularCreditoSemanal(BigDecimal capital, Long sucursalId) {
+        ProductoCredito producto = determinarProductoSemanal(capital, sucursalId);
 
         BigDecimal cargo = capital.multiply(producto.tasa()).setScale(2, RoundingMode.HALF_UP);
         BigDecimal total = capital.add(cargo).setScale(2, RoundingMode.HALF_UP);

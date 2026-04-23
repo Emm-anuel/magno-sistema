@@ -19,4 +19,8 @@ public interface DiaFestivoRepository extends JpaRepository<DiaFestivo, Long> {
     @Query("SELECT d.fecha FROM DiaFestivo d " +
            "WHERE d.aplicaSucursalId IS NULL OR d.aplicaSucursalId = :sucursalId")
     List<LocalDate> findFechasBySucursalId(@Param("sucursalId") Long sucursalId);
+
+    List<DiaFestivo> findByAplicaSucursalIdIsNullOrderByFechaAsc();
+
+    boolean existsByFechaAndAplicaSucursalIdIsNull(LocalDate fecha);
 }
