@@ -16,6 +16,7 @@ import HistorialPage from '@/pages/Historial'
 import RenovacionesPage from '@/pages/renovaciones/RenovacionesPage'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import ColocacionesPage from '@/pages/colocaciones/ColocacionesPage'
+import AdministracionPage from '@/pages/administracion/AdministracionPage'
 import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
@@ -74,7 +75,11 @@ export default function App() {
               <Route path="/usuarios" element={<UsuariosPage />} />
               <Route path="/usuarios/:id" element={<UsuarioDetallePage />} />
               <Route path="/bitacora" element={<ModulePlaceholderPage />} />
-              <Route path="/administracion" element={<ModulePlaceholderPage />} />
+            </Route>
+
+            {/* Administrador y Gerente de Sucursal */}
+            <Route element={<ProtectedRoute allowedRoles={ADMIN_SUPERVISOR_ROLES} />}>
+              <Route path="/administracion" element={<AdministracionPage />} />
             </Route>
           </Route>
         </Route>

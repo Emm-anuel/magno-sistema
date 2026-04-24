@@ -186,7 +186,7 @@ public class RenovacionController {
         Long effectiveSucursalId = sucursalId;
         switch (p.rol()) {
             case "ASESOR_COBRADOR" -> effectiveAsesorId = p.userId();
-            case "SUPERVISOR_CAMPO" -> effectiveSucursalId = p.sucursalId();
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> effectiveSucursalId = p.sucursalId();
         }
 
         return ResponseEntity.ok(
@@ -212,7 +212,7 @@ public class RenovacionController {
         Long effectiveSucursalId = sucursalId;
         switch (p.rol()) {
             case "ASESOR_COBRADOR" -> effectiveAsesorId = p.userId();
-            case "SUPERVISOR_CAMPO" -> effectiveSucursalId = p.sucursalId();
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> effectiveSucursalId = p.sucursalId();
         }
 
         byte[] pdf = renovacionService.exportarPdf(inicio, effectiveAsesorId, effectiveSucursalId);
@@ -241,7 +241,7 @@ public class RenovacionController {
 
         switch (p.rol()) {
             case "ASESOR_COBRADOR" -> effectiveAsesorId = p.userId();
-            case "SUPERVISOR_CAMPO" -> effectiveSucursalId = p.sucursalId();
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> effectiveSucursalId = p.sucursalId();
         }
 
         return ResponseEntity.ok(renovacionService.getListosParaRenovar(effectiveAsesorId, effectiveSucursalId));

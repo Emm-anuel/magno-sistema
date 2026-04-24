@@ -58,7 +58,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Sucursales',     to: '/sucursales',     icon: Building2, roles: ['ADMINISTRADOR'] },
       { label: 'Usuarios',       to: '/usuarios',       icon: UserCog,   roles: ['ADMINISTRADOR'] },
       { label: 'Bitácora',       to: '/bitacora',       icon: ScrollText, roles: ['ADMINISTRADOR'] },
-      { label: 'Administración', to: '/administracion', icon: Settings,  roles: ['ADMINISTRADOR'] },
+      { label: 'Administración', to: '/administracion', icon: Settings,  roles: ['ADMINISTRADOR', 'SUPERVISOR'] },
     ],
   },
 ]

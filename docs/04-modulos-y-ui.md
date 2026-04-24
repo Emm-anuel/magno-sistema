@@ -18,7 +18,7 @@
 | 12  | **sucursales**          | (listado + modal crear/editar)                                                                                |
 | 13  | **usuarios**            | (listado + modal alta)                                                                                        |
 | 14  | **bitacora**            | (log con filtros)                                                                                             |
-| —   | **administracion**      | Config. Multas · Config. Créditos · Días Festivos                                                             |
+| —   | **administracion** ✅   | Configuración · Días Inhábiles · Bitácora de Configuración                                                    |
 
 > "Préstamos" fue renombrado a **"Créditos Nuevos"** en toda la aplicación — NUNCA usar "Préstamos".
 
@@ -325,4 +325,53 @@ Móvil — Card por cliente:        Desktop — Tabla completa:
 - El stack tecnológico es el mismo: React 18 + Tailwind CSS es suficiente, no se necesita React Native ni app nativa.
 - La API REST es la misma para móvil y desktop.
 - Los datos y reglas de negocio son idénticos.
+
+---
+
+## Módulo 9: Administración ✅
+
+Ruta: `/administracion` · Solo rol `ADMINISTRADOR`
+
+El módulo tiene un selector de sucursal visible en todas las pestañas (el tab "Días Inhábiles" no lo requiere porque los días son globales, pero el selector se mantiene para consistencia visual).
+
+### Pestaña 1 — Configuración por Sucursal
+
+6 secciones colapsables, cada una con su propio botón "Guardar cambios":
+
+| Sección              | Campos editables                                                                    | Endpoint                                             |
+| -------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| **Multas**           | rangoMin, rangoMax, multaNoPago, multaIncompletos, multaSemanalNoPago, multaSemanalIncompletos | `PUT /admin/sucursales/{id}/multas/{multaId}`         |
+| **Rangos de Crédito**| Tablas DIARIO / SEMANAL: rangoMin, rangoMax, plazo, tasaInteres                    | `PUT /admin/sucursales/{id}/rangos`                  |
+| **Hora Límite**      | horaLimiteOperacion (HH:mm)                                                         | `PUT /admin/sucursales/{id}/config`                  |
+| **Ahorro Diario**    | porcentajeAhorro (%), montoAhorroFijo ($)                                            | `PUT /admin/sucursales/{id}/config`                  |
+| **Nómina**           | Tabla de personal con alta/edición/baja. Campo extra: diaPagoNomina                 | `POST/PUT/DELETE /admin/sucursales/{id}/nomina`       |
+| **Conceptos**        | Lista de etiquetas para inversiones de caja. Alta/edición/baja                     | `POST/PUT/DELETE /admin/sucursales/{id}/conceptos`   |
+
+Las secciones Hora Límite, Ahorro y Nómina (día de pago) comparten el mismo endpoint `PUT config`. Al guardar, cada sección fusiona sus campos con el estado actual del query `['admin-config', sucursalId]` para no pisar los demás campos.
+
+### Pestaña 2 — Días Inhábiles
+
+- Calendario anual (grid `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`) con navegación por año.
+- Cada mes como `MonthCard`: lunes a domingo, color por tipo:
+  - Fin de semana: `#ced4da` (gris)
+  - Día inhábil registrado: `#fef3c7` (ámbar)
+  - Día normal: `#495057` texto, fondo blanco
+- Lista de días registrados con edición inline y eliminación.
+- Formulario de alta con campo fecha + descripción.
+- Los días son globales (`aplica_sucursal_id = NULL`).
+- Endpoints: `GET/POST /admin/dias-inhabiles`, `PUT/DELETE /admin/dias-inhabiles/{id}`
+
+### Pestaña 3 — Bitácora de Configuración
+
+Tabla de solo lectura. Columnas: Fecha/Hora · Usuario · Sucursal · Sección · Campo · Valor anterior · Valor nuevo.
+
+Filtros: sucursal, sección (enum), rango de fechas (desde/hasta con date inputs, default = mes actual).
+
+Paginación: Anterior/Siguiente, 30 registros por página.
+
+Mobile: cards con colores diferenciales (valor anterior en ámbar, valor nuevo en verde).
+
+Endpoint: `GET /api/admin/bitacora?sucursalId=&seccion=&desde=&hasta=&page=&size=`
+
+Secciones válidas: `CONFIG_GENERAL` · `MULTAS` · `RANGOS_CREDITO` · `UMBRALES_RENOVACION` · `AHORRO` · `NOMINA` · `CONCEPTOS` · `DIAS_INHABILES`
 - Es una PWA opcional en el futuro (no en el alcance actual), pero el diseño responsive ya la prepara para eso.

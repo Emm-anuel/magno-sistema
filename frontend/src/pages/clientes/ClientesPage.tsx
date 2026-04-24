@@ -147,7 +147,7 @@ export default function ClientesPage() {
   const { data: sucursales } = useQuery({
     queryKey: ['sucursales-list', usuario?.id],
     queryFn: () => api.get<{ id: number; nombre: string }[]>('/sucursales').then((r) => r.data),
-    enabled: !!usuario?.id,
+    enabled: usuario?.rol === 'ADMINISTRADOR',
   })
 
   const qc = useQueryClient()
@@ -275,7 +275,7 @@ export default function ClientesPage() {
               ))}
             </select>
           )}
-          {esAdmin && (
+          {usuario?.rol === 'ADMINISTRADOR' && (
             <select
               className="input w-auto"
               value={filtroSucursal}

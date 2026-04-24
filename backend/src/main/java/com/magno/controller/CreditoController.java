@@ -69,7 +69,7 @@ public class CreditoController {
         // Filtrado por rol — aplicar restricciones de sucursal/asesor según rol
         switch (p.rol()) {
             case "ASESOR_COBRADOR" -> asesorId = p.userId();
-            case "SUPERVISOR_CAMPO" -> sucursalId = p.sucursalId(); // Forzar siempre su sucursal
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> sucursalId = p.sucursalId();
         }
 
         return ResponseEntity.ok(
@@ -318,7 +318,7 @@ public class CreditoController {
                             "No tienes acceso a este crédito");
                 }
             }
-            case "SUPERVISOR_CAMPO" -> {
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
                 if (!dto.sucursal().id().equals(p.sucursalId())) {
                     throw new org.springframework.web.server.ResponseStatusException(
                             org.springframework.http.HttpStatus.FORBIDDEN,

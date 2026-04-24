@@ -5,8 +5,10 @@ import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -399,13 +402,30 @@ public class AdministracionService {
         OffsetDateTime hastaTs = hasta != null
                 ? hasta.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime() : null;
 
-        return bitacoraConfigRepo
-                .buscarConFiltros(sucursalId, seccion, usuarioId, desdeTs, hastaTs, pageable)
+        Specification<BitacoraConfig> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            if (sucursalId != null)
+                predicates.add(cb.equal(root.get("sucursalId"), sucursalId));
+            if (seccion != null && !seccion.isBlank())
+                predicates.add(cb.equal(root.get("seccion"), seccion));
+            if (usuarioId != null)
+                predicates.add(cb.equal(root.get("usuarioId"), usuarioId));
+            if (desdeTs != null)
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), desdeTs));
+            if (hastaTs != null)
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), hastaTs));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return bitacoraConfigRepo.findAll(spec, pageable)
                 .map(b -> {
-                    String usuarioNombre = usuarioRepo.findById(b.getUsuarioId() != null ? b.getUsuarioId() : 0L)
-                            .map(u -> u.getNombreCompleto()).orElse(null);
+                    String usuarioNombre = b.getUsuarioId() != null
+                            ? usuarioRepo.findById(b.getUsuarioId())
+                                    .map(Usuario::getNombreCompleto).orElse(null)
+                            : null;
                     String sucursalNombre = b.getSucursalId() != null
-                            ? sucursalRepo.findById(b.getSucursalId()).map(s -> s.getNombre()).orElse(null)
+                            ? sucursalRepo.findById(b.getSucursalId())
+                                    .map(Sucursal::getNombre).orElse(null)
                             : "Global";
                     return new BitacoraConfigDTO(
                             b.getId(), b.getUsuarioId(), usuarioNombre,

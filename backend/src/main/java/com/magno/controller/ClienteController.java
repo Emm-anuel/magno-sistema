@@ -56,11 +56,11 @@ public class ClienteController {
             case "ASESOR_COBRADOR" ->
                 // Solo ve sus propios clientes
                 asesorId = principal.userId();
-            case "SUPERVISOR_CAMPO" -> {
-                // Ve los clientes de su sucursal (proxy de "sus asesores")
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
+                // Ve solo los clientes de su sucursal
                 if (sucursalId == null) sucursalId = principal.sucursalId();
             }
-            // ADMINISTRADOR y SUPERVISOR: sin restricción automática
+            // ADMINISTRADOR: sin restricción automática
         }
 
         return ResponseEntity.ok(
@@ -81,7 +81,7 @@ public class ClienteController {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
             }
-            case "SUPERVISOR_CAMPO" -> {
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
                 if (!dto.sucursal().id().equals(principal.sucursalId())) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
@@ -163,7 +163,8 @@ public class ClienteController {
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO')")
     public ResponseEntity<List<Map<String, Object>>> listarAsesores(Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
-        Long sucursalId = "SUPERVISOR_CAMPO".equals(principal.rol()) ? principal.sucursalId() : null;
+        Long sucursalId = ("SUPERVISOR_CAMPO".equals(principal.rol()) || "SUPERVISOR".equals(principal.rol()))
+                ? principal.sucursalId() : null;
         return ResponseEntity.ok(clienteService.listarAsesores(sucursalId));
     }
 
@@ -205,7 +206,7 @@ public class ClienteController {
                     p.userId(),      // asesorId forzado
                     p.sucursalId()   // sucursalId forzado
             );
-            case "SUPERVISOR_CAMPO" -> new ClienteCreateRequest(
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> new ClienteCreateRequest(
                     req.nombre(), req.apellidoPaterno(), req.apellidoMaterno(),
                     req.fechaNacimiento(), req.genero(), req.estadoCivil(),
                     req.nombreConyuge(), req.telefonoFijo(), req.celular(),
@@ -226,7 +227,7 @@ public class ClienteController {
                     req.asesorId(),  // puede elegir asesor
                     p.sucursalId()   // sucursalId forzado
             );
-            default -> req; // ADMINISTRADOR / SUPERVISOR sin cambios
+            default -> req; // ADMINISTRADOR sin cambios
         };
     }
 
@@ -252,7 +253,7 @@ public class ClienteController {
                 if (dto.asesor() == null || !dto.asesor().id().equals(principal.userId()))
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            case "SUPERVISOR_CAMPO" -> {
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
                 if (!dto.sucursal().id().equals(principal.sucursalId()))
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
@@ -273,7 +274,7 @@ public class ClienteController {
                 if (dto.asesor() == null || !dto.asesor().id().equals(principal.userId()))
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
-            case "SUPERVISOR_CAMPO" -> {
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
                 if (!dto.sucursal().id().equals(principal.sucursalId()))
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
@@ -321,7 +322,7 @@ public class ClienteController {
                     p.userId(),      // asesorId forzado
                     p.sucursalId()   // sucursalId forzado
             );
-            case "SUPERVISOR_CAMPO" -> new ClienteUpdateRequest(
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> new ClienteUpdateRequest(
                     req.nombre(), req.apellidoPaterno(), req.apellidoMaterno(),
                     req.fechaNacimiento(), req.genero(), req.estadoCivil(),
                     req.nombreConyuge(), req.telefonoFijo(), req.celular(),
@@ -342,7 +343,7 @@ public class ClienteController {
                     req.asesorId(),  // puede elegir asesor
                     p.sucursalId()   // sucursalId forzado
             );
-            default -> req; // ADMINISTRADOR / SUPERVISOR sin cambios
+            default -> req; // ADMINISTRADOR sin cambios
         };
     }
 }

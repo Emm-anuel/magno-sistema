@@ -20,10 +20,11 @@ export default function TabListosRenovar({ onRenovar }: Props) {
   const { usuario } = useAuthStore()
   const rol = usuario?.rol
 
-  const esAdmin = rol === 'ADMINISTRADOR' || rol === 'SUPERVISOR'
+  const esAdmin = rol === 'ADMINISTRADOR'
+  const esGerente = rol === 'ADMINISTRADOR' || rol === 'SUPERVISOR'
   const esSupervisorCampo = rol === 'SUPERVISOR_CAMPO'
   const puedeCrearRenovacion = rol === 'SUPERVISOR_CAMPO' || rol === 'ASESOR_COBRADOR'
-  const puedeVerFiltros = esAdmin || esSupervisorCampo
+  const puedeVerFiltros = esGerente || esSupervisorCampo
 
   const [asesorFiltro, setAsesorFiltro] = useState<number | undefined>(undefined)
   const [sucursalFiltro, setSucursalFiltro] = useState<number | undefined>(undefined)
