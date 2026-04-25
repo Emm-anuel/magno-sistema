@@ -130,6 +130,37 @@ public class CajaService {
                 return toDetalleDTO(saved, inversiones);
         }
 
+        @Transactional
+        public CajaDiaDetalleDTO cancelarCierre(Long cajaId, JwtPrincipal principal) {
+                CajaDia caja = cajaDiaRepo.findById(cajaId)
+                                .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
+
+                if (caja.getEstado() != EstadoCaja.CERRADA) {
+                        throw new IllegalArgumentException("Solo se puede cancelar un corte de caja cerrado");
+                }
+
+                LocalDate hoy = DateTimeUtils.hoyEnMagno();
+                if (!hoy.equals(caja.getFecha())) {
+                        throw new IllegalArgumentException("Solo se puede cancelar el corte de caja del día actual");
+                }
+
+                caja.setEstado(EstadoCaja.ABIERTA);
+                caja.setCerradaPor(null);
+                caja.setFechaHoraCierre(null);
+                caja.setIngresoCarteras(null);
+                caja.setDesembolsos(null);
+                caja.setSubtotalCaja(null);
+                caja.setMontoLibres(null);
+                caja.setAhorroFijo(null);
+                caja.setTotalRealLibres(null);
+
+                CajaDia saved = cajaDiaRepo.save(caja);
+                List<MovimientoInversionDTO> inversiones = movimientoRepo
+                                .findByCajaDiaIdOrderByCreatedAtAsc(saved.getId())
+                                .stream().map(this::toMovimientoDTO).toList();
+                return toDetalleDTO(saved, inversiones);
+        }
+
         // ── Estado / operativa ────────────────────────────────────────────────
 
         public CajaEstadoDTO getEstado(Long sucursalId, JwtPrincipal principal) {

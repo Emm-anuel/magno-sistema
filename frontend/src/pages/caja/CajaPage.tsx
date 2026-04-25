@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { CheckCircle, Plus, Trash2, ArrowRight, History, Download } from 'lucide-react'
+import { CheckCircle, Plus, Trash2, ArrowRight, History, Download, RotateCcw } from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { cajaService } from '@/services/cajaService'
 import { adminService } from '@/services/adminService'
@@ -165,6 +165,21 @@ export default function CajaPage() {
     onError: (err: any) => toast.error(err.message ?? 'Error al eliminar movimiento'),
   })
 
+  const cancelarCorteMut = useMutation({
+    mutationFn: (targetCajaId: number) => cajaService.cancelarCorte(targetCajaId),
+    onSuccess: (_, targetCajaId) => {
+      if (selectedCajaId === targetCajaId) {
+        setSelectedCajaId(null)
+      }
+      toast.success('Corte de caja cancelado correctamente')
+      queryClient.invalidateQueries({ queryKey: ['caja-historial-lista'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-historial-detalle'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
+    },
+    onError: (err: any) => toast.error(err.message ?? 'No se pudo cancelar el corte de caja'),
+  })
+
   // ── Forms ──────────────────────────────────────────────────────────────
 
   const abrirForm = useForm<AbrirForm>({ resolver: zodResolver(abrirSchema) })
@@ -219,6 +234,8 @@ export default function CajaPage() {
       weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
     })
   }
+
+  const hoy = todayLocalStr()
 
   // ── Render ─────────────────────────────────────────────────────────────
 
@@ -314,7 +331,11 @@ export default function CajaPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {historialLista.map(h => (
+                      {historialLista.map(h => {
+                        const puedeCancelarCorte =
+                          isAdmin && h.estado === 'CERRADA' && h.fecha === hoy
+
+                        return (
                         <Fragment key={h.id}>
                           <tr
                             className={`cursor-pointer hover:bg-[#f8f9fa] ${selectedCajaId === h.id ? 'bg-[#f0f7ff]' : ''}`}
@@ -325,25 +346,45 @@ export default function CajaPage() {
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                                 h.estado === 'CERRADA'
                                   ? 'bg-[#f8d7da] text-[#842029]'
-                                  : 'bg-[#d1fae5] text-[#065f46]'
+                                  : h.estado === 'ABIERTA'
+                                  ? 'bg-[#d1fae5] text-[#065f46]'
+                                  : 'bg-[#fef3c7] text-[#92400e]'
                               }`}>
-                                {h.estado === 'CERRADA' ? 'Cerrada' : 'Abierta'}
+                                {h.estado === 'CERRADA' ? 'Cerrada' : h.estado === 'ABIERTA' ? 'Abierta' : 'Cancelada'}
                               </span>
                             </td>
                             <td className="text-[#6c757d]">{h.cerradaPorNombre ?? '—'}</td>
                             <td className="text-right font-mono">{fmtMoney(h.subtotalCaja)}</td>
                             <td>
-                              {h.estado === 'CERRADA' && (
-                                <button
-                                  type="button"
-                                  title="Exportar PDF"
-                                  className="text-[#adb5bd] hover:text-[#0d6efd] transition-colors"
-                                  onClick={e => { e.stopPropagation(); handleExportHistPdf(h.id, h.fecha) }}
-                                  disabled={exportingPdf}
-                                >
-                                  <Download className="w-4 h-4" />
-                                </button>
-                              )}
+                              <div className="flex items-center justify-end gap-2">
+                                {h.estado === 'CERRADA' && (
+                                  <button
+                                    type="button"
+                                    title="Exportar PDF"
+                                    className="text-[#adb5bd] hover:text-[#0d6efd] transition-colors"
+                                    onClick={e => { e.stopPropagation(); handleExportHistPdf(h.id, h.fecha) }}
+                                    disabled={exportingPdf}
+                                  >
+                                    <Download className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {puedeCancelarCorte && (
+                                  <button
+                                    type="button"
+                                    title="Cancelar corte"
+                                    className="text-[#adb5bd] hover:text-[#dc2626] transition-colors"
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      if (window.confirm('¿Cancelar el corte de caja de hoy? La caja volverá a estado abierta.')) {
+                                        cancelarCorteMut.mutate(h.id)
+                                      }
+                                    }}
+                                    disabled={cancelarCorteMut.isPending}
+                                  >
+                                    <RotateCcw className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                           {/* Detalle inline al hacer clic */}
@@ -405,7 +446,8 @@ export default function CajaPage() {
                             </tr>
                           )}
                         </Fragment>
-                      ))}
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

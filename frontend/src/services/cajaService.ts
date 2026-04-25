@@ -154,6 +154,9 @@ export const cajaService = {
   cerrar: (payload?: { sucursalId?: number }): Promise<CajaDiaDetalle> =>
     api.post('/caja/cerrar', payload ?? {}).then(r => normalizeDetalle(r.data)),
 
+  cancelarCorte: (cajaId: number): Promise<CajaDiaDetalle> =>
+    api.post(`/caja/${cajaId}/cancelar`).then(r => normalizeDetalle(r.data)),
+
   getInversiones: (cajaId: number): Promise<MovimientoInversion[]> =>
     api.get(`/caja/${cajaId}/inversiones`).then(r => (r.data as any[]).map(normalizeMovimiento)),
 

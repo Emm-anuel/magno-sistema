@@ -49,6 +49,14 @@ public class CajaController {
         return ResponseEntity.ok(cajaService.cerrar(effectiveReq, principal(auth)));
     }
 
+    @PostMapping("/{cajaId}/cancelar")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    public ResponseEntity<CajaDiaDetalleDTO> cancelar(
+            @PathVariable Long cajaId,
+            Authentication auth) {
+        return ResponseEntity.ok(cajaService.cancelarCierre(cajaId, principal(auth)));
+    }
+
     // ── Estado / operativa ────────────────────────────────────────────────
 
     @GetMapping("/estado")
