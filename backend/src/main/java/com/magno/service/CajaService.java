@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
@@ -39,6 +40,7 @@ public class CajaService {
         private final CreditoRepository creditoRepo;
         private final UsuarioRepository usuarioRepo;
         private final SucursalRepository sucursalRepo;
+        private final GastoRepository gastoRepo;
 
         public CajaService(CajaDiaRepository cajaDiaRepo,
                         CajaMovimientoInversionRepository movimientoRepo,
@@ -47,7 +49,8 @@ public class CajaService {
                         PagoRepository pagoRepo,
                         CreditoRepository creditoRepo,
                         UsuarioRepository usuarioRepo,
-                        SucursalRepository sucursalRepo) {
+                        SucursalRepository sucursalRepo,
+                        GastoRepository gastoRepo) {
                 this.cajaDiaRepo = cajaDiaRepo;
                 this.movimientoRepo = movimientoRepo;
                 this.configSucursalRepo = configSucursalRepo;
@@ -56,6 +59,7 @@ public class CajaService {
                 this.creditoRepo = creditoRepo;
                 this.usuarioRepo = usuarioRepo;
                 this.sucursalRepo = sucursalRepo;
+                this.gastoRepo = gastoRepo;
         }
 
         // ── Abrir ─────────────────────────────────────────────────────────────
@@ -111,7 +115,8 @@ public class CajaService {
 
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(ingresoCarteras);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
-                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo);
+                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId())).orElse(BigDecimal.ZERO);
+                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
 
                 caja.setEstado(EstadoCaja.CERRADA);
                 caja.setCerradaPor(usuarioRepo.getReferenceById(principal.userId()));
@@ -121,6 +126,7 @@ public class CajaService {
                 caja.setSubtotalCaja(subtotalCaja);
                 caja.setMontoLibres(montoLibres);
                 caja.setAhorroFijo(ahorroFijo);
+                caja.setTotalGastos(totalGastos);
                 caja.setTotalRealLibres(totalRealLibres);
 
                 CajaDia saved = cajaDiaRepo.save(caja);
@@ -152,6 +158,7 @@ public class CajaService {
                 caja.setSubtotalCaja(null);
                 caja.setMontoLibres(null);
                 caja.setAhorroFijo(null);
+                caja.setTotalGastos(null);
                 caja.setTotalRealLibres(null);
 
                 CajaDia saved = cajaDiaRepo.save(caja);
@@ -321,7 +328,8 @@ public class CajaService {
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(totalIngresoCarteras)
                                 .setScale(2, RoundingMode.HALF_UP);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
-                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo);
+                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId())).orElse(BigDecimal.ZERO);
+                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
 
                 List<MultaAsesorItemDTO> multasPorAsesor = pagoRepo
                                 .findMultasPorAsesorBySucursalAndFecha(effectiveId, hoy)
@@ -348,6 +356,7 @@ public class CajaService {
                                 config.getPorcentajeAhorro(),
                                 montoLibres,
                                 ahorroFijo,
+                                totalGastos,
                                 totalRealLibres,
                                 multasPorAsesor,
                                 totalMultas);
@@ -498,6 +507,7 @@ public class CajaService {
                                 c.getSubtotalCaja(),
                                 c.getMontoLibres(),
                                 c.getAhorroFijo(),
+                                c.getTotalGastos(),
                                 c.getTotalRealLibres(),
                                 inversiones);
         }
