@@ -16,6 +16,6 @@ public interface GastoRepository extends JpaRepository<Gasto, Long> {
 
     Optional<Gasto> findByIdAndDeletedAtIsNull(Long id);
 
-    @Query("SELECT COALESCE(SUM(g.monto), 0) FROM Gasto g WHERE g.cajaDia.id = :cajaDiaId AND g.deletedAt IS NULL")
+    @Query("SELECT COALESCE(SUM(g.monto), 0.00) FROM Gasto g WHERE g.cajaDia.id = :cajaDiaId AND g.deletedAt IS NULL")
     BigDecimal sumMontoByCajaDiaId(@Param("cajaDiaId") Long cajaDiaId);
 }
