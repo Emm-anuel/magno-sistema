@@ -26,6 +26,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional(readOnly = true)
@@ -114,7 +115,7 @@ public class CajaService {
 
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(ingresoCarteras);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
-                BigDecimal totalGastos = gastoRepo.sumMontoByCajaDiaId(caja.getId());
+                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId())).orElse(BigDecimal.ZERO);
                 BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
 
                 caja.setEstado(EstadoCaja.CERRADA);
@@ -327,7 +328,7 @@ public class CajaService {
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(totalIngresoCarteras)
                                 .setScale(2, RoundingMode.HALF_UP);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
-                BigDecimal totalGastos = gastoRepo.sumMontoByCajaDiaId(caja.getId());
+                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId())).orElse(BigDecimal.ZERO);
                 BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
 
                 List<MultaAsesorItemDTO> multasPorAsesor = pagoRepo
