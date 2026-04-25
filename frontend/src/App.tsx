@@ -17,6 +17,8 @@ import RenovacionesPage from '@/pages/renovaciones/RenovacionesPage'
 import ModulePlaceholderPage from '@/pages/ModulePlaceholderPage'
 import ColocacionesPage from '@/pages/colocaciones/ColocacionesPage'
 import AdministracionPage from '@/pages/administracion/AdministracionPage'
+import CajaPage from '@/pages/caja/CajaPage'
+import CajaCierrePage from '@/pages/caja/CajaCierrePage'
 import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
@@ -64,7 +66,8 @@ export default function App() {
 
             {/* Solo Administrador y Supervisor */}
             <Route element={<ProtectedRoute allowedRoles={ADMIN_SUPERVISOR_ROLES} />}>
-              <Route path="/caja" element={<ModulePlaceholderPage />} />
+              <Route path="/caja" element={<CajaPage />} />
+              <Route path="/caja/cierre" element={<CajaCierrePage />} />
               <Route path="/gastos" element={<ModulePlaceholderPage />} />
               <Route path="/reportes" element={<ModulePlaceholderPage />} />
             </Route>

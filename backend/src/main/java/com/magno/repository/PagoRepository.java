@@ -67,4 +67,35 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                      @Param("fechaDesde") LocalDate fechaDesde,
                      @Param("fechaHasta") LocalDate fechaHasta,
                      Pageable pageable);
+
+       @Query("SELECT COALESCE(SUM(p.montoRecibido), 0) FROM Pago p " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND p.fechaPago = :fecha " +
+                     "AND p.deletedAt IS NULL")
+       java.math.BigDecimal sumIngresoBySucursalAndFecha(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("fecha") LocalDate fecha);
+
+       @Query("SELECT p.asesor.nombreCompleto, COUNT(p), COALESCE(SUM(p.montoRecibido), 0) " +
+                     "FROM Pago p " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND p.fechaPago = :fecha " +
+                     "AND p.deletedAt IS NULL " +
+                     "GROUP BY p.asesor.id, p.asesor.nombreCompleto " +
+                     "ORDER BY SUM(p.montoRecibido) DESC")
+       List<Object[]> findCobrosPorAsesorBySucursalAndFecha(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("fecha") LocalDate fecha);
+
+       @Query("SELECT p.asesor.nombreCompleto, COALESCE(SUM(p.multaAplicada), 0) " +
+                     "FROM Pago p " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND p.fechaPago = :fecha " +
+                     "AND p.multaAplicada > 0 " +
+                     "AND p.deletedAt IS NULL " +
+                     "GROUP BY p.asesor.id, p.asesor.nombreCompleto " +
+                     "ORDER BY SUM(p.multaAplicada) DESC")
+       List<Object[]> findMultasPorAsesorBySucursalAndFecha(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("fecha") LocalDate fecha);
 }

@@ -3,6 +3,7 @@ package com.magno.controller;
 import com.magno.dto.credito.*;
 import com.magno.model.EstadoCredito;
 import com.magno.model.TipoPago;
+import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
 import com.magno.security.SecurityHelper;
 import com.magno.service.CreditoCalculoService;
@@ -29,13 +30,16 @@ public class CreditoController {
     private final CreditoService creditoService;
     private final CreditoCalculoService calculoService;
     private final SecurityHelper securityHelper;
+    private final CajaGuard cajaGuard;
 
     public CreditoController(CreditoService creditoService,
             CreditoCalculoService calculoService,
-            SecurityHelper securityHelper) {
+            SecurityHelper securityHelper,
+            CajaGuard cajaGuard) {
         this.creditoService = creditoService;
         this.calculoService = calculoService;
         this.securityHelper = securityHelper;
+        this.cajaGuard = cajaGuard;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -102,6 +106,7 @@ public class CreditoController {
             Authentication auth) {
 
         JwtPrincipal p = principal(auth);
+        cajaGuard.validarCajaAbierta(p);
         CreditoCreateRequest normalizado = normalizarCreate(req, p);
 
         return ResponseEntity.status(HttpStatus.CREATED)

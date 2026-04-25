@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { X } from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
+import { useCajaOperativa } from '@/hooks/useCajaOperativa'
+import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
 import TabSolicitudes from './TabSolicitudes'
 import TabNuevaSolicitud from './TabNuevaSolicitud'
 import TabEvaluacion from './TabEvaluacion'
@@ -20,6 +22,7 @@ const FIELD_TABS: Tab[] = ['solicitudes', 'nueva']
 
 export default function CreditosNuevosPage() {
   const { usuario } = useAuthStore()
+  const { bannerVariant, horaLimite } = useCajaOperativa()
   const location = useLocation()
   const [activeTab, setActiveTab] = useState<Tab>('solicitudes')
   const [nuevaSolicitudOpen, setNuevaSolicitudOpen] = useState(false)
@@ -71,6 +74,7 @@ export default function CreditosNuevosPage() {
 
   return (
     <div>
+      <CajaOperativaBanner variant={bannerVariant} horaLimite={horaLimite} />
       <div className="mb-4">
         <h1 className="text-xl font-bold text-gray-800">Créditos Nuevos</h1>
       </div>

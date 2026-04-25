@@ -9,6 +9,8 @@ import toast from 'react-hot-toast'
 import { Plus, Search, Eye, Pencil, Power, X, ChevronLeft, ChevronRight, User } from 'lucide-react'
 import { api, clienteService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
+import { useCajaOperativa } from '@/hooks/useCajaOperativa'
+import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
 import type {
   EstadoCliente,
@@ -99,6 +101,7 @@ export default function ClientesPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const { usuario } = useAuthStore()
+  const { bannerVariant, horaLimite, bloqueado } = useCajaOperativa()
 
   const [buscar, setBuscar] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<EstadoCliente | ''>('')
@@ -205,6 +208,7 @@ export default function ClientesPage() {
 
   return (
     <div>
+      <CajaOperativaBanner variant={bannerVariant} horaLimite={horaLimite} />
       {/* ── Métricas ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <div className="metric-card">
@@ -233,6 +237,8 @@ export default function ClientesPage() {
             <button
               className="btn-primary"
               onClick={() => setModal({ open: true, cliente: null })}
+              disabled={bloqueado}
+              title={bloqueado ? 'La caja está cerrada' : undefined}
             >
               <Plus className="w-4 h-4" />
               Nuevo Cliente

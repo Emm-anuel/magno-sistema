@@ -1,6 +1,7 @@
 package com.magno.controller;
 
 import com.magno.dto.cobros.*;
+import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
 import com.magno.service.CobrosService;
 import com.magno.util.DateTimeUtils;
@@ -24,9 +25,11 @@ import java.util.List;
 public class CobrosController {
 
     private final CobrosService cobrosService;
+    private final CajaGuard cajaGuard;
 
-    public CobrosController(CobrosService cobrosService) {
+    public CobrosController(CobrosService cobrosService, CajaGuard cajaGuard) {
         this.cobrosService = cobrosService;
+        this.cajaGuard = cajaGuard;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -82,6 +85,7 @@ public class CobrosController {
             Authentication auth) {
 
         JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
+        cajaGuard.validarCajaAbierta(principal);
         PagoDTO pago = cobrosService.registrarPago(req, principal.userId());
         return ResponseEntity.status(HttpStatus.CREATED).body(pago);
     }

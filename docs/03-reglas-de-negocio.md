@@ -156,22 +156,27 @@
 
 ### 6.6 Corte de Caja
 
+Fórmula implementada:
+
 ```
-+ Inversión inicial
-+ Ingreso Carteras (cobros del día por todos los asesores)
-− Desembolsos del día
-= Subtotal Caja
-− Apartado 24% del ingreso  ⚠️ confirmar base exacta
-= Total Caja Libres
-− Gastos del día
-− Créditos nuevos colocados
-− Ahorro fijo ($2,000/día hábil, configurable)
-= Total Real Libres
+monto_apertura
++ ingreso_carteras       (COALESCE SUM pagos.monto_recibido de la sucursal hoy)
+− desembolsos            (SUM creditos.monto_capital con fecha_desembolso hoy)
++ sum(movimientos_inv)   (neto positivo=entrada / negativo=salida)
+= subtotal_caja
+
+porcentaje_ahorro × ingreso_carteras = monto_libres
+monto_libres − ahorro_fijo           = total_real_libres
 ```
 
 - Solo pueden aperturar/cerrar: **Administrador y Supervisor**.
-- Columnas de la tabla de cierre: Asesor | Inversión | Ingresos | Desembolsos | Apartado 24% | Libres | Multas.
-- Exporta a PDF y envía por correo a gerencia.
+- Pantalla de cierre (`/caja/cierre`): muestra preview con todas las secciones antes de confirmar.
+- El cierre es irreversible. Tras confirmar se muestra resumen final con botón "Exportar PDF".
+- PDF generado server-side con iTextPDF (endpoint `GET /api/caja/{cajaId}/pdf`).
+- **Secciones IMPLEMENTADAS en el cierre**: Inversiones, Ingresos por asesor, Desembolsos (nuevo vs renovación), Subtotal Caja, Libres, Multas por asesor.
+- **Secciones PENDIENTES** (placeholder visual en UI y PDF): Gastos operativos, Nómina.
+- Historial de cierres: tab "Historial" en `/caja`, filtro por rango de fechas, clic para expandir detalle, descarga PDF individual.
+- Desglose desembolsos: usa `credito.tipo` (NUEVO | RENOVACION) para separar.
 
 ### 6.7 Gastos Operativos
 

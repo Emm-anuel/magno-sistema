@@ -125,4 +125,36 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V16-caja-dia-modelo" author="magno">
+        <sqlFile
+            path="db/changelog/V16__caja_dia_modelo.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V17-caja-seed" author="magno">
+        <sqlFile
+            path="db/changelog/V17__caja_seed.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V18-gastos-modelo" author="magno">
+        <sqlFile
+            path="db/changelog/V18__gastos_modelo.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V19-gastos-seed" author="magno">
+        <sqlFile
+            path="db/changelog/V19__gastos_seed.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -69,6 +69,28 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
         java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
 
+        @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
+                        "WHERE c.sucursal.id = :sucursalId " +
+                        "AND c.fechaDesembolso >= :desde " +
+                        "AND c.fechaDesembolso < :hasta " +
+                        "AND c.deletedAt IS NULL")
+        java.math.BigDecimal sumDesembolsosBySucursalAndFecha(
+                        @Param("sucursalId") Long sucursalId,
+                        @Param("desde") java.time.OffsetDateTime desde,
+                        @Param("hasta") java.time.OffsetDateTime hasta);
+
+        @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
+                        "WHERE c.sucursal.id = :sucursalId " +
+                        "AND c.tipo = :tipo " +
+                        "AND c.fechaDesembolso >= :desde " +
+                        "AND c.fechaDesembolso < :hasta " +
+                        "AND c.deletedAt IS NULL")
+        java.math.BigDecimal sumDesembolsosByTipoAndSucursalAndFecha(
+                        @Param("sucursalId") Long sucursalId,
+                        @Param("tipo") com.magno.model.TipoCredito tipo,
+                        @Param("desde") java.time.OffsetDateTime desde,
+                        @Param("hasta") java.time.OffsetDateTime hasta);
+
         @Query("SELECT c FROM Credito c WHERE c.estado = com.magno.model.EstadoCredito.ACTIVO " +
                "AND c.deletedAt IS NULL " +
                "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +

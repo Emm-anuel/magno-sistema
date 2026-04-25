@@ -16,7 +16,8 @@ function normalizeClienteRuta(raw: any): ClienteRuta {
     celular: raw.celular,
     negocioNombre: raw.negocioNombre ?? raw.negocio_nombre,
     asesorId: raw.asesorId ?? raw.asesor_id ?? null,
-    asesorNombre: raw.asesorNombre ?? raw.asesor_nombre ?? null,
+    asesorNombre:
+      raw.asesorNombre ?? raw.asesor_nombre ?? raw.asesor ?? null,
     creditoId: raw.creditoId ?? raw.credito_id,
     montoCapital: raw.montoCapital ?? raw.monto_capital,
     pagoPeriodico: raw.pagoPeriodico ?? raw.pago_periodico,

@@ -39,3 +39,35 @@ Convenciones:
 | `nomina_personal`            | sucursal_id, nombre VARCHAR(150), puesto VARCHAR(100), monto_semanal DECIMAL(12,2), deleted_at, created_by, updated_by                                            |
 | `conceptos_inversion`        | sucursal_id, nombre VARCHAR(150), deleted_at, created_by, updated_by · UNIQUE(sucursal_id, nombre)                                                                |
 | `bitacora_config`            | usuario_id, sucursal_id (NULL=global), seccion VARCHAR(50), campo VARCHAR(100), valor_anterior TEXT, valor_nuevo TEXT, created_at (inmutable — sin updated_at)    |
+
+### V18 — Módulo de Gastos (tablas nuevas)
+
+| Tabla              | Campos principales                                                                                                                              |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `categoria_gasto`  | sucursal_id FK, nombre VARCHAR(150), descripcion TEXT, activo BOOLEAN (soft delete) · UNIQUE(sucursal_id, nombre) · created_at, updated_at      |
+| `gasto`            | caja_dia_id FK, categoria_gasto_id FK, concepto TEXT, monto DECIMAL(12,2), registrado_por FK · created_at, updated_at, deleted_at (soft delete) |
+
+**Seed inicial por sucursal (V19):** Gasolina · Servicio de Motos · Gastos Varios
+
+### V16 — Módulo de Caja (tablas nuevas — reemplazan lógicamente aperturas_caja + cortes_caja)
+
+| Tabla                        | Campos principales                                                                                                                                                                                                                                                                |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caja_dia`                   | sucursal_id, fecha DATE, estado (`ABIERTA`\|`CERRADA`), monto_apertura DECIMAL(12,2), concepto_apertura, abierta_por FK, fecha_hora_apertura, cerrada_por FK (NULL si abierta), fecha_hora_cierre, ingreso_carteras, desembolsos, subtotal_caja, monto_libres, ahorro_fijo, total_real_libres · UNIQUE(sucursal_id, fecha) |
+| `caja_movimiento_inversion`  | caja_dia_id FK, concepto_inversion_id FK, descripcion VARCHAR(255), monto DECIMAL(12,2) (positivo=entrada / negativo=salida), registrado_por FK, created_at                                                                                                                      |
+
+#### Endpoints de Caja implementados
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| POST | `/api/caja/abrir` | Abre la caja del día |
+| POST | `/api/caja/cerrar` | Cierra la caja (calcula todos los campos, irreversible) |
+| GET | `/api/caja/estado` | Estado de la caja para hoy (cajaId, estado, bloqueado) |
+| GET | `/api/caja/operativa` | ¿Puede registrar operaciones? |
+| GET | `/api/caja/cierre-preview` | Preview pre-cierre con desglose por asesor |
+| GET | `/api/caja/{cajaId}/inversiones` | Movimientos de inversión de una caja |
+| POST | `/api/caja/{cajaId}/inversiones` | Agregar movimiento de inversión |
+| DELETE | `/api/caja/{cajaId}/inversiones/{id}` | Eliminar movimiento de inversión |
+| GET | `/api/caja/historial?fecha=` | Detalle de una caja por fecha |
+| GET | `/api/caja/historial/lista?desde=&hasta=` | Lista resumida de cierres por rango de fechas |
+| GET | `/api/caja/{cajaId}/pdf` | Exportar PDF del corte (solo cajas CERRADAS) |

@@ -5,6 +5,7 @@ import com.magno.dto.cliente.ClienteDetalleDTO;
 import com.magno.dto.cliente.ClienteDocumentoDTO;
 import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
+import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
 import com.magno.service.ClienteService;
 import jakarta.validation.Valid;
@@ -26,9 +27,11 @@ import java.util.Map;
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final CajaGuard cajaGuard;
 
-    public ClienteController(ClienteService clienteService) {
+    public ClienteController(ClienteService clienteService, CajaGuard cajaGuard) {
         this.clienteService = clienteService;
+        this.cajaGuard = cajaGuard;
     }
 
     /**
@@ -98,6 +101,7 @@ public class ClienteController {
             @Valid @RequestBody ClienteCreateRequest req,
             Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
+        cajaGuard.validarCajaAbierta(principal);
         ClienteCreateRequest normalizado = normalizarCreate(req, principal);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(clienteService.crearCliente(normalizado, principal.userId()));
@@ -111,6 +115,7 @@ public class ClienteController {
             @Valid @RequestBody ClienteUpdateRequest req,
             Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
+        cajaGuard.validarCajaAbierta(principal);
         ClienteUpdateRequest normalizado = normalizarUpdate(req, principal);
         return ResponseEntity.ok(clienteService.actualizarCliente(id, normalizado));
     }

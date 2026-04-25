@@ -12,7 +12,7 @@
 | 6   | **clientes**            | (listado + modal alta + ficha detalle)                                                                        |
 | 7   | **cliente-detalle**     | (pantalla completa por cliente)                                                                               |
 | 8   | **historial**           | (filtros por asesor y fecha)                                                                                  |
-| 9   | **caja**                | Apertura · Cierre / Corte · Histórico                                                                         |
+| 9   | **caja** ✅             | Operativa (apertura + movimientos + cobros) · Historial (tab)                                                 |
 | 10  | **gastos**              | Gastos Registrados · Registrar Gasto                                                                          |
 | 11  | **reportes**            | Diario Ingresos/Egresos · Colocaciones · Cartera · Por Asesor                                                 |
 | 12  | **sucursales**          | (listado + modal crear/editar)                                                                                |
@@ -375,3 +375,57 @@ Endpoint: `GET /api/admin/bitacora?sucursalId=&seccion=&desde=&hasta=&page=&size
 
 Secciones válidas: `CONFIG_GENERAL` · `MULTAS` · `RANGOS_CREDITO` · `UMBRALES_RENOVACION` · `AHORRO` · `NOMINA` · `CONCEPTOS` · `DIAS_INHABILES`
 - Es una PWA opcional en el futuro (no en el alcance actual), pero el diseño responsive ya la prepara para eso.
+
+---
+
+## Módulo Caja — Pantallas implementadas (V16)
+
+### Pantalla principal `/caja` — Tabs
+
+**Tab "Operativa"** (default):
+- Si no hay caja hoy: formulario de apertura (monto + concepto).
+- Si hay caja ABIERTA: status bar verde + botón "Cerrar Caja" → navega a `/caja/cierre` · tabla de movimientos de inversión (agregar/eliminar inline) · tabla de cobros del día agrupados por asesor.
+- Si hay caja CERRADA: solo el status bar con el mensaje de cierre.
+
+**Tab "Historial"**:
+- Filtros: rango de fechas (desde/hasta) con date inputs.
+- Tabla: Fecha · Estado · Cerrada por · Subtotal · Botón PDF.
+- Clic en fila → expande detalle inline: ingreso carteras, desembolsos, subtotal, libres, inversiones del día.
+- Botón PDF por fila (llama `GET /api/caja/{cajaId}/pdf`).
+
+### Pantalla de cierre `/caja/cierre`
+
+Accesible solo para ADMINISTRADOR y SUPERVISOR.
+
+**Pre-cierre (vista de revisión)**:
+- Header con botón "Volver a Caja" + botón "Cerrar Caja".
+- Secciones (collapsibles en mobile con toggle):
+  - **Inversiones**: tabla conceptoNombre / descripción / monto, subtotal al pie.
+  - **Ingresos de Carteras**: tabla asesor / cantidad cobros / monto, total al pie.
+  - **Desembolsos**: lista créditos nuevos / renovaciones / total.
+  - **Subtotal Caja** (destacado, borde verde): fórmula visible apertura + ingresos − desembolsos ± inversiones = subtotal.
+  - **Libres**: monto libres, ahorro fijo, total real libres, placeholders con fondo `dashed` para Gastos y Nómina.
+  - **Multas**: tabla asesor / total multas (colapsado por defecto si no hay multas).
+- Botón "Cerrar Caja" también al final de la página.
+
+**Modal de confirmación**:
+- Texto: "¿Confirmas el cierre de caja? Esta acción es irreversible."
+- Botones: Cancelar · Sí, cerrar caja.
+
+**Post-cierre (vista de éxito, misma ruta)**:
+- Banner verde con datos de la caja cerrada.
+- Resumen final en tarjetas (6 métricas).
+- Botón "Exportar PDF".
+
+### Reglas mobile-first para Caja
+
+- En pantallas < 640px cada sección del resumen de cierre es **collapsible** (toggle de ChevronDown/ChevronUp).
+- Todas las tablas usan `overflow-x-auto` para scroll horizontal.
+- El detalle expandido en historial usa `grid-cols-2` en mobile, `grid-cols-3` en sm+.
+
+### Placeholders (pendientes de conectar)
+
+| Placeholder | Cuándo se conectará |
+|-------------|---------------------|
+| Gastos operativos | Módulo 7 — Gastos |
+| Nómina | Configuración de nómina en Administración |

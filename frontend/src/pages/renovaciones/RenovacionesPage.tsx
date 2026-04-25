@@ -5,12 +5,15 @@ import TabPendientesRenovacion from './TabPendientesRenovacion'
 import TabPendientesDesembolso from './TabPendientesDesembolso'
 import TabMisSolicitudes from './TabMisSolicitudes'
 import { useAuthStore } from '@/hooks/useAuthStore'
+import { useCajaOperativa } from '@/hooks/useCajaOperativa'
+import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
 import type { ClienteResumen } from '@/types'
 
 type Tab = 'listos' | 'nueva' | 'pendientes' | 'desembolso' | 'mis-solicitudes'
 
 export default function RenovacionesPage() {
   const { usuario } = useAuthStore()
+  const { bannerVariant, horaLimite, bloqueado } = useCajaOperativa()
   const [activeTab, setActiveTab] = useState<Tab>('listos')
   const [clientePreseleccionado, setClientePreseleccionado] = useState<ClienteResumen | null>(null)
 
@@ -26,12 +29,13 @@ export default function RenovacionesPage() {
     { id: 'listos',          label: 'Listos para Renovar',      visible: true },
     { id: 'pendientes',      label: 'Pendientes de Aprobación', visible: isGerente },
     { id: 'desembolso',      label: 'Pendientes de Desembolso', visible: isGerente },
-    { id: 'nueva',           label: 'Nueva Solicitud',          visible: puedeCrear },
+    { id: 'nueva',           label: 'Nueva Solicitud',          visible: puedeCrear && !bloqueado },
     { id: 'mis-solicitudes', label: 'Mis Solicitudes',          visible: puedeCrear },
   ]
 
   return (
     <div className="space-y-4 pb-8">
+      <CajaOperativaBanner variant={bannerVariant} horaLimite={horaLimite} />
       <div>
         <h1 className="text-xl font-bold text-gray-900">Renovaciones</h1>
         <p className="text-sm text-gray-500 mt-0.5">

@@ -2,6 +2,7 @@ package com.magno.controller;
 
 import com.magno.dto.renovacion.*;
 import com.magno.model.TipoPago;
+import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
 import com.magno.service.RenovacionService;
 import jakarta.validation.Valid;
@@ -25,9 +26,11 @@ import java.util.List;
 public class RenovacionController {
 
     private final RenovacionService renovacionService;
+    private final CajaGuard cajaGuard;
 
-    public RenovacionController(RenovacionService renovacionService) {
+    public RenovacionController(RenovacionService renovacionService, CajaGuard cajaGuard) {
         this.renovacionService = renovacionService;
+        this.cajaGuard = cajaGuard;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -60,6 +63,7 @@ public class RenovacionController {
             Authentication auth) {
 
         JwtPrincipal p = principal(auth);
+        cajaGuard.validarCajaAbierta(p);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(renovacionService.crearSolicitud(req, p.userId()));
     }

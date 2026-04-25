@@ -6,6 +6,8 @@ import { api } from '@/services/api'
 import { addDaysLocal, todayLocalStr } from '@/utils/date'
 import TabRutaDia from './TabRutaDia'
 import TabHistorialCobros from './TabHistorialCobros'
+import { useCajaOperativa } from '@/hooks/useCajaOperativa'
+import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
 
 type Tab = 'ruta-dia' | 'historial'
 
@@ -27,6 +29,7 @@ function formatFechaBonita(iso: string) {
 
 export default function CobrosPage() {
   const { usuario } = useAuthStore()
+  const { bannerVariant, horaLimite } = useCajaOperativa()
   const [activeTab, setActiveTab] = useState<Tab>('ruta-dia')
   const [fecha, setFecha] = useState(todayStr())
   const [asesorId, setAsesorId] = useState<number | undefined>()
@@ -53,6 +56,7 @@ export default function CobrosPage() {
 
   return (
     <div className="space-y-4">
+      <CajaOperativaBanner variant={bannerVariant} horaLimite={horaLimite} />
       {/* ── Encabezado ── */}
       <div>
         <h1 className="text-[22px] font-semibold text-[#212529]">Cobros</h1>
