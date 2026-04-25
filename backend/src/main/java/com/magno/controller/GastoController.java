@@ -46,9 +46,8 @@ public class GastoController {
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
     public ResponseEntity<GastoDTO> actualizar(
             @PathVariable Long id,
-            @Valid @RequestBody GastoUpdateRequest req,
-            Authentication auth) {
-        return ResponseEntity.ok(gastoService.actualizarGasto(id, req, principal(auth).userId()));
+            @Valid @RequestBody GastoUpdateRequest req) {
+        return ResponseEntity.ok(gastoService.actualizarGasto(id, req));
     }
 
     // DELETE /api/gastos/{id}

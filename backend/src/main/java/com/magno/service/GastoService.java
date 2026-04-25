@@ -36,20 +36,21 @@ public class GastoService {
     // ── Consulta ──────────────────────────────────────────────────────────
 
     public GastosDelDiaDTO getGastos(Long cajaId) {
-        cajaDiaRepo.findById(cajaId)
-                .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
+        if (!cajaDiaRepo.existsById(cajaId)) {
+            throw new EntityNotFoundException("Caja no encontrada: " + cajaId);
+        }
 
         List<Gasto> gastos = gastoRepo.findByCajaDiaIdAndDeletedAtIsNullOrderByCreatedAtAsc(cajaId);
 
-        Map<CategoriaGasto, List<Gasto>> byCategoria = gastos.stream()
-                .collect(Collectors.groupingBy(Gasto::getCategoriaGasto));
+        Map<Long, List<Gasto>> byCategoria = gastos.stream()
+                .collect(Collectors.groupingBy(g -> g.getCategoriaGasto().getId()));
 
         List<GastoAgrupadoDTO> grupos = byCategoria.entrySet().stream()
                 .map(entry -> {
-                    CategoriaGasto cat = entry.getKey();
-                    List<GastoDTO> gastoDTOs = entry.getValue().stream().map(this::toDTO).toList();
-                    BigDecimal subtotal = entry.getValue().stream()
-                            .map(Gasto::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+                    List<Gasto> list = entry.getValue();
+                    CategoriaGasto cat = list.get(0).getCategoriaGasto();
+                    List<GastoDTO> gastoDTOs = list.stream().map(this::toDTO).toList();
+                    BigDecimal subtotal = list.stream().map(Gasto::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
                     return new GastoAgrupadoDTO(cat.getId(), cat.getNombre(), gastoDTOs, subtotal);
                 })
                 .sorted(Comparator.comparing(GastoAgrupadoDTO::categoriaNombre))
@@ -98,7 +99,7 @@ public class GastoService {
     // ── Actualización ─────────────────────────────────────────────────────
 
     @Transactional
-    public GastoDTO actualizarGasto(Long id, GastoUpdateRequest req, Long userId) {
+    public GastoDTO actualizarGasto(Long id, GastoUpdateRequest req) {
         Gasto gasto = gastoRepo.findByIdAndDeletedAtIsNull(id)
                 .orElseThrow(() -> new EntityNotFoundException("Gasto no encontrado: " + id));
 

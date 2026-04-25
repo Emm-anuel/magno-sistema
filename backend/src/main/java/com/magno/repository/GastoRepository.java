@@ -1,6 +1,7 @@
 package com.magno.repository;
 
 import com.magno.model.Gasto;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -12,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface GastoRepository extends JpaRepository<Gasto, Long> {
 
+    @EntityGraph(attributePaths = {"categoriaGasto", "registradoPor"})
     List<Gasto> findByCajaDiaIdAndDeletedAtIsNullOrderByCreatedAtAsc(Long cajaDiaId);
 
     Optional<Gasto> findByIdAndDeletedAtIsNull(Long id);
