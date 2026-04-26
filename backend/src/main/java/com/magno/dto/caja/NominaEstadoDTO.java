@@ -11,5 +11,5 @@ public record NominaEstadoDTO(
         LocalDate diaEfectivo,
         List<NominaPersonalDTO> personal,
         BigDecimal totalCalculado,
-        NominaPagoDTO pago
+        NominaPagoDTO pago  // null si aún no se ha registrado el pago
 ) {}

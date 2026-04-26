@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 public record NominaPagoDTO(
         Long id,
         BigDecimal totalPagado,
+        Long registradoPorId,
         String registradoPorNombre,
         OffsetDateTime createdAt
 ) {
@@ -15,6 +16,7 @@ public record NominaPagoDTO(
         return new NominaPagoDTO(
                 n.getId(),
                 n.getTotalPagado(),
+                n.getRegistradoPor().getId(),
                 n.getRegistradoPor().getNombreCompleto(),
                 n.getCreatedAt());
     }
