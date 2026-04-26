@@ -7,8 +7,7 @@ public record CajaCierrePreviewDTO(
         Long cajaId,
         BigDecimal montoApertura,
 
-        // Inversiones
-        List<MovimientoInversionDTO> inversiones,
+        // Inversiones — solo el subtotal; el detalle está en /inversiones
         BigDecimal subtotalInversiones,
 
         // Cobros por asesor

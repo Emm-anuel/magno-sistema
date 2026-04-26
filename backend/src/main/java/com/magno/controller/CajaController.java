@@ -75,33 +75,6 @@ public class CajaController {
         return ResponseEntity.ok(cajaService.getOperativa(sucursalId, principal(auth)));
     }
 
-    // ── Inversiones ───────────────────────────────────────────────────────
-
-    @GetMapping("/{cajaId}/inversiones")
-    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
-    public ResponseEntity<List<MovimientoInversionDTO>> getInversiones(@PathVariable Long cajaId) {
-        return ResponseEntity.ok(cajaService.getInversiones(cajaId));
-    }
-
-    @PostMapping("/{cajaId}/inversiones")
-    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
-    public ResponseEntity<MovimientoInversionDTO> agregarInversion(
-            @PathVariable Long cajaId,
-            @Valid @RequestBody MovimientoInversionRequest req,
-            Authentication auth) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(cajaService.agregarInversion(cajaId, req, principal(auth).userId()));
-    }
-
-    @DeleteMapping("/{cajaId}/inversiones/{id}")
-    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
-    public ResponseEntity<Void> eliminarInversion(
-            @PathVariable Long cajaId,
-            @PathVariable Long id) {
-        cajaService.eliminarInversion(cajaId, id);
-        return ResponseEntity.noContent().build();
-    }
-
     // ── Historial ─────────────────────────────────────────────────────────
 
     @GetMapping("/historial")

@@ -35,7 +35,6 @@ public class CajaService {
         private final CajaDiaRepository cajaDiaRepo;
         private final CajaMovimientoInversionRepository movimientoRepo;
         private final ConfigSucursalRepository configSucursalRepo;
-        private final ConceptoInversionRepository conceptoRepo;
         private final PagoRepository pagoRepo;
         private final CreditoRepository creditoRepo;
         private final UsuarioRepository usuarioRepo;
@@ -45,7 +44,6 @@ public class CajaService {
         public CajaService(CajaDiaRepository cajaDiaRepo,
                         CajaMovimientoInversionRepository movimientoRepo,
                         ConfigSucursalRepository configSucursalRepo,
-                        ConceptoInversionRepository conceptoRepo,
                         PagoRepository pagoRepo,
                         CreditoRepository creditoRepo,
                         UsuarioRepository usuarioRepo,
@@ -54,7 +52,6 @@ public class CajaService {
                 this.cajaDiaRepo = cajaDiaRepo;
                 this.movimientoRepo = movimientoRepo;
                 this.configSucursalRepo = configSucursalRepo;
-                this.conceptoRepo = conceptoRepo;
                 this.pagoRepo = pagoRepo;
                 this.creditoRepo = creditoRepo;
                 this.usuarioRepo = usuarioRepo;
@@ -115,7 +112,8 @@ public class CajaService {
 
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(ingresoCarteras);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
-                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId())).orElse(BigDecimal.ZERO);
+                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId()))
+                                .orElse(BigDecimal.ZERO);
                 BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
 
                 caja.setEstado(EstadoCaja.CERRADA);
@@ -198,56 +196,6 @@ public class CajaService {
                                                 "No es posible registrar operaciones — la caja está cerrada");
         }
 
-        // ── Inversiones ───────────────────────────────────────────────────────
-
-        public List<MovimientoInversionDTO> getInversiones(Long cajaId) {
-                if (!cajaDiaRepo.existsById(cajaId)) {
-                        throw new EntityNotFoundException("Caja no encontrada: " + cajaId);
-                }
-                return movimientoRepo.findByCajaDiaIdOrderByCreatedAtAsc(cajaId)
-                                .stream().map(this::toMovimientoDTO).toList();
-        }
-
-        @Transactional
-        public MovimientoInversionDTO agregarInversion(Long cajaId, MovimientoInversionRequest req, Long usuarioId) {
-                CajaDia caja = cajaDiaRepo.findById(cajaId)
-                                .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
-                if (caja.getEstado() != EstadoCaja.ABIERTA) {
-                        throw new IllegalArgumentException(
-                                        "Solo se pueden registrar movimientos mientras la caja está abierta");
-                }
-                ConceptoInversion concepto = conceptoRepo.findByIdAndDeletedAtIsNull(req.conceptoInversionId())
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                                "Concepto de inversión no encontrado: " + req.conceptoInversionId()));
-
-                CajaMovimientoInversion mov = CajaMovimientoInversion.builder()
-                                .cajaDia(caja)
-                                .conceptoInversion(concepto)
-                                .descripcion(req.descripcion())
-                                .monto(req.monto())
-                                .registradoPor(usuarioRepo.getReferenceById(usuarioId))
-                                .build();
-
-                return toMovimientoDTO(movimientoRepo.save(mov));
-        }
-
-        @Transactional
-        public void eliminarInversion(Long cajaId, Long movimientoId) {
-                CajaDia caja = cajaDiaRepo.findById(cajaId)
-                                .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
-                if (caja.getEstado() != EstadoCaja.ABIERTA) {
-                        throw new IllegalArgumentException(
-                                        "Solo se pueden eliminar movimientos mientras la caja está abierta");
-                }
-                CajaMovimientoInversion mov = movimientoRepo.findById(movimientoId)
-                                .orElseThrow(() -> new EntityNotFoundException(
-                                                "Movimiento no encontrado: " + movimientoId));
-                if (!mov.getCajaDia().getId().equals(cajaId)) {
-                        throw new IllegalArgumentException("El movimiento no pertenece a esta caja");
-                }
-                movimientoRepo.delete(mov);
-        }
-
         // ── Historial ─────────────────────────────────────────────────────────
 
         public CajaDiaDetalleDTO getHistorial(Long sucursalId, LocalDate fecha, JwtPrincipal principal) {
@@ -294,9 +242,6 @@ public class CajaService {
                 OffsetDateTime inicioTs = hoy.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
                 OffsetDateTime finTs = hoy.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
 
-                List<MovimientoInversionDTO> inversiones = movimientoRepo
-                                .findByCajaDiaIdOrderByCreatedAtAsc(caja.getId())
-                                .stream().map(this::toMovimientoDTO).toList();
                 BigDecimal subtotalInversiones = movimientoRepo.sumMontoByCajaDiaId(caja.getId());
 
                 BigDecimal totalIngresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(effectiveId, hoy);
@@ -328,7 +273,8 @@ public class CajaService {
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(totalIngresoCarteras)
                                 .setScale(2, RoundingMode.HALF_UP);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
-                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId())).orElse(BigDecimal.ZERO);
+                BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId()))
+                                .orElse(BigDecimal.ZERO);
                 BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
 
                 List<MultaAsesorItemDTO> multasPorAsesor = pagoRepo
@@ -345,7 +291,6 @@ public class CajaService {
                 return new CajaCierrePreviewDTO(
                                 caja.getId(),
                                 caja.getMontoApertura(),
-                                inversiones,
                                 subtotalInversiones,
                                 cobrosPorAsesor,
                                 totalIngresoCarteras,
@@ -447,18 +392,37 @@ public class CajaService {
                 }
                 doc.add(new Paragraph(" "));
 
+                // ── Gastos operativos ────────────────────────────────────────────
+                List<Gasto> gastos = gastoRepo.findByCajaDiaIdAndDeletedAtIsNullOrderByCreatedAtAsc(cajaId);
+                if (!gastos.isEmpty()) {
+                        doc.add(sectionHeader("GASTOS OPERATIVOS"));
+                        Table tGastos = new Table(UnitValue.createPercentArray(new float[] { 140, 180, 80 }))
+                                        .setWidth(UnitValue.createPercentValue(100));
+                        tGastos.addHeaderCell(hCell("Categoría"));
+                        tGastos.addHeaderCell(hCell("Concepto"));
+                        tGastos.addHeaderCell(hCell("Monto").setTextAlignment(TextAlignment.RIGHT));
+                        for (Gasto g : gastos) {
+                                tGastos.addCell(cell(g.getCategoriaGasto() != null ? g.getCategoriaGasto().getNombre() : "—"));
+                                tGastos.addCell(cell(g.getConcepto()));
+                                tGastos.addCell(cell(fmtMonto(g.getMonto())).setTextAlignment(TextAlignment.RIGHT));
+                        }
+                        doc.add(tGastos);
+                        doc.add(new Paragraph("Total gastos: " + fmtMonto(caja.getTotalGastos()))
+                                        .setBold().setFontSize(9).setTextAlignment(TextAlignment.RIGHT));
+                        doc.add(new Paragraph(" "));
+                }
+
                 // ── Libres ───────────────────────────────────────────────────────
                 doc.add(sectionHeader("LIBRES"));
                 if (caja.getMontoLibres() != null) {
                         doc.add(new Paragraph("Monto Libres: " + fmtMonto(caja.getMontoLibres())).setFontSize(9));
-                        doc.add(new Paragraph("Ahorro fijo: " + fmtMonto(caja.getAhorroFijo())).setFontSize(9));
+                        doc.add(new Paragraph("Ahorro fijo: −" + fmtMonto(caja.getAhorroFijo())).setFontSize(9));
+                        if (caja.getTotalGastos() != null && caja.getTotalGastos().compareTo(BigDecimal.ZERO) > 0) {
+                                doc.add(new Paragraph("Gastos operativos: −" + fmtMonto(caja.getTotalGastos())).setFontSize(9));
+                        }
                         doc.add(new Paragraph("Total Real Libres: " + fmtMonto(caja.getTotalRealLibres()))
                                         .setBold().setFontSize(10));
                 }
-                doc.add(new Paragraph("[Gastos operativos — Pendiente]").setFontSize(9).setItalic()
-                                .setFontColor(com.itextpdf.kernel.colors.ColorConstants.GRAY));
-                doc.add(new Paragraph("[Nómina — Pendiente]").setFontSize(9).setItalic()
-                                .setFontColor(com.itextpdf.kernel.colors.ColorConstants.GRAY));
                 doc.add(new Paragraph(" "));
 
                 doc.close();
