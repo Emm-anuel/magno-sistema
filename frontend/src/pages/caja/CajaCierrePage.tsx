@@ -65,14 +65,6 @@ function Section({
   )
 }
 
-function PendingPlaceholder({ label }: { label: string }) {
-  return (
-    <div className="flex items-center gap-2 px-3 py-2.5 bg-[#f8f9fa] border border-dashed border-[#ced4da] rounded-lg">
-      <span className="text-[12px] text-[#adb5bd] italic">{label} — pendiente de conectar</span>
-    </div>
-  )
-}
-
 // ── Confirmation modal ─────────────────────────────────────────────────
 
 function ConfirmModal({
@@ -162,6 +154,9 @@ function CajaCerradaView({
           <SummaryItem label="Subtotal caja" value={fmtMoney(caja.subtotalCaja)} bold />
           <SummaryItem label="Monto Libres" value={fmtMoney(caja.montoLibres)} />
           <SummaryItem label="Ahorro fijo" value={fmtMoney(caja.ahorroFijo)} />
+          {(caja.totalGastos ?? 0) > 0 && (
+            <SummaryItem label="Gastos operativos" value={fmtMoney(caja.totalGastos)} />
+          )}
           <SummaryItem label="Total Real Libres" value={fmtMoney(caja.totalRealLibres)} bold />
         </dl>
       </Section>
@@ -302,42 +297,6 @@ export default function CajaCierrePage() {
       {/* Sections */}
       {preview && (
         <>
-          {/* ── Inversiones ─────────────────────────────────────────── */}
-          <Section title="Inversiones" defaultOpen>
-            {preview.inversiones.length === 0 ? (
-              <p className="text-[13px] text-[#adb5bd] text-center py-3">Sin movimientos registrados</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="tabla">
-                  <thead>
-                    <tr>
-                      <th>Concepto</th>
-                      <th>Descripción</th>
-                      <th className="text-right">Monto</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.inversiones.map(m => (
-                      <tr key={m.id}>
-                        <td className="font-medium">{m.conceptoNombre}</td>
-                        <td className="text-[#6c757d]">{m.descripcion ?? '—'}</td>
-                        <td className={`text-right font-mono ${m.monto < 0 ? 'text-[#dc2626]' : ''}`}>
-                          {fmtMoney(m.monto)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="mt-2 text-right text-[13px]">
-              <span className="text-[#6c757d]">Subtotal inversiones: </span>
-              <span className={`font-semibold font-mono ${preview.subtotalInversiones < 0 ? 'text-[#dc2626]' : ''}`}>
-                {fmtMoney(preview.subtotalInversiones)}
-              </span>
-            </div>
-          </Section>
-
           {/* ── Ingresos de carteras ─────────────────────────────────── */}
           <Section title="Ingresos de Carteras" defaultOpen>
             {preview.cobrosPorAsesor.length === 0 ? (
@@ -435,13 +394,15 @@ export default function CajaCierrePage() {
                 <span className="text-[#6c757d]">− Ahorro fijo</span>
                 <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.ahorroFijo)}</span>
               </div>
+              {preview.totalGastos > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#6c757d]">− Gastos operativos</span>
+                  <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalGastos)}</span>
+                </div>
+              )}
               <div className="flex justify-between pt-1 border-t border-[#dee2e6]">
                 <span className="font-semibold">Total Real Libres</span>
                 <span className="font-semibold font-mono">{fmtMoney(preview.totalRealLibres)}</span>
-              </div>
-              <div className="mt-3 space-y-2">
-                <PendingPlaceholder label="Gastos operativos" />
-                <PendingPlaceholder label="Nómina" />
               </div>
             </div>
           </Section>

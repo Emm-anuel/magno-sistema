@@ -1,15 +1,23 @@
-import { useState, useEffect, useMemo, Fragment } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, Fragment, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { CheckCircle, Plus, Trash2, ArrowRight, History, Download, RotateCcw } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  History,
+  RotateCcw,
+  X,
+} from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
-import { cajaService } from '@/services/cajaService'
-import { adminService } from '@/services/adminService'
-import { cobrosService } from '@/services/cobrosService'
+import { cajaService, type CajaCierrePreview, type CajaDiaDetalle } from '@/services/cajaService'
+import { gastoService } from '@/services/gastoService'
 import { api } from '@/services/api'
 import { todayLocalStr } from '@/utils/date'
 
@@ -24,6 +32,10 @@ function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
 }
 
+function fmtPct(n: number) {
+  return (n * 100).toFixed(1) + '%'
+}
+
 // ── Schemas ────────────────────────────────────────────────────────────
 
 const abrirSchema = z.object({
@@ -31,21 +43,235 @@ const abrirSchema = z.object({
   conceptoApertura: z.string().optional(),
 })
 
-const movSchema = z.object({
-  conceptoInversionId: z.coerce.number().min(1, 'Selecciona un concepto'),
-  descripcion:         z.string().optional(),
-  monto:               z.coerce.number().refine(v => v !== 0, 'El monto no puede ser cero'),
-})
-
 type AbrirForm = z.infer<typeof abrirSchema>
-type MovForm   = z.infer<typeof movSchema>
 
-// ── Component ──────────────────────────────────────────────────────────
+// ── Collapsible section ────────────────────────────────────────────────
+
+function Section({
+  title,
+  badge,
+  children,
+  defaultOpen = true,
+}: {
+  title: string
+  badge?: string
+  children: ReactNode
+  defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="card">
+      <button
+        type="button"
+        className="card-header w-full text-left flex items-center justify-between cursor-pointer"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+      >
+        <span className="flex items-center gap-2 min-w-0">
+          <h2 className="card-title">{title}</h2>
+          {badge && <span className="text-[12px] text-[#6c757d] font-mono">{badge}</span>}
+        </span>
+        {open
+          ? <ChevronUp className="w-4 h-4 text-[#6c757d] shrink-0" />
+          : <ChevronDown className="w-4 h-4 text-[#6c757d] shrink-0" />
+        }
+      </button>
+      {open && <div className="card-body">{children}</div>}
+    </div>
+  )
+}
+
+// ── Modal: confirmar cierre ────────────────────────────────────────────
+
+function ConfirmCierreModal({
+  preview,
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  preview: CajaCierrePreview | undefined
+  onConfirm: () => void
+  onCancel: () => void
+  isPending: boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-[#dc2626] shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[15px] font-semibold text-[#212529]">Confirmar cierre de caja</h2>
+            <p className="text-[12px] text-[#6c757d] mt-1">Esta acción es irreversible.</p>
+          </div>
+          <button
+            type="button"
+            className="text-[#adb5bd] hover:text-[#495057] transition-colors"
+            onClick={onCancel}
+            disabled={isPending}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {preview && (
+          <div className="bg-[#f8f9fa] rounded-lg p-3 space-y-1.5 text-[12px]">
+            <div className="flex justify-between">
+              <span className="text-[#6c757d]">Subtotal caja</span>
+              <span className="font-mono">{fmtMoney(preview.subtotalCaja)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#6c757d]">Monto Libres</span>
+              <span className="font-mono">{fmtMoney(preview.montoLibres)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#6c757d]">− Ahorro fijo</span>
+              <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.ahorroFijo)}</span>
+            </div>
+            {preview.totalGastos > 0 && (
+              <div className="flex justify-between">
+                <span className="text-[#6c757d]">− Gastos operativos</span>
+                <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalGastos)}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
+              <span className="font-semibold text-[#15803d]">Total Real Libres</span>
+              <span className="font-mono font-semibold text-[#15803d]">{fmtMoney(preview.totalRealLibres)}</span>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-2 justify-end">
+          <button type="button" className="btn btn-sm" onClick={onCancel} disabled={isPending}>
+            Cancelar
+          </button>
+          <button type="button" className="btn btn-sm btn-danger" onClick={onConfirm} disabled={isPending}>
+            {isPending ? 'Cerrando…' : 'Sí, cerrar caja'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Modal: confirmar cancelar corte ───────────────────────────────────
+
+function ConfirmCancelCorteModal({
+  onConfirm,
+  onCancel,
+  isPending,
+}: {
+  onConfirm: () => void
+  onCancel: () => void
+  isPending: boolean
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="w-5 h-5 text-[#f59e0b] shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <h2 className="text-[15px] font-semibold text-[#212529]">Cancelar corte de caja</h2>
+            <p className="text-[12px] text-[#6c757d] mt-1">
+              La caja volverá al estado abierta. Solo disponible el mismo día del cierre.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="text-[#adb5bd] hover:text-[#495057] transition-colors"
+            onClick={onCancel}
+            disabled={isPending}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex gap-2 justify-end">
+          <button type="button" className="btn btn-sm" onClick={onCancel} disabled={isPending}>
+            Cancelar
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            style={{ backgroundColor: '#f59e0b', color: '#fff', borderColor: '#f59e0b' }}
+            onClick={onConfirm}
+            disabled={isPending}
+          >
+            {isPending ? 'Cancelando…' : 'Sí, cancelar corte'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Post-cierre: vista de éxito ────────────────────────────────────────
+
+function CajaCerradaView({
+  caja,
+  onExportPdf,
+  exporting,
+}: {
+  caja: CajaDiaDetalle
+  onExportPdf: () => void
+  exporting: boolean
+}) {
+  const items: [string, number | null, boolean?][] = [
+    ['Ingreso carteras',  caja.ingresoCarteras,  false],
+    ['Desembolsos',       caja.desembolsos,       false],
+    ['Subtotal caja',     caja.subtotalCaja,      true],
+    ['Monto Libres',      caja.montoLibres,       false],
+    ['Ahorro fijo',       caja.ahorroFijo,        false],
+    ...((caja.totalGastos ?? 0) > 0
+      ? [['Gastos operativos', caja.totalGastos, false] as [string, number | null, boolean]]
+      : []),
+    ['Total Real Libres', caja.totalRealLibres,   true],
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg">
+        <CheckCircle2 className="w-5 h-5 text-[#16a34a] shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-[#15803d]">Caja cerrada correctamente</p>
+          <p className="text-[11px] text-[#166534]">
+            {caja.sucursalNombre} · {caja.fecha}
+            {caja.cerradaPorNombre ? ` · Cerrada por ${caja.cerradaPorNombre}` : ''}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn-sm btn-primary flex items-center gap-1.5"
+          onClick={onExportPdf}
+          disabled={exporting}
+        >
+          <Download className="w-3.5 h-3.5" />
+          {exporting ? 'Generando…' : 'Exportar PDF'}
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="card-header"><h2 className="card-title">Resumen final</h2></div>
+        <div className="card-body">
+          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {items.map(([label, value, bold]) => (
+              <div key={label} className="bg-[#f8f9fa] rounded-lg px-3 py-2">
+                <dt className="text-[11px] text-[#6c757d]">{label}</dt>
+                <dd className={`text-[14px] font-mono ${bold ? 'font-semibold text-[#212529]' : ''}`}>
+                  {fmtMoney(value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Main component ─────────────────────────────────────────────────────
 
 export default function CajaPage() {
   const { usuario } = useAuthStore()
   const queryClient = useQueryClient()
-  const navigate    = useNavigate()
   const isAdmin     = usuario?.rol === 'ADMINISTRADOR'
 
   // Sucursal efectiva
@@ -80,122 +306,31 @@ export default function CajaPage() {
   const cajaId      = estado?.cajaId ?? null
   const cajaAbierta = estado?.estado === 'ABIERTA' && cajaId != null
 
-  // Fetch inversiones (solo cuando hay caja abierta)
-  const { data: inversiones = [], isLoading: loadingInv } = useQuery({
-    queryKey: ['caja-inversiones', cajaId],
-    queryFn: () => cajaService.getInversiones(cajaId!),
+  // Resumen del día (preview cierre, refresca cada minuto)
+  const { data: preview } = useQuery({
+    queryKey: ['caja-cierre-preview', efectivaSucursalId],
+    queryFn: () => cajaService.getPreviewCierre(efectivaSucursalId),
     enabled: cajaAbierta,
-  })
-
-  // Fetch conceptos de inversión
-  const { data: conceptos = [] } = useQuery({
-    queryKey: ['conceptos-inversion', efectivaSucursalId],
-    queryFn: () => adminService.getConceptos(efectivaSucursalId!),
-    enabled: efectivaSucursalId !== undefined,
-    staleTime: 300_000,
-  })
-
-  // Fetch cobros del día (resumen por asesor)
-  const { data: rutaDia } = useQuery({
-    queryKey: ['caja-ruta-dia', efectivaSucursalId],
-    queryFn: () => cobrosService.getRutaDia({ sucursalId: efectivaSucursalId, fecha: todayLocalStr() }),
-    enabled: cajaAbierta,
-    refetchInterval: 60_000,
     staleTime: 30_000,
+    refetchInterval: 60_000,
   })
 
-  // Cobros agrupados por asesor
-  const cobrosPorAsesor = useMemo(() => {
-    const clientes = rutaDia?.clientes ?? []
-    const map = new Map<string, { pagados: number; monto: number }>()
-    for (const c of clientes) {
-      const nombre = c.asesorNombre ?? 'Sin asesor'
-      const entry  = map.get(nombre) ?? { pagados: 0, monto: 0 }
-      if (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'PARCIAL') {
-        entry.pagados++
-        entry.monto += c.montoRecibidoHoy ?? 0
-      }
-      map.set(nombre, entry)
-    }
-    return Array.from(map.entries())
-      .map(([nombre, data]) => ({ nombre, ...data }))
-      .sort((a, b) => b.monto - a.monto)
-  }, [rutaDia])
+  // ── UI state ──────────────────────────────────────────────────────────
 
-  // ── Mutations ──────────────────────────────────────────────────────────
+  const [showCierreModal,    setShowCierreModal]    = useState(false)
+  const [showCancelCorteId,  setShowCancelCorteId]  = useState<number | null>(null)
+  const [closedCaja,         setClosedCaja]         = useState<CajaDiaDetalle | null>(null)
+  const [exportingPdf,       setExportingPdf]       = useState(false)
+  const [activeTab,          setActiveTab]          = useState<'operativa' | 'historial'>('operativa')
 
-  const abrirMut = useMutation({
-    mutationFn: (data: AbrirForm) =>
-      cajaService.abrir({
-        montoApertura:    data.montoApertura,
-        conceptoApertura: data.conceptoApertura || undefined,
-        sucursalId:       efectivaSucursalId,
-      }),
-    onSuccess: () => {
-      toast.success('Caja abierta correctamente')
-      queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
-      queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
-    },
-    onError: (err: any) => toast.error(err.message ?? 'Error al abrir la caja'),
-  })
-
-  const agregarMut = useMutation({
-    mutationFn: (data: MovForm) =>
-      cajaService.agregarInversion(cajaId!, {
-        conceptoInversionId: data.conceptoInversionId,
-        descripcion:         data.descripcion || undefined,
-        monto:               data.monto,
-      }),
-    onSuccess: () => {
-      toast.success('Movimiento registrado')
-      queryClient.invalidateQueries({ queryKey: ['caja-inversiones', cajaId] })
-      movForm.reset()
-      setShowMovForm(false)
-    },
-    onError: (err: any) => toast.error(err.message ?? 'Error al agregar movimiento'),
-  })
-
-  const eliminarMut = useMutation({
-    mutationFn: (movimientoId: number) =>
-      cajaService.eliminarInversion(cajaId!, movimientoId),
-    onSuccess: () => {
-      toast.success('Movimiento eliminado')
-      queryClient.invalidateQueries({ queryKey: ['caja-inversiones', cajaId] })
-    },
-    onError: (err: any) => toast.error(err.message ?? 'Error al eliminar movimiento'),
-  })
-
-  const cancelarCorteMut = useMutation({
-    mutationFn: (targetCajaId: number) => cajaService.cancelarCorte(targetCajaId),
-    onSuccess: (_, targetCajaId) => {
-      if (selectedCajaId === targetCajaId) {
-        setSelectedCajaId(null)
-      }
-      toast.success('Corte de caja cancelado correctamente')
-      queryClient.invalidateQueries({ queryKey: ['caja-historial-lista'] })
-      queryClient.invalidateQueries({ queryKey: ['caja-historial-detalle'] })
-      queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
-      queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
-    },
-    onError: (err: any) => toast.error(err.message ?? 'No se pudo cancelar el corte de caja'),
-  })
-
-  // ── Forms ──────────────────────────────────────────────────────────────
-
-  const abrirForm = useForm<AbrirForm>({ resolver: zodResolver(abrirSchema) })
-  const movForm   = useForm<MovForm>({ resolver: zodResolver(movSchema) })
-  const [showMovForm, setShowMovForm] = useState(false)
-  const [activeTab, setActiveTab] = useState<'operativa' | 'historial'>('operativa')
-
-  // ── Historial state ────────────────────────────────────────────────────
+  // ── Historial state ───────────────────────────────────────────────────
 
   const [histDesde, setHistDesde] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 30)
     return d.toISOString().split('T')[0]
   })
-  const [histHasta, setHistHasta] = useState(todayLocalStr())
-  const [selectedCajaId, setSelectedCajaId] = useState<number | null>(null)
-  const [exportingPdf, setExportingPdf] = useState(false)
+  const [histHasta,       setHistHasta]       = useState(todayLocalStr())
+  const [selectedCajaId,  setSelectedCajaId]  = useState<number | null>(null)
 
   const { data: historialLista = [], isLoading: loadingHist } = useQuery({
     queryKey: ['caja-historial-lista', efectivaSucursalId, histDesde, histHasta],
@@ -218,10 +353,73 @@ export default function CajaPage() {
     staleTime: 300_000,
   })
 
-  async function handleExportHistPdf(cajaId: number, fecha: string) {
+  const { data: histGastos } = useQuery({
+    queryKey: ['caja-gastos', selectedCajaId],
+    queryFn: () => gastoService.getGastos(selectedCajaId!),
+    enabled: selectedCajaId !== null,
+    staleTime: 300_000,
+  })
+
+  // ── Mutations ─────────────────────────────────────────────────────────
+
+  const abrirMut = useMutation({
+    mutationFn: (data: AbrirForm) =>
+      cajaService.abrir({
+        montoApertura:    data.montoApertura,
+        conceptoApertura: data.conceptoApertura || undefined,
+        sucursalId:       efectivaSucursalId,
+      }),
+    onSuccess: () => {
+      toast.success('Caja abierta correctamente')
+      queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
+    },
+    onError: (err: any) => toast.error(err.message ?? 'Error al abrir la caja'),
+  })
+
+  const cerrarMut = useMutation({
+    mutationFn: () =>
+      cajaService.cerrar(efectivaSucursalId ? { sucursalId: efectivaSucursalId } : undefined),
+    onSuccess: (data) => {
+      setShowCierreModal(false)
+      setClosedCaja(data)
+      queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
+      toast.success('Caja cerrada correctamente')
+    },
+    onError: (err: any) => {
+      setShowCierreModal(false)
+      toast.error(err.message ?? 'Error al cerrar la caja')
+    },
+  })
+
+  const cancelarCorteMut = useMutation({
+    mutationFn: (targetCajaId: number) => cajaService.cancelarCorte(targetCajaId),
+    onSuccess: (_, targetCajaId) => {
+      setShowCancelCorteId(null)
+      if (selectedCajaId === targetCajaId) setSelectedCajaId(null)
+      toast.success('Corte de caja cancelado correctamente')
+      queryClient.invalidateQueries({ queryKey: ['caja-historial-lista'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-historial-detalle'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
+    },
+    onError: (err: any) => {
+      setShowCancelCorteId(null)
+      toast.error(err.message ?? 'No se pudo cancelar el corte de caja')
+    },
+  })
+
+  // ── Forms ─────────────────────────────────────────────────────────────
+
+  const abrirForm = useForm<AbrirForm>({ resolver: zodResolver(abrirSchema) })
+
+  // ── Handlers ─────────────────────────────────────────────────────────
+
+  async function handleExportPdf(id: number, fecha: string) {
     setExportingPdf(true)
     try {
-      await cajaService.exportarPdf(cajaId, fecha)
+      await cajaService.exportarPdf(id, fecha)
     } catch {
       toast.error('Error al generar el PDF')
     } finally {
@@ -237,10 +435,45 @@ export default function CajaPage() {
 
   const hoy = todayLocalStr()
 
-  // ── Render ─────────────────────────────────────────────────────────────
+  // ── Post-cierre ───────────────────────────────────────────────────────
+
+  if (closedCaja) {
+    return (
+      <div className="space-y-5 pb-10">
+        <div>
+          <h1 className="text-[22px] font-semibold text-[#212529]">Caja</h1>
+          <p className="text-[13px] text-[#6c757d] mt-0.5">Apertura y cierre de caja diaria</p>
+        </div>
+        <CajaCerradaView
+          caja={closedCaja}
+          onExportPdf={() => handleExportPdf(closedCaja.id, closedCaja.fecha)}
+          exporting={exportingPdf}
+        />
+      </div>
+    )
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-5 pb-10">
+
+      {/* Modals */}
+      {showCierreModal && (
+        <ConfirmCierreModal
+          preview={preview}
+          onConfirm={() => cerrarMut.mutate()}
+          onCancel={() => setShowCierreModal(false)}
+          isPending={cerrarMut.isPending}
+        />
+      )}
+      {showCancelCorteId !== null && (
+        <ConfirmCancelCorteModal
+          onConfirm={() => cancelarCorteMut.mutate(showCancelCorteId)}
+          onCancel={() => setShowCancelCorteId(null)}
+          isPending={cancelarCorteMut.isPending}
+        />
+      )}
 
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -287,7 +520,6 @@ export default function CajaPage() {
       {/* ── TAB HISTORIAL ─────────────────────────────────────────── */}
       {activeTab === 'historial' && (
         <div className="space-y-4">
-          {/* Filtros */}
           <div className="flex flex-wrap gap-3 items-end">
             <div>
               <label className="block text-[12px] font-medium text-[#495057] mb-1">Desde</label>
@@ -309,7 +541,6 @@ export default function CajaPage() {
             </div>
           </div>
 
-          {/* Lista de cierres */}
           {loadingHist ? (
             <p className="text-[13px] text-[#6c757d]">Cargando historial…</p>
           ) : historialLista.length === 0 ? (
@@ -332,120 +563,153 @@ export default function CajaPage() {
                     </thead>
                     <tbody>
                       {historialLista.map(h => {
-                        const puedeCancelarCorte =
-                          isAdmin && h.estado === 'CERRADA' && h.fecha === hoy
-
+                        const puedeCancelarCorte = isAdmin && h.estado === 'CERRADA' && h.fecha === hoy
                         return (
-                        <Fragment key={h.id}>
-                          <tr
-                            className={`cursor-pointer hover:bg-[#f8f9fa] ${selectedCajaId === h.id ? 'bg-[#f0f7ff]' : ''}`}
-                            onClick={() => setSelectedCajaId(selectedCajaId === h.id ? null : h.id)}
-                          >
-                            <td className="font-medium">{fmtDate(h.fecha)}</td>
-                            <td>
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                h.estado === 'CERRADA'
-                                  ? 'bg-[#f8d7da] text-[#842029]'
-                                  : h.estado === 'ABIERTA'
-                                  ? 'bg-[#d1fae5] text-[#065f46]'
-                                  : 'bg-[#fef3c7] text-[#92400e]'
-                              }`}>
-                                {h.estado === 'CERRADA' ? 'Cerrada' : h.estado === 'ABIERTA' ? 'Abierta' : 'Cancelada'}
-                              </span>
-                            </td>
-                            <td className="text-[#6c757d]">{h.cerradaPorNombre ?? '—'}</td>
-                            <td className="text-right font-mono">{fmtMoney(h.subtotalCaja)}</td>
-                            <td>
-                              <div className="flex items-center justify-end gap-2">
-                                {h.estado === 'CERRADA' && (
-                                  <button
-                                    type="button"
-                                    title="Exportar PDF"
-                                    className="text-[#adb5bd] hover:text-[#0d6efd] transition-colors"
-                                    onClick={e => { e.stopPropagation(); handleExportHistPdf(h.id, h.fecha) }}
-                                    disabled={exportingPdf}
-                                  >
-                                    <Download className="w-4 h-4" />
-                                  </button>
-                                )}
-                                {puedeCancelarCorte && (
-                                  <button
-                                    type="button"
-                                    title="Cancelar corte"
-                                    className="text-[#adb5bd] hover:text-[#dc2626] transition-colors"
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      if (window.confirm('¿Cancelar el corte de caja de hoy? La caja volverá a estado abierta.')) {
-                                        cancelarCorteMut.mutate(h.id)
-                                      }
-                                    }}
-                                    disabled={cancelarCorteMut.isPending}
-                                  >
-                                    <RotateCcw className="w-4 h-4" />
-                                  </button>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                          {/* Detalle inline al hacer clic */}
-                          {selectedCajaId === h.id && histDetalle && (
-                            <tr>
-                              <td colSpan={5} className="bg-[#f8f9fa] px-4 py-3">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12px]">
-                                  <div>
-                                    <span className="text-[#6c757d]">Ingreso carteras</span>
-                                    <div className="font-mono font-medium">{fmtMoney(histDetalle.ingresoCarteras)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-[#6c757d]">Desembolsos</span>
-                                    <div className="font-mono font-medium">{fmtMoney(histDetalle.desembolsos)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-[#6c757d]">Subtotal caja</span>
-                                    <div className="font-mono font-semibold">{fmtMoney(histDetalle.subtotalCaja)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-[#6c757d]">Monto Libres</span>
-                                    <div className="font-mono font-medium">{fmtMoney(histDetalle.montoLibres)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-[#6c757d]">Ahorro fijo</span>
-                                    <div className="font-mono font-medium">{fmtMoney(histDetalle.ahorroFijo)}</div>
-                                  </div>
-                                  <div>
-                                    <span className="text-[#6c757d]">Total Real Libres</span>
-                                    <div className="font-mono font-semibold">{fmtMoney(histDetalle.totalRealLibres)}</div>
-                                  </div>
+                          <Fragment key={h.id}>
+                            <tr
+                              className={`cursor-pointer hover:bg-[#f8f9fa] ${selectedCajaId === h.id ? 'bg-[#f0f7ff]' : ''}`}
+                              onClick={() => setSelectedCajaId(selectedCajaId === h.id ? null : h.id)}
+                            >
+                              <td className="font-medium">{fmtDate(h.fecha)}</td>
+                              <td>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  h.estado === 'CERRADA'
+                                    ? 'bg-[#f8d7da] text-[#842029]'
+                                    : h.estado === 'ABIERTA'
+                                    ? 'bg-[#d1fae5] text-[#065f46]'
+                                    : 'bg-[#fef3c7] text-[#92400e]'
+                                }`}>
+                                  {h.estado === 'CERRADA' ? 'Cerrada' : h.estado === 'ABIERTA' ? 'Abierta' : 'Cancelada'}
+                                </span>
+                              </td>
+                              <td className="text-[#6c757d]">{h.cerradaPorNombre ?? '—'}</td>
+                              <td className="text-right font-mono">{fmtMoney(h.subtotalCaja)}</td>
+                              <td>
+                                <div className="flex items-center justify-end gap-2">
+                                  {h.estado === 'CERRADA' && (
+                                    <button
+                                      type="button"
+                                      title="Exportar PDF"
+                                      className="text-[#adb5bd] hover:text-[#0d6efd] transition-colors"
+                                      onClick={e => { e.stopPropagation(); handleExportPdf(h.id, h.fecha) }}
+                                      disabled={exportingPdf}
+                                    >
+                                      <Download className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {puedeCancelarCorte && (
+                                    <button
+                                      type="button"
+                                      title="Cancelar corte"
+                                      className="text-[#adb5bd] hover:text-[#dc2626] transition-colors"
+                                      onClick={e => { e.stopPropagation(); setShowCancelCorteId(h.id) }}
+                                      disabled={cancelarCorteMut.isPending}
+                                    >
+                                      <RotateCcw className="w-4 h-4" />
+                                    </button>
+                                  )}
                                 </div>
-                                {histDetalle.inversiones.length > 0 && (
-                                  <div className="mt-3">
-                                    <p className="text-[11px] font-semibold text-[#495057] mb-1">Movimientos de inversión</p>
-                                    <table className="tabla text-[11px]">
-                                      <thead>
-                                        <tr>
-                                          <th>Concepto</th>
-                                          <th>Descripción</th>
-                                          <th className="text-right">Monto</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {histDetalle.inversiones.map(m => (
-                                          <tr key={m.id}>
-                                            <td>{m.conceptoNombre}</td>
-                                            <td className="text-[#6c757d]">{m.descripcion ?? '—'}</td>
-                                            <td className={`text-right font-mono ${m.monto < 0 ? 'text-[#dc2626]' : ''}`}>
-                                              {fmtMoney(m.monto)}
-                                            </td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                )}
                               </td>
                             </tr>
-                          )}
-                        </Fragment>
+
+                            {selectedCajaId === h.id && histDetalle && (
+                              <tr>
+                                <td colSpan={5} className="bg-[#f8f9fa] px-4 py-3">
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12px]">
+                                    <div>
+                                      <span className="text-[#6c757d]">Ingreso carteras</span>
+                                      <div className="font-mono font-medium">{fmtMoney(histDetalle.ingresoCarteras)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-[#6c757d]">Desembolsos</span>
+                                      <div className="font-mono font-medium">{fmtMoney(histDetalle.desembolsos)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-[#6c757d]">Subtotal caja</span>
+                                      <div className="font-mono font-semibold">{fmtMoney(histDetalle.subtotalCaja)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-[#6c757d]">Monto Libres</span>
+                                      <div className="font-mono font-medium">{fmtMoney(histDetalle.montoLibres)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-[#6c757d]">Ahorro fijo</span>
+                                      <div className="font-mono font-medium">{fmtMoney(histDetalle.ahorroFijo)}</div>
+                                    </div>
+                                    {(histDetalle.totalGastos ?? 0) > 0 && (
+                                      <div>
+                                        <span className="text-[#6c757d]">Gastos operativos</span>
+                                        <div className="font-mono font-medium text-[#dc2626]">{fmtMoney(histDetalle.totalGastos)}</div>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <span className="text-[#6c757d]">Total Real Libres</span>
+                                      <div className="font-mono font-semibold">{fmtMoney(histDetalle.totalRealLibres)}</div>
+                                    </div>
+                                  </div>
+
+                                  {histDetalle.inversiones.length > 0 && (
+                                    <div className="mt-3">
+                                      <p className="text-[11px] font-semibold text-[#495057] mb-1">Movimientos de inversión</p>
+                                      <table className="tabla text-[11px]">
+                                        <thead>
+                                          <tr>
+                                            <th>Concepto</th>
+                                            <th>Descripción</th>
+                                            <th className="text-right">Monto</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {histDetalle.inversiones.map(m => (
+                                            <tr key={m.id}>
+                                              <td>{m.conceptoNombre}</td>
+                                              <td className="text-[#6c757d]">{m.descripcion ?? '—'}</td>
+                                              <td className={`text-right font-mono ${m.monto < 0 ? 'text-[#dc2626]' : ''}`}>
+                                                {fmtMoney(m.monto)}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+
+                                  {histGastos && histGastos.grupos.length > 0 && (
+                                    <div className="mt-3">
+                                      <p className="text-[11px] font-semibold text-[#495057] mb-1">
+                                        Gastos operativos · {fmtMoney(histGastos.total)}
+                                      </p>
+                                      {histGastos.grupos.map(grupo => (
+                                        <div key={grupo.categoriaId} className="mb-2">
+                                          <p className="text-[10px] font-medium text-[#6c757d] uppercase tracking-wide mb-0.5">
+                                            {grupo.categoriaNombre} · {fmtMoney(grupo.subtotal)}
+                                          </p>
+                                          <table className="tabla text-[11px]">
+                                            <thead>
+                                              <tr>
+                                                <th>Concepto</th>
+                                                <th className="text-right">Monto</th>
+                                                <th>Registrado por</th>
+                                              </tr>
+                                            </thead>
+                                            <tbody>
+                                              {grupo.gastos.map(g => (
+                                                <tr key={g.id}>
+                                                  <td>{g.concepto}</td>
+                                                  <td className="text-right font-mono text-[#dc2626]">{fmtMoney(g.monto)}</td>
+                                                  <td className="text-[#6c757d]">{g.registradoPorNombre}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         )
                       })}
                     </tbody>
@@ -460,267 +724,201 @@ export default function CajaPage() {
       {/* ── TAB OPERATIVA ─────────────────────────────────────────── */}
       {activeTab === 'operativa' && (
         <>
-      {/* Loading */}
-      {loadingEstado && efectivaSucursalId !== undefined && (
-        <p className="text-[13px] text-[#6c757d]">Cargando estado de caja...</p>
-      )}
+          {loadingEstado && efectivaSucursalId !== undefined && (
+            <p className="text-[13px] text-[#6c757d]">Cargando estado de caja...</p>
+          )}
+          {isAdmin && efectivaSucursalId === undefined && !loadingEstado && (
+            <p className="text-[13px] text-[#6c757d]">Cargando sucursales...</p>
+          )}
 
-      {/* Sin sucursal seleccionada (admin) */}
-      {isAdmin && efectivaSucursalId === undefined && !loadingEstado && (
-        <p className="text-[13px] text-[#6c757d]">Cargando sucursales...</p>
-      )}
-
-      {/* ── ESTADO 1: Sin caja hoy — formulario de apertura ─────────── */}
-      {!loadingEstado && efectivaSucursalId !== undefined && estado && estado.cajaId === null && (
-        <div className="max-w-md">
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Abrir Caja del Día</h2>
-            </div>
-            <div className="card-body">
-              <p className="text-[12px] text-[#6c757d] mb-4">
-                No hay caja registrada para hoy. Registra el fondo de apertura para habilitar las operaciones del día.
-              </p>
-              <form
-                onSubmit={abrirForm.handleSubmit(d => abrirMut.mutate(d))}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                    Monto de apertura <span className="text-[#dc2626]">*</span>
-                  </label>
-                  <input
-                    {...abrirForm.register('montoApertura')}
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                    className="input"
-                  />
-                  {abrirForm.formState.errors.montoApertura && (
-                    <p className="mt-1 text-[11px] text-[#dc2626]">
-                      {abrirForm.formState.errors.montoApertura.message}
-                    </p>
-                  )}
+          {/* ── Sin caja hoy: formulario apertura ──────────────────── */}
+          {!loadingEstado && efectivaSucursalId !== undefined && estado && estado.cajaId === null && (
+            <div className="max-w-md">
+              <div className="card">
+                <div className="card-header">
+                  <h2 className="card-title">Abrir Caja del Día</h2>
                 </div>
-                <div>
-                  <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                    Concepto
-                  </label>
-                  <input
-                    {...abrirForm.register('conceptoApertura')}
-                    type="text"
-                    placeholder="Ej. Fondo inicial, efectivo en caja…"
-                    className="input"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="btn-primary w-full"
-                  disabled={abrirMut.isPending}
-                >
-                  {abrirMut.isPending ? 'Abriendo…' : 'Abrir Caja'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── ESTADO 2: Caja abierta ───────────────────────────────────── */}
-      {cajaAbierta && estado && (
-        <>
-          {/* Status bar */}
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg">
-            <CheckCircle className="w-5 h-5 text-[#16a34a] shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-[#15803d]">Caja Abierta</p>
-              <p className="text-[11px] text-[#166534]">
-                Abierta por {estado.abiertaPorNombre ?? '—'}
-                {estado.fechaHoraApertura ? ` · ${fmtTime(estado.fechaHoraApertura)}` : ''}
-              </p>
-            </div>
-            <button
-              type="button"
-              className="btn btn-sm btn-danger flex items-center gap-1.5"
-              onClick={() => navigate('/caja/cierre')}
-            >
-              Cerrar Caja
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Movimientos de inversión */}
-          <div className="card">
-            <div className="card-header">
-              <h2 className="card-title">Movimientos de Inversión</h2>
-              {!showMovForm && (
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  onClick={() => setShowMovForm(true)}
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Agregar
-                </button>
-              )}
-            </div>
-
-            <div className="card-body space-y-4">
-              {/* Formulario inline de nuevo movimiento */}
-              {showMovForm && (
-                <form
-                  onSubmit={movForm.handleSubmit(d => agregarMut.mutate(d))}
-                  className="p-3 bg-[#f8f9fa] rounded-lg border border-[#dee2e6] space-y-3"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="card-body">
+                  <p className="text-[12px] text-[#6c757d] mb-4">
+                    No hay caja registrada para hoy. Registra el fondo de apertura para habilitar las operaciones del día.
+                  </p>
+                  <form
+                    onSubmit={abrirForm.handleSubmit(d => abrirMut.mutate(d))}
+                    className="space-y-4"
+                  >
                     <div>
                       <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                        Concepto <span className="text-[#dc2626]">*</span>
+                        Monto de apertura <span className="text-[#dc2626]">*</span>
                       </label>
-                      <select {...movForm.register('conceptoInversionId')} className="input">
-                        <option value="">Selecciona…</option>
-                        {conceptos.map(c => (
-                          <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                      </select>
-                      {movForm.formState.errors.conceptoInversionId && (
+                      <input
+                        {...abrirForm.register('montoApertura')}
+                        type="number" step="0.01" min="0" placeholder="0.00"
+                        className="input"
+                      />
+                      {abrirForm.formState.errors.montoApertura && (
                         <p className="mt-1 text-[11px] text-[#dc2626]">
-                          {movForm.formState.errors.conceptoInversionId.message}
+                          {abrirForm.formState.errors.montoApertura.message}
                         </p>
                       )}
                     </div>
                     <div>
-                      <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                        Descripción
-                      </label>
+                      <label className="block text-[12px] font-medium text-[#495057] mb-1">Concepto</label>
                       <input
-                        {...movForm.register('descripcion')}
+                        {...abrirForm.register('conceptoApertura')}
                         type="text"
-                        placeholder="Opcional"
+                        placeholder="Ej. Fondo inicial, efectivo en caja…"
                         className="input"
                       />
                     </div>
-                    <div>
-                      <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                        Monto <span className="text-[#dc2626]">*</span>
-                      </label>
-                      <input
-                        {...movForm.register('monto')}
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        className="input"
-                      />
-                      {movForm.formState.errors.monto && (
-                        <p className="mt-1 text-[11px] text-[#dc2626]">
-                          {movForm.formState.errors.monto.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      type="button"
-                      className="btn btn-sm"
-                      onClick={() => { setShowMovForm(false); movForm.reset() }}
-                    >
-                      Cancelar
-                    </button>
                     <button
                       type="submit"
-                      className="btn btn-sm btn-primary"
-                      disabled={agregarMut.isPending}
+                      className="btn-primary w-full"
+                      disabled={abrirMut.isPending}
                     >
-                      {agregarMut.isPending ? 'Guardando…' : 'Guardar'}
+                      {abrirMut.isPending ? 'Abriendo…' : 'Abrir Caja'}
                     </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Tabla de movimientos */}
-              {loadingInv ? (
-                <p className="text-[13px] text-[#6c757d]">Cargando…</p>
-              ) : inversiones.length === 0 ? (
-                <p className="text-[13px] text-[#adb5bd] text-center py-4">
-                  Sin movimientos registrados
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="tabla">
-                    <thead>
-                      <tr>
-                        <th>Concepto</th>
-                        <th>Descripción</th>
-                        <th className="text-right">Monto</th>
-                        <th>Registrado por</th>
-                        <th className="w-8"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {inversiones.map(m => (
-                        <tr key={m.id}>
-                          <td className="font-medium">{m.conceptoNombre}</td>
-                          <td className="text-[#6c757d]">{m.descripcion ?? '—'}</td>
-                          <td className={`text-right font-mono ${m.monto < 0 ? 'text-[#dc2626]' : ''}`}>
-                            {fmtMoney(m.monto)}
-                          </td>
-                          <td className="text-[#6c757d]">{m.registradoPorNombre}</td>
-                          <td>
-                            <button
-                              type="button"
-                              className="text-[#adb5bd] hover:text-[#dc2626] transition-colors"
-                              onClick={() => {
-                                if (window.confirm('¿Eliminar este movimiento?')) {
-                                  eliminarMut.mutate(m.id)
-                                }
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  </form>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Cobros del día */}
-          {cobrosPorAsesor.length > 0 && (
-            <div className="card">
-              <div className="card-header">
-                <h2 className="card-title">Cobros del Día</h2>
-                <span className="text-[12px] text-[#6c757d]">
-                  Total: {fmtMoney(cobrosPorAsesor.reduce((s, r) => s + r.monto, 0))}
-                </span>
-              </div>
-              <div className="card-body">
-                <table className="tabla">
-                  <thead>
-                    <tr>
-                      <th className="!text-center">Asesor</th>
-                      <th className="!text-center">Cobrados</th>
-                      <th className="!text-center">Total recibido</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cobrosPorAsesor.map(row => (
-                      <tr key={row.nombre}>
-                        <td className="text-center">{row.nombre}</td>
-                        <td className="text-center">{row.pagados}</td>
-                        <td className="text-center font-mono">{fmtMoney(row.monto)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             </div>
           )}
-        </>
-      )}
+
+          {/* ── Caja abierta ───────────────────────────────────────── */}
+          {cajaAbierta && estado && (
+            <>
+              {/* Status bar */}
+              <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg">
+                <CheckCircle className="w-5 h-5 text-[#16a34a] shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold text-[#15803d]">Caja Abierta</p>
+                  <p className="text-[11px] text-[#166534]">
+                    Abierta por {estado.abiertaPorNombre ?? '—'}
+                    {estado.fechaHoraApertura ? ` · ${fmtTime(estado.fechaHoraApertura)}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={() => setShowCierreModal(true)}
+                >
+                  Cerrar Caja
+                </button>
+              </div>
+
+              {/* ── Resumen del día ─────────────────────────────────── */}
+              {preview && (
+                <>
+                  {/* Ingresos de carteras */}
+                  <Section title="Ingresos de Carteras" badge={fmtMoney(preview.totalIngresoCarteras)}>
+                    {preview.cobrosPorAsesor.length === 0 ? (
+                      <p className="text-[13px] text-[#adb5bd] text-center py-3">Sin cobros registrados hoy</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="tabla">
+                          <thead>
+                            <tr>
+                              <th className="!text-center">Asesor</th>
+                              <th className="!text-center">Cobros</th>
+                              <th className="!text-center">Monto</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preview.cobrosPorAsesor.map(row => (
+                              <tr key={row.asesorNombre}>
+                                <td className="text-center">{row.asesorNombre}</td>
+                                <td className="text-center">{row.cantidadCobros}</td>
+                                <td className="text-center font-mono">{fmtMoney(row.montoCobrado)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </Section>
+
+                  {/* Desembolsos */}
+                  <Section
+                    title="Desembolsos"
+                    badge={fmtMoney(preview.totalDesembolsos)}
+                    defaultOpen={false}
+                  >
+                    <dl className="space-y-1.5 text-[13px]">
+                      <div className="flex justify-between">
+                        <dt className="text-[#6c757d]">Créditos nuevos</dt>
+                        <dd className="font-mono">{fmtMoney(preview.desembolsosCreditosNuevos)}</dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-[#6c757d]">Renovaciones</dt>
+                        <dd className="font-mono">{fmtMoney(preview.desembolsosRenovaciones)}</dd>
+                      </div>
+                    </dl>
+                  </Section>
+
+                  {/* Subtotal caja */}
+                  <div className="card border-[#0d6efd] border-2">
+                    <div className="card-body">
+                      <div className="space-y-1.5 text-[13px]">
+                        <div className="flex justify-between">
+                          <span className="text-[#6c757d]">Apertura</span>
+                          <span className="font-mono">{fmtMoney(preview.montoApertura)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#6c757d]">+ Ingresos carteras</span>
+                          <span className="font-mono">{fmtMoney(preview.totalIngresoCarteras)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#6c757d]">− Desembolsos</span>
+                          <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalDesembolsos)}</span>
+                        </div>
+                        {preview.subtotalInversiones !== 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-[#6c757d]">
+                              {preview.subtotalInversiones >= 0 ? '+' : '−'} Inversiones
+                            </span>
+                            <span className={`font-mono ${preview.subtotalInversiones < 0 ? 'text-[#dc2626]' : ''}`}>
+                              {fmtMoney(preview.subtotalInversiones)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
+                          <span className="font-bold text-[#0d6efd]">Subtotal Caja</span>
+                          <span className="font-bold font-mono text-[#0d6efd]">{fmtMoney(preview.subtotalCaja)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Libres */}
+                  <div className="card border-[#16a34a] border-2">
+                    <div className="card-body">
+                      <div className="space-y-1.5 text-[13px]">
+                        <div className="flex justify-between">
+                          <span className="text-[#6c757d]">
+                            Monto Libres ({fmtPct(preview.porcentajeAhorro)} × ingresos)
+                          </span>
+                          <span className="font-mono">{fmtMoney(preview.montoLibres)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-[#6c757d]">− Ahorro fijo</span>
+                          <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.ahorroFijo)}</span>
+                        </div>
+                        {preview.totalGastos > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-[#6c757d]">− Gastos operativos</span>
+                            <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalGastos)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
+                          <span className="font-bold text-[#15803d]">Total Real Libres</span>
+                          <span className="font-bold font-mono text-[#15803d]">{fmtMoney(preview.totalRealLibres)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
