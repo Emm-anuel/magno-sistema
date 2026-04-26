@@ -50,6 +50,7 @@ export interface CajaEstado {
   abiertaPorNombre: string | null
   fechaHoraApertura: string | null
   horaLimite: string
+  motivoBloqueo: string | null
 }
 
 export interface MovimientoInversion {
@@ -96,7 +97,10 @@ function normalizeEstado(raw: any): CajaEstado {
     bloqueado:           raw?.bloqueado ?? true,
     abiertaPorNombre:    raw?.abiertaPorNombre ?? null,
     fechaHoraApertura:   raw?.fechaHoraApertura ?? null,
-    horaLimite:          raw?.horaLimite ?? '17:00:00',
+    horaLimite:          raw?.horaLimiteOperacion
+                           ? String(raw.horaLimiteOperacion).substring(0, 5)
+                           : '17:00',
+    motivoBloqueo:       raw?.motivoBloqueo ?? null,
   }
 }
 

@@ -9,6 +9,15 @@ interface Props {
 export default function CajaOperativaBanner({ variant, horaLimite }: Props) {
   if (variant === 'none') return null
 
+  if (variant === 'danger-hora') {
+    return (
+      <div className="alert alert-danger flex items-center gap-2">
+        <AlertTriangle className="w-4 h-4 shrink-0" />
+        <span>No es posible registrar operaciones después de las 5:00 PM.</span>
+      </div>
+    )
+  }
+
   if (variant === 'danger') {
     return (
       <div className="alert alert-danger flex items-center gap-2">

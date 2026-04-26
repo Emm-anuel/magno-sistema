@@ -9,5 +9,6 @@ public record CajaEstadoDTO(
         boolean bloqueado,
         String abiertaPorNombre,
         OffsetDateTime fechaHoraApertura,
-        LocalTime horaLimiteOperacion
+        LocalTime horaLimiteOperacion,
+        String motivoBloqueo   // null | "CAJA_CERRADA" | "HORA_LIMITE"
 ) {}

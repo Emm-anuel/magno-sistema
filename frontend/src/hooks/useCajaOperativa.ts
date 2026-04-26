@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { cajaService } from '@/services/cajaService'
 
-export type BannerVariant = 'none' | 'warning' | 'danger'
+export type BannerVariant = 'none' | 'warning' | 'danger' | 'danger-hora'
 
 export interface CajaOperativaState {
   bloqueado: boolean
@@ -40,7 +40,7 @@ export function useCajaOperativa(): CajaOperativaState {
 
   let bannerVariant: BannerVariant = 'none'
   if (estado.bloqueado) {
-    bannerVariant = 'danger'
+    bannerVariant = estado.motivoBloqueo === 'HORA_LIMITE' ? 'danger-hora' : 'danger'
   } else if (isWithin15MinOf(estado.horaLimite)) {
     bannerVariant = 'warning'
   }
@@ -48,7 +48,7 @@ export function useCajaOperativa(): CajaOperativaState {
   return {
     bloqueado: estado.bloqueado,
     bannerVariant,
-    horaLimite: estado.horaLimite.substring(0, 5),
+    horaLimite: estado.horaLimite,
     cajaId: estado.cajaId,
     isLoading,
   }

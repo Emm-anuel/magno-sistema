@@ -175,15 +175,28 @@ public class CajaService {
                                 .map(ConfigSucursal::getHoraLimiteOperacion)
                                 .orElse(LocalTime.of(17, 0));
 
+                boolean isFieldRole = "ASESOR_COBRADOR".equals(principal.rol())
+                                || "SUPERVISOR_CAMPO".equals(principal.rol());
+                boolean horaExcedida = isFieldRole
+                                && LocalTime.now(DateTimeUtils.MAGNO_ZONE).isAfter(horaLimite);
+
                 return cajaDiaRepo.findBySucursalIdAndFecha(effectiveId, hoy)
-                                .map(c -> new CajaEstadoDTO(
-                                                c.getId(),
-                                                c.getEstado().name(),
-                                                c.getEstado() != EstadoCaja.ABIERTA,
-                                                c.getAbiertaPor().getNombreCompleto(),
-                                                c.getFechaHoraApertura(),
-                                                horaLimite))
-                                .orElse(new CajaEstadoDTO(null, null, true, null, null, horaLimite));
+                                .map(c -> {
+                                        boolean cajaNoAbierta = c.getEstado() != EstadoCaja.ABIERTA;
+                                        boolean bloqueado = cajaNoAbierta || horaExcedida;
+                                        String motivo = !bloqueado ? null
+                                                        : cajaNoAbierta ? "CAJA_CERRADA" : "HORA_LIMITE";
+                                        return new CajaEstadoDTO(
+                                                        c.getId(),
+                                                        c.getEstado().name(),
+                                                        bloqueado,
+                                                        c.getAbiertaPor().getNombreCompleto(),
+                                                        c.getFechaHoraApertura(),
+                                                        horaLimite,
+                                                        motivo);
+                                })
+                                .orElse(new CajaEstadoDTO(null, null, true, null, null, horaLimite,
+                                                "CAJA_CERRADA"));
         }
 
         public CajaOperativaDTO getOperativa(Long sucursalId, JwtPrincipal principal) {
