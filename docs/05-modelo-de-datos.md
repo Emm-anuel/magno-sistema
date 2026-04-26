@@ -42,12 +42,54 @@ Convenciones:
 
 ### V18 — Módulo de Gastos (tablas nuevas)
 
-| Tabla             | Campos principales                                                                                                                              |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `categoria_gasto` | sucursal_id FK, nombre VARCHAR(150), descripcion TEXT, activo BOOLEAN (soft delete) · UNIQUE(sucursal_id, nombre) · created_at, updated_at      |
-| `gasto`           | caja_dia_id FK, categoria_gasto_id FK, concepto TEXT, monto DECIMAL(12,2), registrado_por FK · created_at, updated_at, deleted_at (soft delete) |
+#### `categoria_gasto` — Catálogo de categorías por sucursal
+
+| Columna       | Tipo         | Restricciones                  | Notas                                  |
+| ------------- | ------------ | ------------------------------ | -------------------------------------- |
+| `id`          | BIGSERIAL    | PK                             | —                                      |
+| `sucursal_id` | BIGINT       | NOT NULL · FK `sucursales(id)` | Cada sucursal tiene su propio catálogo |
+| `nombre`      | VARCHAR(150) | NOT NULL                       | —                                      |
+| `descripcion` | TEXT         | nullable                       | Descripción opcional de la categoría   |
+| `activo`      | BOOLEAN      | NOT NULL · DEFAULT TRUE        | Soft-deactivate: false = oculta del UI |
+| `created_at`  | TIMESTAMPTZ  | NOT NULL · DEFAULT NOW()       | —                                      |
+| `updated_at`  | TIMESTAMPTZ  | NOT NULL · DEFAULT NOW()       | —                                      |
+
+**Constraint:** `UNIQUE (sucursal_id, nombre)` — no se repite nombre dentro de la misma sucursal.
+
+**Índice:** `idx_categoria_gasto_sucursal ON categoria_gasto(sucursal_id) WHERE activo = TRUE`
+
+**Patrón soft delete:** Se usa `activo = false` en lugar de `deleted_at` porque es un catálogo de configuración, no una tabla financiera. Las categorías desactivadas no aparecen en el dropdown del UI pero sus FKs en `gasto` siguen válidas (no se rompe integridad referencial).
 
 **Seed inicial por sucursal (V19):** Gasolina · Servicio de Motos · Gastos Varios
+
+---
+
+#### `gasto` — Registro de gastos vinculados a un día de caja
+
+| Columna              | Tipo          | Restricciones                       | Notas                                               |
+| -------------------- | ------------- | ----------------------------------- | --------------------------------------------------- |
+| `id`                 | BIGSERIAL     | PK                                  | —                                                   |
+| `caja_dia_id`        | BIGINT        | NOT NULL · FK `caja_dia(id)`        | Vincula el gasto a un día operativo concreto        |
+| `categoria_gasto_id` | BIGINT        | NOT NULL · FK `categoria_gasto(id)` | Categoría del gasto (Gasolina, Motos, Varios, etc.) |
+| `concepto`           | TEXT          | NOT NULL                            | Descripción libre (ej: "Gasolina Isaul")            |
+| `monto`              | DECIMAL(12,2) | NOT NULL · CHECK (monto > 0)        | Siempre positivo — NUNCA FLOAT                      |
+| `registrado_por`     | BIGINT        | NOT NULL · FK `usuarios(id)`        | Usuario que capturó el gasto                        |
+| `created_at`         | TIMESTAMPTZ   | NOT NULL · DEFAULT NOW()            | —                                                   |
+| `updated_at`         | TIMESTAMPTZ   | NOT NULL · DEFAULT NOW()            | —                                                   |
+| `deleted_at`         | TIMESTAMPTZ   | nullable                            | Soft delete — NUNCA borrar registros financieros    |
+
+**Índices:**
+
+- `idx_gasto_caja_dia ON gasto(caja_dia_id) WHERE deleted_at IS NULL`
+- `idx_gasto_categoria ON gasto(categoria_gasto_id)`
+
+**Patrón soft delete:** Al "eliminar" un gasto desde el UI se actualiza `deleted_at = NOW()`. Los cálculos de `total_gastos` siempre filtran `WHERE deleted_at IS NULL`. El registro nunca se borra físicamente — es una tabla financiera.
+
+**Relación con `caja_dia`:** Al cerrar la caja, el campo `caja_dia.total_gastos` se calcula como `COALESCE(SUM(gasto.monto), 0)` de los gastos no eliminados del día. Esto actualiza a su vez `total_real_libres = monto_libres − ahorro_fijo − total_gastos` (V20).
+
+**V21 — Seeds históricos:** Gastos realistas sembrados para las 10 cajas cerradas de la sucursal 1 (2026-04-06 al 2026-04-17), mínimo 5 gastos por día (≥ 50 registros en total). Incluye los tres conceptos de categoría con montos en rango: Gasolina $230–$350, Servicio de Motos $300–$780, Gastos Varios $80–$230.
+
+**V22 — Limpieza legacy:** Se elimina la tabla histórica `gastos` (plural, creada en V1) porque el módulo vigente usa exclusivamente `gasto` + `categoria_gasto` desde V18.
 
 ### V16 — Módulo de Caja (tablas nuevas — reemplazan lógicamente aperturas_caja + cortes_caja)
 

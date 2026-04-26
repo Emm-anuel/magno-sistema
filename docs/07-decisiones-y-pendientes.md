@@ -2,17 +2,17 @@
 
 ## 13. Ítems Confirmados con Cliente
 
-| #   | Ítem                                     | Decisión                                                                                                                                                                                                                                                                   |
-| --- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ✅  | **Calendario de pagos — días inhábiles** | Opción C: el calendario genera exactamente 25 (o 30) días hábiles corridos desde la fecha de inicio. Sábados, domingos y festivos se omiten automáticamente. El crédito siempre tiene el número exacto de pagos.                                                           |
-| ✅  | **Créditos simultáneos por cliente**     | Un solo crédito activo a la vez. El sistema debe bloquear una nueva solicitud si el cliente ya tiene uno en estado ACTIVO. Después del último pago se puede hacer una renovación.                                                                                          |
-| ✅  | **Zona $15k–$20k**                       | Sí hay montos intermedios (ej: $17,000, $18,000). Aplica la misma tabla y tasa del rango $15,000 (24% interés, 25 días). La tabla de referencia del cliente solo muestra ejemplos, no todos los montos posibles. La fórmula es la misma para cualquier monto en ese rango. |
-| ✅  | **Cobros — CAJA vs RUTA**                | Mismo flujo de registro. El asesor registra desde su celular en campo. Solo cambia el campo origen: CAJA (cliente vino a pagar a sucursal) o RUTA (cobrador fue al negocio del cliente).                                                                                   |
-| ✅  | **Cobros — Multas**                      | Las multas generadas por no pago se cobran junto con el siguiente pago del cliente. El cobrador las registra en el mismo acto del cobro. También se descuentan del desembolso en renovaciones.                                                                             |
-| ✅  | **Cobros — Quién registra**              | El asesor asignado registra los cobros de sus propios clientes. Supervisor y Admin pueden intervenir y registrar cobros de cualquier cliente de su sucursal.                                                                                                               |
-| ✅  | **Cobros — Corrección de pagos**         | Solo Supervisor o Admin pueden modificar un pago ya registrado. El asesor no puede editar sus propios registros una vez guardados.                                                                                                                                         |
-| ✅  | **Cobros — Clientes por asesor**         | Se asume entre 20 y 50 clientes por asesor. La grilla debe tener paginación y búsqueda para escalar sin problema.                                                                                                                                                          |
-| ✅  | **Colocaciones Semanales — módulo independiente** | Extraído del módulo de Renovaciones y promovido a módulo propio en el sidebar (ruta `/colocaciones`). Accesible por los 4 roles. No es una sub-pestaña de Renovaciones. |
+| #   | Ítem                                                | Decisión                                                                                                                                                                                                                                                                      |
+| --- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ✅  | **Calendario de pagos — días inhábiles**            | Opción C: el calendario genera exactamente 25 (o 30) días hábiles corridos desde la fecha de inicio. Sábados, domingos y festivos se omiten automáticamente. El crédito siempre tiene el número exacto de pagos.                                                              |
+| ✅  | **Créditos simultáneos por cliente**                | Un solo crédito activo a la vez. El sistema debe bloquear una nueva solicitud si el cliente ya tiene uno en estado ACTIVO. Después del último pago se puede hacer una renovación.                                                                                             |
+| ✅  | **Zona $15k–$20k**                                  | Sí hay montos intermedios (ej: $17,000, $18,000). Aplica la misma tabla y tasa del rango $15,000 (24% interés, 25 días). La tabla de referencia del cliente solo muestra ejemplos, no todos los montos posibles. La fórmula es la misma para cualquier monto en ese rango.    |
+| ✅  | **Cobros — CAJA vs RUTA**                           | Mismo flujo de registro. El asesor registra desde su celular en campo. Solo cambia el campo origen: CAJA (cliente vino a pagar a sucursal) o RUTA (cobrador fue al negocio del cliente).                                                                                      |
+| ✅  | **Cobros — Multas**                                 | Las multas generadas por no pago se cobran junto con el siguiente pago del cliente. El cobrador las registra en el mismo acto del cobro. También se descuentan del desembolso en renovaciones.                                                                                |
+| ✅  | **Cobros — Quién registra**                         | El asesor asignado registra los cobros de sus propios clientes. Supervisor y Admin pueden intervenir y registrar cobros de cualquier cliente de su sucursal.                                                                                                                  |
+| ✅  | **Cobros — Corrección de pagos**                    | Solo Supervisor o Admin pueden modificar un pago ya registrado. El asesor no puede editar sus propios registros una vez guardados.                                                                                                                                            |
+| ✅  | **Cobros — Clientes por asesor**                    | Se asume entre 20 y 50 clientes por asesor. La grilla debe tener paginación y búsqueda para escalar sin problema.                                                                                                                                                             |
+| ✅  | **Colocaciones Semanales — módulo independiente**   | Extraído del módulo de Renovaciones y promovido a módulo propio en el sidebar (ruta `/colocaciones`). Accesible por los 4 roles. No es una sub-pestaña de Renovaciones.                                                                                                       |
 | ✅  | **Listos para Renovar — umbral y filtrado por rol** | Pestaña de solo lectura dentro de Renovaciones. Umbral: 16 pagos (plazo 25 días) o 19 pagos (plazo 30 días). Filtrado por rol: Asesor ve sus clientes, Supervisor de campo ve clientes de su sucursal, Gerente de Sucursal ve todos en su sucursal, Gerente General ve todos. |
 
 ## 13b. Ítems Pendientes de Confirmar con Cliente
@@ -29,7 +29,25 @@
 
 ---
 
-## 13c. Reglas Confirmadas — Pendientes de Implementar
+## 13c. Módulo 7 — Gastos Operativos ✅ Implementado
+
+El módulo de Gastos quedó completamente implementado en las migraciones V18–V22 y el backend correspondiente. Resumen de lo entregado:
+
+| Componente  | Descripción                                                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| **V18**     | Tablas `categoria_gasto` y `gasto` con índices y constraints                                                                                    |
+| **V19**     | Seed de categorías iniciales: Gasolina, Servicio de Motos, Gastos Varios para todas las sucursales                                              |
+| **V20**     | Columna `total_gastos` en `caja_dia`; nueva fórmula: `total_real_libres = monto_libres − ahorro_fijo − total_gastos`                            |
+| **V21**     | Seeds históricos: ≥ 5 gastos/día en 10 cajas cerradas (sucursal 1, 2026-04-06 al 2026-04-17); recalculo de `total_gastos` y `total_real_libres` |
+| **V22**     | Eliminación de tabla legacy `gastos` (plural, V1) para evitar ambigüedad con tabla vigente `gasto`                                              |
+| **Backend** | `GastoService` + `GastoController` con CRUD completo (endpoints REST)                                                                           |
+| **Reglas**  | Solo mientras caja ABIERTA; soft delete; categorías configurables por sucursal; solo roles Administrador y Supervisor                           |
+
+Los placeholders visuales de "Gastos operativos" en la pantalla de cierre de caja (`/caja/cierre`) deben conectarse al endpoint de gastos cuando se integre el frontend del módulo.
+
+---
+
+## 13d. Reglas Confirmadas — Pendientes de Implementar
 
 | #   | Regla                                        | Módulo de implementación |
 | --- | -------------------------------------------- | ------------------------ |
@@ -40,6 +58,7 @@
 **Regla confirmada por cliente (Abril 2026):** Después de las 5:00 PM (hora local, `America/Mexico_City`), los roles `ASESOR_COBRADOR` y `SUPERVISOR_CAMPO` no pueden registrar ni modificar pagos, ni editar operaciones en ninguna sección.
 
 **Diseño conceptual:**
+
 - Esta restricción está **conceptualmente ligada al cierre de caja del día**, no es una validación de horario independiente.
 - Debe implementarse dentro del **Módulo 6 (Caja)**, donde el estado `abierta/cerrada` de la caja será la fuente de verdad.
 - La hora límite (5:00 PM) **podría ser configurable por sucursal** en el futuro.

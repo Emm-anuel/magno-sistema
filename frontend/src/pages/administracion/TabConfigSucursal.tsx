@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { adminService } from '@/services/adminService'
 import type { AdminConfigMulta, AdminRangoCredito, AdminNomina, AdminConcepto } from '@/services/adminService'
+import { gastoService, type CategoriaGasto } from '@/services/gastoService'
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
@@ -18,7 +19,7 @@ function pagoEstimado(rangoMin: number, tasaInteres: number, plazo: number) {
   return Math.round(rangoMin * (1 + tasaInteres) / plazo)
 }
 
-const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO']
+const DIAS = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES']
 
 // ── Collapsible card ──────────────────────────────────────────────────
 
@@ -916,6 +917,130 @@ function SeccionConceptos({ sucursalId }: { sucursalId: number }) {
   )
 }
 
+// ── Sección 7 — Categorías de Gastos ─────────────────────────────────
+
+function SeccionCategorias({ sucursalId }: { sucursalId: number }) {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(true)
+  const [editando, setEditando] = useState<CategoriaGasto | null>(null)
+  const [nuevoNombre, setNuevoNombre] = useState('')
+  const [editNombre, setEditNombre] = useState('')
+
+  const { data: categorias = [], isLoading } = useQuery({
+    queryKey: ['gastos-categorias', sucursalId],
+    queryFn: () => gastoService.getCategorias(sucursalId),
+  })
+
+  const crearMutation = useMutation({
+    mutationFn: () => gastoService.crearCategoria(sucursalId, { nombre: nuevoNombre.trim() }),
+    onSuccess: () => {
+      toast.success('Categoría creada')
+      qc.invalidateQueries({ queryKey: ['gastos-categorias', sucursalId] })
+      setNuevoNombre('')
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Error al crear'),
+  })
+
+  const editarMutation = useMutation({
+    mutationFn: () => gastoService.actualizarCategoria(editando!.id, { nombre: editNombre.trim() }),
+    onSuccess: () => {
+      toast.success('Categoría actualizada')
+      qc.invalidateQueries({ queryKey: ['gastos-categorias', sucursalId] })
+      setEditando(null)
+    },
+    onError: () => toast.error('Error al actualizar'),
+  })
+
+  const desactivarMutation = useMutation({
+    mutationFn: (id: number) => gastoService.desactivarCategoria(id),
+    onSuccess: () => {
+      toast.success('Categoría desactivada')
+      qc.invalidateQueries({ queryKey: ['gastos-categorias', sucursalId] })
+    },
+    onError: () => toast.error('Error al desactivar'),
+  })
+
+  function iniciarEdicion(c: CategoriaGasto) {
+    setEditando(c)
+    setEditNombre(c.nombre)
+  }
+
+  return (
+    <SectionCard
+      title="Categorías de Gastos"
+      subtitle="Categorías para clasificar los gastos operativos"
+      open={open}
+      onToggle={() => setOpen(v => !v)}
+    >
+      {isLoading ? (
+        <p className="text-[#adb5bd] text-[13px] py-4 text-center">Cargando...</p>
+      ) : (
+        <div className="space-y-1.5 mb-3">
+          {categorias.length === 0 ? (
+            <p className="text-[#adb5bd] text-[13px] py-3">Sin categorías configuradas.</p>
+          ) : categorias.map(c => (
+            <div key={c.id} className="flex items-center gap-2 border border-[#e9ecef] rounded-lg px-3 py-2">
+              {editando?.id === c.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={editNombre}
+                    onChange={e => setEditNombre(e.target.value)}
+                    className="input flex-1"
+                    autoFocus
+                  />
+                  <button
+                    className="btn-primary btn-sm"
+                    onClick={() => editarMutation.mutate()}
+                    disabled={!editNombre.trim() || editarMutation.isPending}
+                  >
+                    {editarMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Guardar'}
+                  </button>
+                  <button className="btn btn-sm" onClick={() => setEditando(null)}>Cancelar</button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-[13px] text-[#212529]">{c.nombre}</span>
+                  <button className="btn btn-sm" onClick={() => iniciarEdicion(c)}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    className="btn btn-sm text-[#dc2626]"
+                    onClick={() => desactivarMutation.mutate(c.id)}
+                    disabled={desactivarMutation.isPending}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Alta inline */}
+      <div className="flex gap-2 mt-1">
+        <input
+          type="text"
+          placeholder="Nombre de la categoría"
+          value={nuevoNombre}
+          onChange={e => setNuevoNombre(e.target.value)}
+          className="input flex-1"
+          onKeyDown={e => e.key === 'Enter' && nuevoNombre.trim() && crearMutation.mutate()}
+        />
+        <button
+          className="btn-primary"
+          onClick={() => crearMutation.mutate()}
+          disabled={!nuevoNombre.trim() || crearMutation.isPending}
+        >
+          {crearMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+          Agregar
+        </button>
+      </div>
+    </SectionCard>
+  )
+}
+
 // ── Componente principal del Tab ──────────────────────────────────────
 
 interface Props {
@@ -931,6 +1056,7 @@ export default function TabConfigSucursal({ sucursalId }: Props) {
       <SeccionAhorro          sucursalId={sucursalId} />
       <SeccionNomina          sucursalId={sucursalId} />
       <SeccionConceptos       sucursalId={sucursalId} />
+      <SeccionCategorias      sucursalId={sucursalId} />
     </div>
   )
 }

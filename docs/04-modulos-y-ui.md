@@ -427,5 +427,56 @@ Accesible solo para ADMINISTRADOR y SUPERVISOR.
 
 | Placeholder | Cuándo se conectará |
 |-------------|---------------------|
-| Gastos operativos | Módulo 7 — Gastos |
+| ~~Gastos operativos~~ | ✅ Conectado — Módulo 7 implementado |
 | Nómina | Configuración de nómina en Administración |
+
+---
+
+## Módulo Gastos — Pantallas implementadas (V18/V19/V20/V21)
+
+### Ruta: `/gastos`
+
+Accesible únicamente por **Administrador** y **Supervisor** (Gerente de Sucursal). Los roles `SUPERVISOR_CAMPO` y `ASESOR_COBRADOR` no tienen acceso.
+
+### Selector de fecha y modo de edición
+
+- **Selector de fecha** visible en la parte superior (default = hoy).
+- El sistema **autodetecta el modo** según la fecha seleccionada y el estado de la caja:
+  - **Modo edición**: fecha = hoy + caja del día en estado `ABIERTA`.
+  - **Modo lectura**: fecha pasada O caja en estado `CERRADA`.
+- En modo lectura: los controles de agregar/editar/eliminar se ocultan o deshabilitan. Se muestra un banner informativo ("Caja cerrada — solo lectura").
+- En modo edición: se muestra el formulario/botón para registrar nuevo gasto.
+
+### Tabla de gastos agrupada por categoría
+
+- Los gastos del día seleccionado se muestran **agrupados por categoría** con subtotales por grupo.
+- Columnas por fila de gasto: Categoría · Concepto · Monto · Acciones (editar / eliminar — solo en modo edición).
+- Fila de subtotal al final de cada grupo: "Subtotal Gasolina: $XXX".
+- Fila de total general al pie de la tabla: "Total gastos del día: $XXX".
+
+### Modal de alta / edición de gasto
+
+- Se abre con el botón "Agregar gasto" (solo en modo edición).
+- Campos:
+  - **Categoría** — dropdown con las categorías activas de la sucursal.
+  - **Concepto** — campo de texto libre (obligatorio).
+  - **Monto** — numérico DECIMAL(12,2), debe ser mayor a $0 (obligatorio).
+- Al guardar, la tabla se recarga y el total del día se actualiza en tiempo real.
+- El modal cierra automáticamente al confirmar.
+
+### Responsive
+
+- En móvil: tabla se convierte en cards por gasto (categoría + concepto + monto + acciones).
+- Botón "Agregar gasto" fijo al pie de la pantalla en móvil (zona del pulgar).
+- Modal: pantalla completa en móvil (`w-full h-full`), centrado con max-width en desktop.
+
+### Configuración de categorías — módulo Administración
+
+En la pestaña **Configuración** del módulo Administración (sección "Categorías de Gastos"):
+
+- Lista de categorías activas e inactivas por sucursal.
+- Alta de nueva categoría: nombre + descripción (opcional).
+- Edición inline: nombre y descripción.
+- Desactivar categoría: toggle `activo = false` (soft delete — no se eliminan registros para preservar FK de gastos históricos).
+- Las categorías inactivas no aparecen en el dropdown del modal de gastos, pero sus gastos históricos siguen visibles en el historial.
+- Endpoint: `POST/PUT /api/admin/sucursales/{id}/categorias-gasto`

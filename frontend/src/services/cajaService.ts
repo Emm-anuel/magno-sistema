@@ -16,7 +16,6 @@ export interface MultaAsesorItem {
 export interface CajaCierrePreview {
   cajaId: number
   montoApertura: number
-  inversiones: MovimientoInversion[]
   subtotalInversiones: number
   cobrosPorAsesor: CobroAsesorItem[]
   totalIngresoCarteras: number
@@ -27,6 +26,7 @@ export interface CajaCierrePreview {
   porcentajeAhorro: number
   montoLibres: number
   ahorroFijo: number
+  totalGastos: number
   totalRealLibres: number
   multasPorAsesor: MultaAsesorItem[]
   totalMultasCobradas: number
@@ -82,6 +82,7 @@ export interface CajaDiaDetalle {
   subtotalCaja: number | null
   montoLibres: number | null
   ahorroFijo: number | null
+  totalGastos: number | null
   totalRealLibres: number | null
   inversiones: MovimientoInversion[]
 }
@@ -132,6 +133,7 @@ function normalizeDetalle(raw: any): CajaDiaDetalle {
     subtotalCaja:        raw?.subtotalCaja     != null ? Number(raw.subtotalCaja)     : null,
     montoLibres:         raw?.montoLibres      != null ? Number(raw.montoLibres)      : null,
     ahorroFijo:          raw?.ahorroFijo       != null ? Number(raw.ahorroFijo)       : null,
+    totalGastos:         raw?.totalGastos      != null ? Number(raw.totalGastos)      : null,
     totalRealLibres:     raw?.totalRealLibres  != null ? Number(raw.totalRealLibres)  : null,
     inversiones:         (raw?.inversiones ?? []).map(normalizeMovimiento),
   }
@@ -156,19 +158,6 @@ export const cajaService = {
 
   cancelarCorte: (cajaId: number): Promise<CajaDiaDetalle> =>
     api.post(`/caja/${cajaId}/cancelar`).then(r => normalizeDetalle(r.data)),
-
-  getInversiones: (cajaId: number): Promise<MovimientoInversion[]> =>
-    api.get(`/caja/${cajaId}/inversiones`).then(r => (r.data as any[]).map(normalizeMovimiento)),
-
-  agregarInversion: (cajaId: number, payload: {
-    conceptoInversionId: number
-    descripcion?: string
-    monto: number
-  }): Promise<MovimientoInversion> =>
-    api.post(`/caja/${cajaId}/inversiones`, payload).then(r => normalizeMovimiento(r.data)),
-
-  eliminarInversion: (cajaId: number, movimientoId: number): Promise<void> =>
-    api.delete(`/caja/${cajaId}/inversiones/${movimientoId}`).then(() => undefined),
 
   getHistorial: (fecha: string, sucursalId?: number): Promise<CajaDiaDetalle> =>
     api.get('/caja/historial', { params: { fecha, ...(sucursalId ? { sucursalId } : {}) } })
@@ -198,7 +187,6 @@ export const cajaService = {
          return {
            cajaId:                    d.cajaId,
            montoApertura:             Number(d.montoApertura ?? 0),
-           inversiones:               (d.inversiones ?? []).map(normalizeMovimiento),
            subtotalInversiones:       Number(d.subtotalInversiones ?? 0),
            cobrosPorAsesor:           (d.cobrosPorAsesor ?? []).map((x: any) => ({
              asesorNombre:  x.asesorNombre,
@@ -213,6 +201,7 @@ export const cajaService = {
            porcentajeAhorro:          Number(d.porcentajeAhorro ?? 0),
            montoLibres:               Number(d.montoLibres ?? 0),
            ahorroFijo:                Number(d.ahorroFijo ?? 0),
+           totalGastos:               Number(d.totalGastos ?? 0),
            totalRealLibres:           Number(d.totalRealLibres ?? 0),
            multasPorAsesor:           (d.multasPorAsesor ?? []).map((x: any) => ({
              asesorNombre: x.asesorNombre,

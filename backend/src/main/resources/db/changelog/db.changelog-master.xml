@@ -157,4 +157,28 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V20-caja-total-gastos" author="magno">
+        <sqlFile
+            path="db/changelog/V20__caja_total_gastos.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V21-gastos-seed-historico" author="magno">
+        <sqlFile
+            path="db/changelog/V21__gastos_seed_historico.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V22-drop-legacy-gastos-table" author="magno">
+        <sqlFile
+            path="db/changelog/V22__drop_legacy_gastos_table.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

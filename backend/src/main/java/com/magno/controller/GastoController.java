@@ -67,6 +67,33 @@ public class GastoController {
         return ResponseEntity.ok(gastoService.getCategorias(sucursalId));
     }
 
+    // POST /api/gastos/categorias?sucursalId=
+    @PostMapping("/categorias")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<CategoriaGastoDTO> crearCategoria(
+            @RequestParam Long sucursalId,
+            @Valid @RequestBody CategoriaGastoUpsertRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(gastoService.crearCategoria(sucursalId, req));
+    }
+
+    // PUT /api/gastos/categorias/{id}
+    @PutMapping("/categorias/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<CategoriaGastoDTO> actualizarCategoria(
+            @PathVariable Long id,
+            @Valid @RequestBody CategoriaGastoUpsertRequest req) {
+        return ResponseEntity.ok(gastoService.actualizarCategoria(id, req));
+    }
+
+    // DELETE /api/gastos/categorias/{id} — soft delete (activo=false)
+    @DeleteMapping("/categorias/{id}")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<Void> desactivarCategoria(@PathVariable Long id) {
+        gastoService.desactivarCategoria(id);
+        return ResponseEntity.noContent().build();
+    }
+
     private JwtPrincipal principal(Authentication auth) {
         return (JwtPrincipal) auth.getPrincipal();
     }

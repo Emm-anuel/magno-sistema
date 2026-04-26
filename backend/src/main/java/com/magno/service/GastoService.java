@@ -160,15 +160,42 @@ public class GastoService {
     public List<CategoriaGastoDTO> getCategorias(Long sucursalId) {
         return categoriaGastoRepo.findBySucursalIdAndActivoTrueOrderByNombreAsc(sucursalId)
                 .stream()
-                .map(c -> new CategoriaGastoDTO(
-                        c.getId(),
-                        c.getSucursalId(),
-                        c.getNombre(),
-                        c.getDescripcion()))
+                .map(this::toCategoria)
                 .toList();
     }
 
+    @Transactional
+    public CategoriaGastoDTO crearCategoria(Long sucursalId, CategoriaGastoUpsertRequest req) {
+        CategoriaGasto cat = CategoriaGasto.builder()
+                .sucursalId(sucursalId)
+                .nombre(req.nombre().trim())
+                .descripcion(req.descripcion())
+                .build();
+        return toCategoria(categoriaGastoRepo.save(cat));
+    }
+
+    @Transactional
+    public CategoriaGastoDTO actualizarCategoria(Long id, CategoriaGastoUpsertRequest req) {
+        CategoriaGasto cat = categoriaGastoRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada: " + id));
+        cat.setNombre(req.nombre().trim());
+        cat.setDescripcion(req.descripcion());
+        return toCategoria(categoriaGastoRepo.save(cat));
+    }
+
+    @Transactional
+    public void desactivarCategoria(Long id) {
+        CategoriaGasto cat = categoriaGastoRepo.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada: " + id));
+        cat.setActivo(false);
+        categoriaGastoRepo.save(cat);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────
+
+    private CategoriaGastoDTO toCategoria(CategoriaGasto c) {
+        return new CategoriaGastoDTO(c.getId(), c.getSucursalId(), c.getNombre(), c.getDescripcion());
+    }
 
     private GastoDTO toDTO(Gasto g) {
         return new GastoDTO(

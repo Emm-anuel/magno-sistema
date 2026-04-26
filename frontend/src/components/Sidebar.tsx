@@ -3,7 +3,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, CreditCard, Wallet, RefreshCw, Users, History,
   Archive, Receipt, BarChart2, Building2, UserCog, ScrollText, Settings, X,
-  CalendarDays,
+  CalendarDays, TrendingUp,
 } from 'lucide-react'
 import type { Rol } from '@/types'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -48,8 +48,9 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Finanzas',
     items: [
       { label: 'Caja',     to: '/caja',     icon: Archive,  roles: ['ADMINISTRADOR','SUPERVISOR'] },
-      { label: 'Gastos',   to: '/gastos',   icon: Receipt,  roles: ['ADMINISTRADOR','SUPERVISOR'] },
-      { label: 'Reportes', to: '/reportes', icon: BarChart2, roles: ['ADMINISTRADOR','SUPERVISOR'] },
+      { label: 'Gastos',      to: '/gastos',      icon: Receipt,     roles: ['ADMINISTRADOR','SUPERVISOR'] },
+      { label: 'Inversiones', to: '/inversiones', icon: TrendingUp,  roles: ['ADMINISTRADOR','SUPERVISOR'] },
+      { label: 'Reportes',    to: '/reportes',    icon: BarChart2,   roles: ['ADMINISTRADOR','SUPERVISOR'] },
     ],
   },
   {

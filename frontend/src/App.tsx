@@ -19,6 +19,8 @@ import ColocacionesPage from '@/pages/colocaciones/ColocacionesPage'
 import AdministracionPage from '@/pages/administracion/AdministracionPage'
 import CajaPage from '@/pages/caja/CajaPage'
 import CajaCierrePage from '@/pages/caja/CajaCierrePage'
+import GastosPage from '@/pages/gastos/GastosPage'
+import InversionesPage from '@/pages/inversiones/InversionesPage'
 import {
   ALL_ROLES,
   ADMIN_SUPERVISOR_ROLES,
@@ -68,7 +70,8 @@ export default function App() {
             <Route element={<ProtectedRoute allowedRoles={ADMIN_SUPERVISOR_ROLES} />}>
               <Route path="/caja" element={<CajaPage />} />
               <Route path="/caja/cierre" element={<CajaCierrePage />} />
-              <Route path="/gastos" element={<ModulePlaceholderPage />} />
+              <Route path="/gastos" element={<GastosPage />} />
+              <Route path="/inversiones" element={<InversionesPage />} />
               <Route path="/reportes" element={<ModulePlaceholderPage />} />
             </Route>
 

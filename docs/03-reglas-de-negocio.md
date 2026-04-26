@@ -178,15 +178,47 @@ monto_libres − ahorro_fijo           = total_real_libres
 - Historial de cierres: tab "Historial" en `/caja`, filtro por rango de fechas, clic para expandir detalle, descarga PDF individual.
 - Desglose desembolsos: usa `credito.tipo` (NUEVO | RENOVACION) para separar.
 
-### 6.7 Gastos Operativos
+### 6.7 Gastos Operativos ✅ Implementado (Módulo 7 — V18/V19/V20/V21)
 
-Categorías (exactas del sistema):
+#### Categorías por sucursal
 
-- Gasolina | Servicio motos | Recargas | Solicitud dinero dueño | Gastos varios
+Las categorías son configurables por sucursal desde el módulo de Administración. Seed inicial (V19):
 
-Campos por gasto: fecha, categoría, descripción, monto, responsable, sucursal, **comprobante/referencia (texto libre)**.
+- **Gasolina** — combustible de las motocicletas de campo
+- **Servicio de Motos** — mantenimiento, reparaciones, refacciones
+- **Gastos Varios** — papelería, agua, recargas, limpieza, comidas, etc.
 
-> El comprobante es un campo de texto (folio, número, descripción) — NO es upload de archivo.
+Las categorías se gestionan en la tabla `categoria_gasto` con `activo BOOLEAN` para soft-deactivate. No se eliminan filas para no romper FKs de gastos históricos.
+
+#### Reglas de registro
+
+- Los gastos **solo pueden registrarse mientras la caja del día está en estado `ABIERTA`**.
+- Una vez cerrada la caja (`CERRADA`), los gastos del día quedan en modo lectura — no se pueden agregar, editar ni eliminar.
+- El campo `concepto` es texto libre que complementa la categoría (ej: "Gasolina Isaul", "Cambio de llantas moto").
+- El comprobante/referencia es **texto libre** (folio, número, descripción) — **NO es upload de archivo**.
+
+#### Soft delete — tabla financiera
+
+- La tabla `gasto` tiene `deleted_at TIMESTAMPTZ` — **NUNCA se borran registros financieros**.
+- Al "eliminar" un gasto se actualiza `deleted_at = NOW()`.
+- El cálculo de `total_gastos` en caja siempre filtra `WHERE deleted_at IS NULL`.
+
+#### Impacto en el cierre de caja
+
+Al cerrar la caja, `total_gastos` se calcula como `COALESCE(SUM(gasto.monto), 0)` de los gastos no eliminados del día. La fórmula actualizada de libres es:
+
+```
+total_real_libres = monto_libres − ahorro_fijo − total_gastos
+```
+
+Donde `monto_libres = porcentaje_ahorro × ingreso_carteras`.
+
+#### Permisos por rol
+
+- Solo **Administrador** y **Supervisor** (Gerente de Sucursal) pueden registrar gastos.
+- Los roles `SUPERVISOR_CAMPO` y `ASESOR_COBRADOR` no tienen acceso al módulo de Gastos.
+
+#### Nómina
 
 Nómina: **NO es módulo del sistema** — excluida por el cliente.
 
