@@ -25,6 +25,7 @@ public record CajaDiaDetalleDTO(
         BigDecimal montoLibres,
         BigDecimal ahorroFijo,
         BigDecimal totalGastos,
+        BigDecimal totalNomina,
         BigDecimal totalRealLibres,
         List<MovimientoInversionDTO> inversiones
 ) {}

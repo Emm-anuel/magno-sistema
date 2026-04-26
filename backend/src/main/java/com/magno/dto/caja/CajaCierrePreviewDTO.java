@@ -27,6 +27,7 @@ public record CajaCierrePreviewDTO(
         BigDecimal montoLibres,
         BigDecimal ahorroFijo,
         BigDecimal totalGastos,
+        BigDecimal totalNomina,
         BigDecimal totalRealLibres,
 
         // Multas
