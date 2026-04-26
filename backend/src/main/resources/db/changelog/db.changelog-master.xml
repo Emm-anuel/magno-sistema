@@ -181,4 +181,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V23-nomina-pago" author="magno">
+        <sqlFile
+            path="db/changelog/V23__nomina_pago.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

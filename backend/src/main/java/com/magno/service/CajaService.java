@@ -12,6 +12,7 @@ import com.itextpdf.layout.properties.UnitValue;
 import com.magno.dto.caja.*;
 import com.magno.model.*;
 import com.magno.repository.*;
+import com.magno.repository.NominaPagoRepository;
 import com.magno.security.JwtPrincipal;
 import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
@@ -40,6 +41,7 @@ public class CajaService {
         private final UsuarioRepository usuarioRepo;
         private final SucursalRepository sucursalRepo;
         private final GastoRepository gastoRepo;
+        private final NominaPagoRepository nominaPagoRepo;
 
         public CajaService(CajaDiaRepository cajaDiaRepo,
                         CajaMovimientoInversionRepository movimientoRepo,
@@ -48,7 +50,8 @@ public class CajaService {
                         CreditoRepository creditoRepo,
                         UsuarioRepository usuarioRepo,
                         SucursalRepository sucursalRepo,
-                        GastoRepository gastoRepo) {
+                        GastoRepository gastoRepo,
+                        NominaPagoRepository nominaPagoRepo) {
                 this.cajaDiaRepo = cajaDiaRepo;
                 this.movimientoRepo = movimientoRepo;
                 this.configSucursalRepo = configSucursalRepo;
@@ -57,6 +60,7 @@ public class CajaService {
                 this.usuarioRepo = usuarioRepo;
                 this.sucursalRepo = sucursalRepo;
                 this.gastoRepo = gastoRepo;
+                this.nominaPagoRepo = nominaPagoRepo;
         }
 
         // ── Abrir ─────────────────────────────────────────────────────────────
@@ -114,7 +118,10 @@ public class CajaService {
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
                 BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId()))
                                 .orElse(BigDecimal.ZERO);
-                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
+                BigDecimal totalNomina = nominaPagoRepo.findByCajaDiaIdAndDeletedAtIsNull(caja.getId())
+                                .map(com.magno.model.NominaPago::getTotalPagado)
+                                .orElse(BigDecimal.ZERO);
+                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos).subtract(totalNomina);
 
                 caja.setEstado(EstadoCaja.CERRADA);
                 caja.setCerradaPor(usuarioRepo.getReferenceById(principal.userId()));
@@ -125,6 +132,7 @@ public class CajaService {
                 caja.setMontoLibres(montoLibres);
                 caja.setAhorroFijo(ahorroFijo);
                 caja.setTotalGastos(totalGastos);
+                caja.setTotalNomina(totalNomina);
                 caja.setTotalRealLibres(totalRealLibres);
 
                 CajaDia saved = cajaDiaRepo.save(caja);
@@ -157,6 +165,7 @@ public class CajaService {
                 caja.setMontoLibres(null);
                 caja.setAhorroFijo(null);
                 caja.setTotalGastos(null);
+                caja.setTotalNomina(null);
                 caja.setTotalRealLibres(null);
 
                 CajaDia saved = cajaDiaRepo.save(caja);
@@ -288,7 +297,10 @@ public class CajaService {
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
                 BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId()))
                                 .orElse(BigDecimal.ZERO);
-                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos);
+                BigDecimal totalNomina = nominaPagoRepo.findByCajaDiaIdAndDeletedAtIsNull(caja.getId())
+                                .map(com.magno.model.NominaPago::getTotalPagado)
+                                .orElse(BigDecimal.ZERO);
+                BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos).subtract(totalNomina);
 
                 List<MultaAsesorItemDTO> multasPorAsesor = pagoRepo
                                 .findMultasPorAsesorBySucursalAndFecha(effectiveId, hoy)
@@ -315,6 +327,7 @@ public class CajaService {
                                 montoLibres,
                                 ahorroFijo,
                                 totalGastos,
+                                totalNomina,
                                 totalRealLibres,
                                 multasPorAsesor,
                                 totalMultas);
@@ -433,6 +446,9 @@ public class CajaService {
                         if (caja.getTotalGastos() != null && caja.getTotalGastos().compareTo(BigDecimal.ZERO) > 0) {
                                 doc.add(new Paragraph("Gastos operativos: −" + fmtMonto(caja.getTotalGastos())).setFontSize(9));
                         }
+                        if (caja.getTotalNomina() != null && caja.getTotalNomina().compareTo(BigDecimal.ZERO) > 0) {
+                                doc.add(new Paragraph("Nómina: −" + fmtMonto(caja.getTotalNomina())).setFontSize(9));
+                        }
                         doc.add(new Paragraph("Total Real Libres: " + fmtMonto(caja.getTotalRealLibres()))
                                         .setBold().setFontSize(10));
                 }
@@ -485,6 +501,7 @@ public class CajaService {
                                 c.getMontoLibres(),
                                 c.getAhorroFijo(),
                                 c.getTotalGastos(),
+                                c.getTotalNomina(),
                                 c.getTotalRealLibres(),
                                 inversiones);
         }
