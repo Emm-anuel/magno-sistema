@@ -133,6 +133,12 @@ function ConfirmCierreModal({
                 <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalGastos)}</span>
               </div>
             )}
+            {(preview.totalNomina ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-[#6c757d]">− Nómina</span>
+                <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalNomina)}</span>
+              </div>
+            )}
             <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
               <span className="font-semibold text-[#15803d]">Total Real Libres</span>
               <span className="font-mono font-semibold text-[#15803d]">{fmtMoney(preview.totalRealLibres)}</span>
@@ -222,6 +228,9 @@ function CajaCerradaView({
     ['Ahorro fijo',       caja.ahorroFijo,        false],
     ...((caja.totalGastos ?? 0) > 0
       ? [['Gastos operativos', caja.totalGastos, false] as [string, number | null, boolean]]
+      : []),
+    ...((caja.totalNomina ?? 0) > 0
+      ? [['Nómina', caja.totalNomina, false] as [string, number | null, boolean]]
       : []),
     ['Total Real Libres', caja.totalRealLibres,   true],
   ]
@@ -775,6 +784,12 @@ export default function CajaPage() {
                                         <div className="font-mono font-medium text-[#dc2626]">{fmtMoney(histDetalle.totalGastos)}</div>
                                       </div>
                                     )}
+                                    {(histDetalle.totalNomina ?? 0) > 0 && (
+                                      <div>
+                                        <span className="text-[#6c757d]">Nómina</span>
+                                        <div className="font-mono font-medium text-[#dc2626]">{fmtMoney(histDetalle.totalNomina)}</div>
+                                      </div>
+                                    )}
                                     <div>
                                       <span className="text-[#6c757d]">Total Real Libres</span>
                                       <div className="font-mono font-semibold">{fmtMoney(histDetalle.totalRealLibres)}</div>
@@ -1039,6 +1054,12 @@ export default function CajaPage() {
                           <div className="flex justify-between">
                             <span className="text-[#6c757d]">− Gastos operativos</span>
                             <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalGastos)}</span>
+                          </div>
+                        )}
+                        {(preview.totalNomina ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-[#6c757d]">− Nómina</span>
+                            <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalNomina)}</span>
                           </div>
                         )}
                         <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">

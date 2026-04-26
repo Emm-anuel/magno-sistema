@@ -157,6 +157,9 @@ function CajaCerradaView({
           {(caja.totalGastos ?? 0) > 0 && (
             <SummaryItem label="Gastos operativos" value={fmtMoney(caja.totalGastos)} />
           )}
+          {(caja.totalNomina ?? 0) > 0 && (
+            <SummaryItem label="Nómina" value={fmtMoney(caja.totalNomina)} />
+          )}
           <SummaryItem label="Total Real Libres" value={fmtMoney(caja.totalRealLibres)} bold />
         </dl>
       </Section>
@@ -398,6 +401,12 @@ export default function CajaCierrePage() {
                 <div className="flex justify-between">
                   <span className="text-[#6c757d]">− Gastos operativos</span>
                   <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalGastos)}</span>
+                </div>
+              )}
+              {preview.totalNomina > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-[#6c757d]">− Nómina</span>
+                  <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.totalNomina)}</span>
                 </div>
               )}
               <div className="flex justify-between pt-1 border-t border-[#dee2e6]">
