@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { useAuthStore } from '@/hooks/useAuthStore'
-import { cajaService, type CajaCierrePreview, type CajaDiaDetalle } from '@/services/cajaService'
+import { cajaService, type CajaCierrePreview, type CajaDiaDetalle, type NominaEstado } from '@/services/cajaService'
 import { gastoService } from '@/services/gastoService'
 import { api } from '@/services/api'
 import { todayLocalStr } from '@/utils/date'
@@ -264,6 +264,139 @@ function CajaCerradaView({
         </div>
       </div>
     </div>
+  )
+}
+
+// ── Sección Nómina ─────────────────────────────────────────────────────
+
+function SeccionNomina({ cajaDiaId }: { cajaDiaId: number }) {
+  const qc = useQueryClient()
+  const [confirmando, setConfirmando] = useState(false)
+
+  const { data: estado, isLoading } = useQuery<NominaEstado>({
+    queryKey: ['caja-nomina', cajaDiaId],
+    queryFn:  () => cajaService.getNominaEstado(cajaDiaId),
+    staleTime: 60_000,
+  })
+
+  const registrarMut = useMutation({
+    mutationFn: () => cajaService.registrarNomina(cajaDiaId),
+    onSuccess: () => {
+      toast.success('Nómina registrada')
+      qc.invalidateQueries({ queryKey: ['caja-nomina', cajaDiaId] })
+      qc.invalidateQueries({ queryKey: ['caja-preview'] })
+      setConfirmando(false)
+    },
+    onError: () => toast.error('Error al registrar la nómina'),
+  })
+
+  const anularMut = useMutation({
+    mutationFn: () => cajaService.anularNomina(cajaDiaId),
+    onSuccess: () => {
+      toast.success('Nómina anulada')
+      qc.invalidateQueries({ queryKey: ['caja-nomina', cajaDiaId] })
+      qc.invalidateQueries({ queryKey: ['caja-preview'] })
+    },
+    onError: () => toast.error('Error al anular la nómina'),
+  })
+
+  if (isLoading || !estado) return null
+
+  return (
+    <Section title="Nómina" defaultOpen={false}>
+      {!estado.esDiaEfectivo ? (
+        <p className="text-[13px] text-[#6c757d]">
+          El próximo pago de nómina es el{' '}
+          <span className="font-medium text-[#212529]">
+            {new Date(estado.diaEfectivo + 'T12:00:00').toLocaleDateString('es-MX', {
+              weekday: 'long', day: 'numeric', month: 'long',
+            })}
+          </span>
+          .
+        </p>
+      ) : estado.pago ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[#16a34a]" />
+            <span className="text-[13px] font-medium text-[#15803d]">
+              Nómina pagada — {fmtMoney(estado.pago.totalPagado)}
+            </span>
+          </div>
+          <p className="text-[12px] text-[#6c757d]">
+            Registrado por {estado.pago.registradoPorNombre}
+          </p>
+          <button
+            type="button"
+            className="btn btn-sm btn-ghost text-[#dc2626] text-[12px]"
+            onClick={() => anularMut.mutate()}
+            disabled={anularMut.isPending}
+          >
+            {anularMut.isPending ? 'Anulando…' : 'Anular pago'}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="text-[11px] text-[#6c757d] uppercase tracking-wide">
+                <th className="text-left font-medium pb-1">Nombre</th>
+                <th className="text-left font-medium pb-1">Puesto</th>
+                <th className="text-right font-medium pb-1">Monto semanal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#f1f3f5]">
+              {estado.personal.map(p => (
+                <tr key={p.id}>
+                  <td className="py-1">{p.nombre}</td>
+                  <td className="py-1 text-[#6c757d]">{p.puesto}</td>
+                  <td className="py-1 text-right font-mono">{fmtMoney(p.montoSemanal)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t border-[#dee2e6] font-semibold">
+                <td colSpan={2} className="pt-1.5 text-right text-[12px] text-[#6c757d]">Total</td>
+                <td className="pt-1.5 text-right font-mono">{fmtMoney(estado.totalCalculado)}</td>
+              </tr>
+            </tfoot>
+          </table>
+
+          {!confirmando ? (
+            <button
+              type="button"
+              className="btn btn-sm btn-primary w-full"
+              onClick={() => setConfirmando(true)}
+              disabled={estado.personal.length === 0}
+            >
+              Registrar pago de nómina
+            </button>
+          ) : (
+            <div className="border border-[#fca5a5] rounded-lg p-3 bg-[#fef2f2] space-y-2">
+              <p className="text-[13px] font-medium text-[#991b1b]">
+                ¿Confirmar pago de nómina por {fmtMoney(estado.totalCalculado)}?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-sm btn-ghost flex-1"
+                  onClick={() => setConfirmando(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-primary flex-1"
+                  onClick={() => registrarMut.mutate()}
+                  disabled={registrarMut.isPending}
+                >
+                  {registrarMut.isPending ? 'Registrando…' : 'Confirmar pago'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </Section>
   )
 }
 
@@ -916,6 +1049,10 @@ export default function CajaPage() {
                     </div>
                   </div>
                 </>
+              )}
+
+              {isAdmin && cajaAbierta && cajaId != null && (
+                <SeccionNomina cajaDiaId={cajaId} />
               )}
             </>
           )}
