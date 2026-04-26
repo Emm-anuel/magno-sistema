@@ -27,6 +27,7 @@ export interface CajaCierrePreview {
   montoLibres: number
   ahorroFijo: number
   totalGastos: number
+  totalNomina: number
   totalRealLibres: number
   multasPorAsesor: MultaAsesorItem[]
   totalMultasCobradas: number
@@ -64,6 +65,29 @@ export interface MovimientoInversion {
   createdAt: string
 }
 
+export interface NominaPersonalItem {
+  id: number
+  nombre: string
+  puesto: string
+  montoSemanal: number
+}
+
+export interface NominaPago {
+  id: number
+  totalPagado: number
+  registradoPorId: number
+  registradoPorNombre: string
+  createdAt: string
+}
+
+export interface NominaEstado {
+  esDiaEfectivo: boolean
+  diaEfectivo: string          // ISO date "YYYY-MM-DD"
+  personal: NominaPersonalItem[]
+  totalCalculado: number
+  pago: NominaPago | null
+}
+
 export interface CajaDiaDetalle {
   id: number
   sucursalId: number
@@ -84,6 +108,7 @@ export interface CajaDiaDetalle {
   montoLibres: number | null
   ahorroFijo: number | null
   totalGastos: number | null
+  totalNomina: number | null
   totalRealLibres: number | null
   inversiones: MovimientoInversion[]
 }
@@ -138,6 +163,7 @@ function normalizeDetalle(raw: any): CajaDiaDetalle {
     montoLibres:         raw?.montoLibres      != null ? Number(raw.montoLibres)      : null,
     ahorroFijo:          raw?.ahorroFijo       != null ? Number(raw.ahorroFijo)       : null,
     totalGastos:         raw?.totalGastos      != null ? Number(raw.totalGastos)      : null,
+    totalNomina:         raw?.totalNomina      != null ? Number(raw.totalNomina)      : null,
     totalRealLibres:     raw?.totalRealLibres  != null ? Number(raw.totalRealLibres)  : null,
     inversiones:         (raw?.inversiones ?? []).map(normalizeMovimiento),
   }
@@ -206,6 +232,7 @@ export const cajaService = {
            montoLibres:               Number(d.montoLibres ?? 0),
            ahorroFijo:                Number(d.ahorroFijo ?? 0),
            totalGastos:               Number(d.totalGastos ?? 0),
+           totalNomina:               Number(d.totalNomina ?? 0),
            totalRealLibres:           Number(d.totalRealLibres ?? 0),
            multasPorAsesor:           (d.multasPorAsesor ?? []).map((x: any) => ({
              asesorNombre: x.asesorNombre,
@@ -223,5 +250,44 @@ export const cajaService = {
     a.download = `corte-caja-${fecha}.pdf`
     a.click()
     URL.revokeObjectURL(url)
+  },
+
+  async getNominaEstado(cajaDiaId: number): Promise<NominaEstado> {
+    const { data } = await api.get(`/caja/${cajaDiaId}/nomina`)
+    return {
+      esDiaEfectivo: data.esDiaEfectivo,
+      diaEfectivo:   data.diaEfectivo,
+      personal:      (data.personal ?? []).map((p: any) => ({
+        id:           p.id,
+        nombre:       p.nombre,
+        puesto:       p.puesto,
+        montoSemanal: Number(p.montoSemanal ?? 0),
+      })),
+      totalCalculado: Number(data.totalCalculado ?? 0),
+      pago: data.pago
+        ? {
+            id:                  data.pago.id,
+            totalPagado:         Number(data.pago.totalPagado ?? 0),
+            registradoPorId:     data.pago.registradoPorId,
+            registradoPorNombre: data.pago.registradoPorNombre ?? '',
+            createdAt:           data.pago.createdAt,
+          }
+        : null,
+    }
+  },
+
+  async registrarNomina(cajaDiaId: number): Promise<NominaPago> {
+    const { data } = await api.post(`/caja/${cajaDiaId}/nomina`)
+    return {
+      id:                  data.id,
+      totalPagado:         Number(data.totalPagado ?? 0),
+      registradoPorId:     data.registradoPorId,
+      registradoPorNombre: data.registradoPorNombre ?? '',
+      createdAt:           data.createdAt,
+    }
+  },
+
+  async anularNomina(cajaDiaId: number): Promise<void> {
+    await api.delete(`/caja/${cajaDiaId}/nomina`)
   },
 }
