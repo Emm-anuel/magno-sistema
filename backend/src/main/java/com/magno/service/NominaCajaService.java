@@ -7,10 +7,8 @@ import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -87,12 +85,12 @@ public class NominaCajaService {
         LocalDate diaEfectivo = calcularDiaEfectivo(sucursalId);
 
         if (!DateTimeUtils.hoyEnMagno().equals(diaEfectivo)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new IllegalArgumentException(
                     "Hoy no es el día efectivo de pago de nómina (" + diaEfectivo + ")");
         }
 
         if (nominaPagoRepo.findByCajaDiaIdAndDeletedAtIsNull(cajaDiaId).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
+            throw new IllegalArgumentException(
                     "Ya se registró el pago de nómina para esta caja");
         }
 
@@ -149,10 +147,16 @@ public class NominaCajaService {
 
         Set<LocalDate> festivos = new HashSet<>(diaFestivoRepo.findFechasBySucursalId(sucursalId));
 
-        while (candidato.getDayOfWeek() == DayOfWeek.SATURDAY
+        int maxRetroceso = 14;
+        while ((candidato.getDayOfWeek() == DayOfWeek.SATURDAY
                 || candidato.getDayOfWeek() == DayOfWeek.SUNDAY
-                || festivos.contains(candidato)) {
+                || festivos.contains(candidato))
+                && maxRetroceso-- > 0) {
             candidato = candidato.minusDays(1);
+        }
+        if (maxRetroceso < 0) {
+            throw new IllegalStateException(
+                    "No se encontró día hábil en los últimos 14 días para el pago de nómina");
         }
 
         return candidato;
@@ -160,12 +164,13 @@ public class NominaCajaService {
 
     private DayOfWeek parseDia(String dia) {
         return switch (dia.toUpperCase()) {
-            case "LUNES"     -> DayOfWeek.MONDAY;
-            case "MARTES"    -> DayOfWeek.TUESDAY;
-            case "MIERCOLES" -> DayOfWeek.WEDNESDAY;
-            case "JUEVES"    -> DayOfWeek.THURSDAY;
-            case "VIERNES"   -> DayOfWeek.FRIDAY;
-            default          -> DayOfWeek.THURSDAY;
+            case "LUNES"                -> DayOfWeek.MONDAY;
+            case "MARTES"               -> DayOfWeek.TUESDAY;
+            case "MIERCOLES", "MIÉRCOLES" -> DayOfWeek.WEDNESDAY;
+            case "JUEVES"               -> DayOfWeek.THURSDAY;
+            case "VIERNES"              -> DayOfWeek.FRIDAY;
+            default -> throw new IllegalArgumentException(
+                    "Día de pago no reconocido en configuración de sucursal: " + dia);
         };
     }
 }
