@@ -69,6 +69,9 @@ public class CajaDia {
     @Column(name = "total_gastos", precision = 12, scale = 2)
     private BigDecimal totalGastos;
 
+    @Column(name = "total_nomina", precision = 12, scale = 2)
+    private BigDecimal totalNomina;
+
     @Column(name = "total_real_libres", precision = 12, scale = 2)
     private BigDecimal totalRealLibres;
 
