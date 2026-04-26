@@ -13,10 +13,12 @@ import java.time.OffsetDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"cajaDia", "registradoPor"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class NominaPago {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
