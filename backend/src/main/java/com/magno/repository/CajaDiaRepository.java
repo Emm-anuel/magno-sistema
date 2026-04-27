@@ -14,17 +14,26 @@ import java.util.Optional;
 @Repository
 public interface CajaDiaRepository extends JpaRepository<CajaDia, Long> {
 
-    Optional<CajaDia> findBySucursalIdAndFecha(Long sucursalId, LocalDate fecha);
+       Optional<CajaDia> findBySucursalIdAndFecha(Long sucursalId, LocalDate fecha);
 
-    Optional<CajaDia> findBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
+       Optional<CajaDia> findBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
 
-    boolean existsBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
+       boolean existsBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
 
-    @Query("SELECT cd FROM CajaDia cd WHERE cd.sucursal.id = :sucursalId " +
-           "AND cd.fecha >= :desde AND cd.fecha <= :hasta " +
-           "ORDER BY cd.fecha DESC")
-    List<CajaDia> findBySucursalAndFechaRange(
-            @Param("sucursalId") Long sucursalId,
-            @Param("desde") LocalDate desde,
-            @Param("hasta") LocalDate hasta);
+       @Query("SELECT cd FROM CajaDia cd WHERE cd.sucursal.id = :sucursalId " +
+                     "AND cd.fecha >= :desde AND cd.fecha <= :hasta " +
+                     "ORDER BY cd.fecha DESC")
+       List<CajaDia> findBySucursalAndFechaRange(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
+       @Query("SELECT cd FROM CajaDia cd WHERE cd.sucursal.id = :sucursalId " +
+                     "AND cd.fecha >= :desde AND cd.fecha <= :hasta " +
+                     "AND cd.estado = com.magno.model.EstadoCaja.CERRADA " +
+                     "ORDER BY cd.fecha ASC")
+       List<CajaDia> findCerradasBySucursalAndFechaRange(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
 }

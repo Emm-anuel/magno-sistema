@@ -30,11 +30,11 @@ public class NominaCajaService {
     private final UsuarioRepository usuarioRepo;
 
     public NominaCajaService(CajaDiaRepository cajaDiaRepo,
-                             NominaPagoRepository nominaPagoRepo,
-                             NominaPersonalRepository nominaPersonalRepo,
-                             ConfigSucursalRepository configSucursalRepo,
-                             DiaFestivoRepository diaFestivoRepo,
-                             UsuarioRepository usuarioRepo) {
+            NominaPagoRepository nominaPagoRepo,
+            NominaPersonalRepository nominaPersonalRepo,
+            ConfigSucursalRepository configSucursalRepo,
+            DiaFestivoRepository diaFestivoRepo,
+            UsuarioRepository usuarioRepo) {
         this.cajaDiaRepo = cajaDiaRepo;
         this.nominaPagoRepo = nominaPagoRepo;
         this.nominaPersonalRepo = nominaPersonalRepo;
@@ -142,11 +142,27 @@ public class NominaCajaService {
 
         DayOfWeek targetDow = parseDia(diaConfig);
         LocalDate hoy = DateTimeUtils.hoyEnMagno();
-        LocalDate monday = hoy.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-        LocalDate candidato = monday.plusDays(targetDow.getValue() - 1L);
-
         Set<LocalDate> festivos = new HashSet<>(diaFestivoRepo.findFechasBySucursalId(sucursalId));
 
+        // Buscar el próximo día efectivo (hoy o futuro), evitando devolver fechas
+        // pasadas.
+        LocalDate monday = hoy.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        int maxSemanasBusqueda = 52;
+        for (int semana = 0; semana < maxSemanasBusqueda; semana++) {
+            LocalDate baseSemana = monday.plusWeeks(semana);
+            LocalDate candidato = baseSemana.plusDays(targetDow.getValue() - 1L);
+            LocalDate efectivo = ajustarAHabilHaciaAtras(candidato, festivos);
+            if (!efectivo.isBefore(hoy)) {
+                return efectivo;
+            }
+        }
+
+        throw new IllegalStateException(
+                "No se encontró un próximo día efectivo de nómina en las siguientes 52 semanas");
+    }
+
+    private LocalDate ajustarAHabilHaciaAtras(LocalDate fecha, Set<LocalDate> festivos) {
+        LocalDate candidato = fecha;
         int maxRetroceso = 14;
         while ((candidato.getDayOfWeek() == DayOfWeek.SATURDAY
                 || candidato.getDayOfWeek() == DayOfWeek.SUNDAY
@@ -158,17 +174,16 @@ public class NominaCajaService {
             throw new IllegalStateException(
                     "No se encontró día hábil en los últimos 14 días para el pago de nómina");
         }
-
         return candidato;
     }
 
     private DayOfWeek parseDia(String dia) {
         return switch (dia.toUpperCase()) {
-            case "LUNES"                -> DayOfWeek.MONDAY;
-            case "MARTES"               -> DayOfWeek.TUESDAY;
+            case "LUNES" -> DayOfWeek.MONDAY;
+            case "MARTES" -> DayOfWeek.TUESDAY;
             case "MIERCOLES", "MIÉRCOLES" -> DayOfWeek.WEDNESDAY;
-            case "JUEVES"               -> DayOfWeek.THURSDAY;
-            case "VIERNES"              -> DayOfWeek.FRIDAY;
+            case "JUEVES" -> DayOfWeek.THURSDAY;
+            case "VIERNES" -> DayOfWeek.FRIDAY;
             default -> throw new IllegalArgumentException(
                     "Día de pago no reconocido en configuración de sucursal: " + dia);
         };

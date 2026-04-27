@@ -2,6 +2,7 @@ package com.magno.service;
 
 import com.magno.model.ConfigSucursal;
 import com.magno.repository.*;
+import com.magno.util.DateTimeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -53,12 +54,16 @@ class NominaCajaServiceTest {
         config.setDiaPagoNomina("JUEVES");
         when(configSucursalRepo.findBySucursalId(1L)).thenReturn(Optional.of(config));
 
-        LocalDate lunes = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate hoy = DateTimeUtils.hoyEnMagno();
+        LocalDate lunes = hoy.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         LocalDate jueves = lunes.plusDays(3);
+        if (jueves.isBefore(hoy)) {
+            jueves = jueves.plusWeeks(1);
+        }
         when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of(jueves));
 
         LocalDate resultado = service.calcularDiaEfectivo(1L);
-        assertThat(resultado.getDayOfWeek()).isEqualTo(DayOfWeek.WEDNESDAY);
+        assertThat(resultado).isEqualTo(jueves.minusDays(1));
     }
 
     @Test
@@ -71,16 +76,36 @@ class NominaCajaServiceTest {
     }
 
     @Test
-    void calcularDiaEfectivo_cuandoLunesEsFestivo_devuelveViernesAnterior() {
+    void calcularDiaEfectivo_cuandoLunesEsFestivo_ajustaASiguienteFechaNoPasada() {
         ConfigSucursal config = new ConfigSucursal();
         config.setDiaPagoNomina("LUNES");
         when(configSucursalRepo.findBySucursalId(1L)).thenReturn(Optional.of(config));
 
-        LocalDate lunes = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate hoy = DateTimeUtils.hoyEnMagno();
+        LocalDate lunes = hoy.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        if (lunes.isBefore(hoy)) {
+            lunes = lunes.plusWeeks(1);
+        }
         when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of(lunes));
 
         LocalDate resultado = service.calcularDiaEfectivo(1L);
-        assertThat(resultado.getDayOfWeek()).isEqualTo(DayOfWeek.FRIDAY);
+        LocalDate viernesAjustado = lunes.minusDays(3);
+        LocalDate esperado = viernesAjustado.isBefore(hoy) ? lunes.plusWeeks(1) : viernesAjustado;
+        assertThat(resultado).isEqualTo(esperado);
+    }
+
+    @Test
+    void calcularDiaEfectivo_conLunesConfigurado_nuncaDevuelveFechaPasada() {
+        ConfigSucursal config = new ConfigSucursal();
+        config.setDiaPagoNomina("LUNES");
+        when(configSucursalRepo.findBySucursalId(1L)).thenReturn(Optional.of(config));
+        when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of());
+
+        LocalDate hoy = DateTimeUtils.hoyEnMagno();
+        LocalDate resultado = service.calcularDiaEfectivo(1L);
+
+        assertThat(resultado.getDayOfWeek()).isEqualTo(DayOfWeek.MONDAY);
+        assertThat(resultado).isAfterOrEqualTo(hoy);
     }
 
     @Test

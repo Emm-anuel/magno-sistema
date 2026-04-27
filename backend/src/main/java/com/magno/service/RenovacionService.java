@@ -305,7 +305,8 @@ public class RenovacionService {
                                 .findByCreditoIdAndEstadoIn(creditoAnterior.getId(), ESTADOS_PENDIENTES);
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(creditoAnterior.getId());
                 ResumenCalculo calculoNuevo = renovacion.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoAprobado, creditoAnterior.getSucursal().getId())
+                                ? calculoService.calcularCreditoSemanal(montoAprobado,
+                                                creditoAnterior.getSucursal().getId())
                                 : calculoService.calcularCredito(montoAprobado, creditoAnterior.getSucursal().getId());
                 BigDecimal montoDesembolso = montoAprobado
                                 .subtract(renovacion.getMontoPagosRestantes())
@@ -464,7 +465,7 @@ public class RenovacionService {
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // Colocaciones semanales (solo renovaciones APROBADAS)
+        // Colocaciones semanales (solo renovaciones ACTIVAS)
         // ────────────────────────────────────────────────────────────────────
 
         public ColocacionesSemanaDTO getColocaciones(LocalDate semanaInicio, Long asesorId, Long sucursalId) {
@@ -491,7 +492,7 @@ public class RenovacionService {
                                 .toOffsetDateTime();
                 java.time.OffsetDateTime finTs = semanaFin.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE)
                                 .toOffsetDateTime();
-                creditoRepo.findColocacionesNuevos(EstadoCredito.ACTIVO, inicioTs, finTs, asesorId, sucursalId)
+                creditoRepo.findColocacionesNuevos(inicioTs, finTs, asesorId, sucursalId)
                                 .forEach(c -> items.add(new ColocacionItemDTO(
                                                 c.getFechaDesembolso().toLocalDate(),
                                                 c.getCliente().getNombreCompleto(),

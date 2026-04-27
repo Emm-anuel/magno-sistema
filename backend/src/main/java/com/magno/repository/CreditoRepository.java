@@ -50,7 +50,7 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
          */
         @Query("SELECT c FROM Credito c " +
                         "WHERE c.deletedAt IS NULL " +
-                        "AND c.estado = :estado " +
+                        "AND c.tipo = com.magno.model.TipoCredito.NUEVO " +
                         "AND c.fechaDesembolso IS NOT NULL " +
                         "AND c.fechaDesembolso >= :inicioTs " +
                         "AND c.fechaDesembolso < :finTs " +
@@ -58,7 +58,6 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
                         "ORDER BY c.fechaDesembolso ASC")
         List<Credito> findColocacionesNuevos(
-                        @Param("estado") EstadoCredito estado,
                         @Param("inicioTs") java.time.OffsetDateTime inicioTs,
                         @Param("finTs") java.time.OffsetDateTime finTs,
                         @Param("asesorId") Long asesorId,
@@ -92,15 +91,24 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         @Param("hasta") java.time.OffsetDateTime hasta);
 
         @Query("SELECT c FROM Credito c WHERE c.estado = com.magno.model.EstadoCredito.ACTIVO " +
-               "AND c.deletedAt IS NULL " +
-               "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
-               "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
-               "AND (SELECT COUNT(cp) FROM CalendarioPago cp WHERE cp.credito = c " +
-               "     AND cp.estado IN :realizados) >= " +
-               "    CASE WHEN c.plazoDias = 30 THEN 19L ELSE 16L END " +
-               "ORDER BY c.cliente.apellidoPaterno ASC, c.cliente.nombre ASC")
+                        "AND c.deletedAt IS NULL " +
+                        "AND c.sucursal.id = :sucursalId " +
+                        "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+                        "ORDER BY c.cliente.apellidoPaterno ASC, c.cliente.nombre ASC")
+        List<Credito> findActivosBySucursalAndAsesor(
+                        @Param("sucursalId") Long sucursalId,
+                        @Param("asesorId") Long asesorId);
+
+        @Query("SELECT c FROM Credito c WHERE c.estado = com.magno.model.EstadoCredito.ACTIVO " +
+                        "AND c.deletedAt IS NULL " +
+                        "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+                        "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
+                        "AND (SELECT COUNT(cp) FROM CalendarioPago cp WHERE cp.credito = c " +
+                        "     AND cp.estado IN :realizados) >= " +
+                        "    CASE WHEN c.plazoDias = 30 THEN 19L ELSE 16L END " +
+                        "ORDER BY c.cliente.apellidoPaterno ASC, c.cliente.nombre ASC")
         List<Credito> findListosParaRenovar(
-                @Param("asesorId") Long asesorId,
-                @Param("sucursalId") Long sucursalId,
-                @Param("realizados") List<EstadoCalendarioPago> realizados);
+                        @Param("asesorId") Long asesorId,
+                        @Param("sucursalId") Long sucursalId,
+                        @Param("realizados") List<EstadoCalendarioPago> realizados);
 }

@@ -98,4 +98,32 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
        List<Object[]> findMultasPorAsesorBySucursalAndFecha(
                      @Param("sucursalId") Long sucursalId,
                      @Param("fecha") LocalDate fecha);
+
+       @Query("SELECT COUNT(p) FROM Pago p " +
+                     "WHERE p.asesor.id = :asesorId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND p.deletedAt IS NULL")
+       long countByAsesorAndFechaRange(
+                     @Param("asesorId") Long asesorId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
+       @Query("SELECT COALESCE(SUM(p.montoRecibido), 0) FROM Pago p " +
+                     "WHERE p.asesor.id = :asesorId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND p.deletedAt IS NULL")
+       java.math.BigDecimal sumMontoCobradoByAsesorAndFechaRange(
+                     @Param("asesorId") Long asesorId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
+       @Query("SELECT COUNT(p) FROM Pago p " +
+                     "WHERE p.asesor.id = :asesorId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND p.esCompleto = false " +
+                     "AND p.deletedAt IS NULL")
+       long countIncompletosByAsesorAndFechaRange(
+                     @Param("asesorId") Long asesorId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
 }

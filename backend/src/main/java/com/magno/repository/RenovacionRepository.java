@@ -14,60 +14,61 @@ import java.util.Optional;
 @Repository
 public interface RenovacionRepository extends JpaRepository<Renovacion, Long> {
 
-    List<Renovacion> findByCreditoAnteriorId(Long creditoAnteriorId);
+       List<Renovacion> findByCreditoAnteriorId(Long creditoAnteriorId);
 
-    boolean existsByCreditoAnteriorIdAndEstadoAndDeletedAtIsNull(
-            Long creditoAnteriorId, EstadoRenovacion estado);
+       boolean existsByCreditoAnteriorIdAndEstadoAndDeletedAtIsNull(
+                     Long creditoAnteriorId, EstadoRenovacion estado);
 
-    // Renovación que liquidó el crédito anterior (para vínculo en detalle)
-    // Busca renovaciones APROBADAS o ACTIVAS que hayan liquidado un crédito anterior
-    @Query("SELECT r FROM Renovacion r WHERE r.creditoAnterior.id = :creditoId " +
-           "AND r.deletedAt IS NULL AND r.estado IN (com.magno.model.EstadoRenovacion.APROBADO, com.magno.model.EstadoRenovacion.ACTIVO)")
-    Optional<Renovacion> findActivaByCreditoAnteriorId(@Param("creditoId") Long creditoId);
+       // Renovación que liquidó el crédito anterior (para vínculo en detalle)
+       // Busca renovaciones APROBADAS o ACTIVAS que hayan liquidado un crédito
+       // anterior
+       @Query("SELECT r FROM Renovacion r WHERE r.creditoAnterior.id = :creditoId " +
+                     "AND r.deletedAt IS NULL AND r.estado IN (com.magno.model.EstadoRenovacion.APROBADO, com.magno.model.EstadoRenovacion.ACTIVO)")
+       Optional<Renovacion> findActivaByCreditoAnteriorId(@Param("creditoId") Long creditoId);
 
-    // Renovación que originó el crédito nuevo (para vínculo en detalle)
-    // Busca renovaciones APROBADAS o ACTIVAS que hayan originado un crédito nuevo
-    @Query("SELECT r FROM Renovacion r WHERE r.creditoNuevo.id = :creditoId " +
-           "AND r.deletedAt IS NULL AND r.estado IN (com.magno.model.EstadoRenovacion.APROBADO, com.magno.model.EstadoRenovacion.ACTIVO)")
-    Optional<Renovacion> findActivaByCreditoNuevoId(@Param("creditoId") Long creditoId);
+       // Renovación que originó el crédito nuevo (para vínculo en detalle)
+       // Busca renovaciones APROBADAS o ACTIVAS que hayan originado un crédito nuevo
+       @Query("SELECT r FROM Renovacion r WHERE r.creditoNuevo.id = :creditoId " +
+                     "AND r.deletedAt IS NULL AND r.estado IN (com.magno.model.EstadoRenovacion.APROBADO, com.magno.model.EstadoRenovacion.ACTIVO)")
+       Optional<Renovacion> findActivaByCreditoNuevoId(@Param("creditoId") Long creditoId);
 
-    // Renovaciones APROBADAS de una semana (para colocaciones)
-    @Query("SELECT r FROM Renovacion r " +
-           "WHERE r.deletedAt IS NULL " +
-           "AND r.estado = com.magno.model.EstadoRenovacion.APROBADO " +
-           "AND r.fecha BETWEEN :inicio AND :fin " +
-           "AND (:asesorId IS NULL OR r.asesor.id = :asesorId) " +
-           "AND (:sucursalId IS NULL OR r.creditoNuevo.sucursal.id = :sucursalId) " +
-           "ORDER BY r.fecha ASC")
-    List<Renovacion> findColocaciones(
-            @Param("inicio") LocalDate inicio,
-            @Param("fin") LocalDate fin,
-            @Param("asesorId") Long asesorId,
-            @Param("sucursalId") Long sucursalId);
+       // Renovaciones ACTIVAS de una semana (desembolsadas, para colocaciones)
+       @Query("SELECT r FROM Renovacion r " +
+                     "WHERE r.deletedAt IS NULL " +
+                     "AND r.estado = com.magno.model.EstadoRenovacion.ACTIVO " +
+                     "AND r.fecha BETWEEN :inicio AND :fin " +
+                     "AND (:asesorId IS NULL OR r.asesor.id = :asesorId) " +
+                     "AND (:sucursalId IS NULL OR r.creditoNuevo.sucursal.id = :sucursalId) " +
+                     "ORDER BY r.fecha ASC")
+       List<Renovacion> findColocaciones(
+                     @Param("inicio") LocalDate inicio,
+                     @Param("fin") LocalDate fin,
+                     @Param("asesorId") Long asesorId,
+                     @Param("sucursalId") Long sucursalId);
 
-    // Renovaciones SOLICITADAS pendientes de aprobación
-    @Query("SELECT r FROM Renovacion r " +
-           "WHERE r.deletedAt IS NULL " +
-           "AND r.estado = com.magno.model.EstadoRenovacion.SOLICITADO " +
-           "AND (:asesorId IS NULL OR r.asesor.id = :asesorId) " +
-           "AND (:sucursalId IS NULL OR r.creditoAnterior.sucursal.id = :sucursalId) " +
-           "ORDER BY r.createdAt ASC")
-    List<Renovacion> findPendientes(
-            @Param("asesorId") Long asesorId,
-            @Param("sucursalId") Long sucursalId);
+       // Renovaciones SOLICITADAS pendientes de aprobación
+       @Query("SELECT r FROM Renovacion r " +
+                     "WHERE r.deletedAt IS NULL " +
+                     "AND r.estado = com.magno.model.EstadoRenovacion.SOLICITADO " +
+                     "AND (:asesorId IS NULL OR r.asesor.id = :asesorId) " +
+                     "AND (:sucursalId IS NULL OR r.creditoAnterior.sucursal.id = :sucursalId) " +
+                     "ORDER BY r.createdAt ASC")
+       List<Renovacion> findPendientes(
+                     @Param("asesorId") Long asesorId,
+                     @Param("sucursalId") Long sucursalId);
 
-    // Todas las solicitudes enviadas por un asesor (Mis Solicitudes)
-    @Query("SELECT r FROM Renovacion r " +
-           "WHERE r.deletedAt IS NULL " +
-           "AND r.asesor.id = :asesorId " +
-           "ORDER BY r.createdAt DESC")
-    List<Renovacion> findMisSolicitudes(@Param("asesorId") Long asesorId);
+       // Todas las solicitudes enviadas por un asesor (Mis Solicitudes)
+       @Query("SELECT r FROM Renovacion r " +
+                     "WHERE r.deletedAt IS NULL " +
+                     "AND r.asesor.id = :asesorId " +
+                     "ORDER BY r.createdAt DESC")
+       List<Renovacion> findMisSolicitudes(@Param("asesorId") Long asesorId);
 
-    // Renovaciones APROBADAS pendientes de confirmar desembolso
-    @Query("SELECT r FROM Renovacion r " +
-           "WHERE r.deletedAt IS NULL " +
-           "AND r.estado = com.magno.model.EstadoRenovacion.APROBADO " +
-           "AND (:sucursalId IS NULL OR r.creditoAnterior.sucursal.id = :sucursalId) " +
-           "ORDER BY r.fechaAprobacion ASC")
-    List<Renovacion> findPendientesDesembolso(@Param("sucursalId") Long sucursalId);
+       // Renovaciones APROBADAS pendientes de confirmar desembolso
+       @Query("SELECT r FROM Renovacion r " +
+                     "WHERE r.deletedAt IS NULL " +
+                     "AND r.estado = com.magno.model.EstadoRenovacion.APROBADO " +
+                     "AND (:sucursalId IS NULL OR r.creditoAnterior.sucursal.id = :sucursalId) " +
+                     "ORDER BY r.fechaAprobacion ASC")
+       List<Renovacion> findPendientesDesembolso(@Param("sucursalId") Long sucursalId);
 }

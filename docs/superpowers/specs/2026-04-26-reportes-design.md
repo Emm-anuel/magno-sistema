@@ -10,7 +10,7 @@
 ## 1. Estructura General
 
 ### Selector de sucursal
-- **ADMINISTRADOR:** dropdown con todas las sucursales activas. Debe elegir una — sin opción "todas consolidadas".
+- **ADMINISTRADOR:** dropdown con todas las sucursales activas. Se pre-selecciona la primera sucursal al cargar la página. Debe tener una seleccionada siempre — sin opción "todas consolidadas".
 - **SUPERVISOR:** su sucursal pre-fijada (solo lectura, sin dropdown).
 - El selector es persistente en todas las pestañas, visible arriba de los filtros de cada tab.
 
@@ -125,11 +125,12 @@ GET /api/reportes/colocaciones/pdf ?sucursalId= &desde= &hasta= &asesorId=
 | Monto en riesgo | `bg-amber-50 border-amber-300 text-amber-800` |
 
 ### Tabla de créditos activos
-| Cliente | Asesor | Monto | Pagos | Saldo Pendiente | Multas | Estado |
+| Cliente | Asesor | Monto | Pagos | Saldo Pendiente | Multas Pendientes | Estado |
 |---|---|---|---|---|---|---|
 
 - **Pagos:** `realizados / total` (ej. `14/25`)
 - **Saldo Pendiente:** calculado en backend (`pagos_restantes × pago_periodico`)
+- **Multas Pendientes:** `SUM(multas.monto WHERE cobrada=false AND credito_id=x)` — multas aún no cobradas del crédito
 - **Estado:** `Al corriente` → `bg-emerald-100 text-emerald-800` | `En mora` → `bg-red-100 text-red-800`
 - **Criterio de mora:** crédito con al menos un `calendario_pagos` en estado `NO_PAGADO` o `PARCIAL` sin cubrir en la fecha actual
 - **Paginación:** 50 registros por página
@@ -143,6 +144,7 @@ GET /api/reportes/colocaciones/pdf ?sucursalId= &desde= &hasta= &asesorId=
 GET /api/reportes/cartera     ?sucursalId= &asesorId= &estado=
 GET /api/reportes/cartera/pdf ?sucursalId= &asesorId= &estado=
 ```
+Valores válidos de `estado`: `TODOS` (default) · `AL_CORRIENTE` · `EN_MORA`
 
 ---
 

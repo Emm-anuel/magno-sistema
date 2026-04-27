@@ -12,22 +12,35 @@ import java.util.List;
 @Repository
 public interface MultaRepository extends JpaRepository<Multa, Long> {
 
-    List<Multa> findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(Long creditoId);
+       List<Multa> findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(Long creditoId);
 
-    List<Multa> findByClienteIdAndCobradaFalseAndDeletedAtIsNull(Long clienteId);
+       List<Multa> findByClienteIdAndCobradaFalseAndDeletedAtIsNull(Long clienteId);
 
-    List<Multa> findByCreditoIdAndDeletedAtIsNullOrderByFechaDesc(Long creditoId);
+       List<Multa> findByCreditoIdAndDeletedAtIsNullOrderByFechaDesc(Long creditoId);
 
-    @Query("SELECT COALESCE(SUM(m.monto), 0) FROM Multa m " +
-           "WHERE m.credito.id = :creditoId " +
-           "AND m.cobrada = false " +
-           "AND m.deletedAt IS NULL")
-    BigDecimal sumMontosPendientesByCreditoId(@Param("creditoId") Long creditoId);
+       @Query("SELECT COALESCE(SUM(m.monto), 0) FROM Multa m " +
+                     "WHERE m.credito.id = :creditoId " +
+                     "AND m.cobrada = false " +
+                     "AND m.deletedAt IS NULL")
+       BigDecimal sumMontosPendientesByCreditoId(@Param("creditoId") Long creditoId);
 
-    /** Cuenta multas tipo INCOMPLETO para un crédito (para detectar el múltiplo de 2). */
-    @Query("SELECT COUNT(m) FROM Multa m " +
-           "WHERE m.credito.id = :creditoId " +
-           "AND m.tipo = 'INCOMPLETO' " +
-           "AND m.deletedAt IS NULL")
-    long countIncompletosByCreditoId(@Param("creditoId") Long creditoId);
+       @Query("SELECT COALESCE(SUM(m.monto), 0) FROM Multa m " +
+                     "WHERE m.credito.asesor.id = :asesorId " +
+                     "AND m.cobrada = true " +
+                     "AND m.fecha >= :desde AND m.fecha <= :hasta " +
+                     "AND m.deletedAt IS NULL")
+       BigDecimal sumMultasCobradaByAsesorAndFechaRange(
+                     @Param("asesorId") Long asesorId,
+                     @Param("desde") java.time.LocalDate desde,
+                     @Param("hasta") java.time.LocalDate hasta);
+
+       /**
+        * Cuenta multas tipo INCOMPLETO para un crédito (para detectar el múltiplo de
+        * 2).
+        */
+       @Query("SELECT COUNT(m) FROM Multa m " +
+                     "WHERE m.credito.id = :creditoId " +
+                     "AND m.tipo = 'INCOMPLETO' " +
+                     "AND m.deletedAt IS NULL")
+       long countIncompletosByCreditoId(@Param("creditoId") Long creditoId);
 }
