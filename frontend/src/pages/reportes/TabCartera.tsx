@@ -32,9 +32,11 @@ export default function TabCartera({ sucursalId }: Props) {
   const [lastFilters, setLastFilters] = useState<{ estado: Estado; asesorId?: number } | null>(null)
 
   const { data: asesores = [] } = useQuery({
-    queryKey: ['asesores-reportes'],
-    queryFn: () => api.get<{ id: number; nombre_completo: string }[]>('/clientes/asesores')
-      .then(r => r.data),
+    queryKey: ['asesores-reportes', sucursalId],
+    queryFn: () => api.get<{ id: number; nombre_completo: string }[]>(
+      '/clientes/asesores',
+      { params: sucursalId ? { sucursalId } : undefined },
+    ).then(r => r.data),
     staleTime: 300_000,
   })
 

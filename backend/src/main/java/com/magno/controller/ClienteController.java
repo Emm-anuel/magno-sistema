@@ -61,14 +61,14 @@ public class ClienteController {
                 asesorId = principal.userId();
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
                 // Ve solo los clientes de su sucursal
-                if (sucursalId == null) sucursalId = principal.sucursalId();
+                if (sucursalId == null)
+                    sucursalId = principal.sucursalId();
             }
             // ADMINISTRADOR: sin restricción automática
         }
 
         return ResponseEntity.ok(
-                clienteService.buscarClientes(buscar, estado, asesorId, sucursalId, activo, pageable)
-        );
+                clienteService.buscarClientes(buscar, estado, asesorId, sucursalId, activo, pageable));
     }
 
     /** GET /api/clientes/{id} */
@@ -161,16 +161,19 @@ public class ClienteController {
 
     /**
      * GET /api/clientes/asesores — Lista resumida de asesores activos.
-     * SUPERVISOR_CAMPO: solo ve los asesores de su sucursal.
-     * ADMINISTRADOR / SUPERVISOR: ve todos.
+     * ADMINISTRADOR: puede filtrar por sucursalId (o ver todos si no envía).
+     * SUPERVISOR / SUPERVISOR_CAMPO: solo ve los asesores de su sucursal.
      */
     @GetMapping("/asesores")
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO')")
-    public ResponseEntity<List<Map<String, Object>>> listarAsesores(Authentication auth) {
+    public ResponseEntity<List<Map<String, Object>>> listarAsesores(
+            @RequestParam(required = false) Long sucursalId,
+            Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
-        Long sucursalId = ("SUPERVISOR_CAMPO".equals(principal.rol()) || "SUPERVISOR".equals(principal.rol()))
-                ? principal.sucursalId() : null;
-        return ResponseEntity.ok(clienteService.listarAsesores(sucursalId));
+        Long effectiveSucursalId = "ADMINISTRADOR".equals(principal.rol())
+                ? sucursalId
+                : principal.sucursalId();
+        return ResponseEntity.ok(clienteService.listarAsesores(effectiveSucursalId));
     }
 
     // ── Helpers ───────────────────────────────────────────────────
@@ -180,7 +183,8 @@ public class ClienteController {
 
     /**
      * Normaliza el request de creación según el rol:
-     * - ASESOR_COBRADOR: fuerza su propio id como asesorId y su sucursal como sucursalId.
+     * - ASESOR_COBRADOR: fuerza su propio id como asesorId y su sucursal como
+     * sucursalId.
      * - SUPERVISOR_CAMPO: puede elegir asesor, pero sucursalId queda fijo al suyo.
      * - ADMINISTRADOR / SUPERVISOR: sin restricciones.
      *
@@ -208,9 +212,9 @@ public class ClienteController {
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
-                    p.userId(),      // asesorId forzado
-                    p.sucursalId()   // sucursalId forzado
-            );
+                    p.userId(), // asesorId forzado
+                    p.sucursalId() // sucursalId forzado
+                );
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> new ClienteCreateRequest(
                     req.nombre(), req.apellidoPaterno(), req.apellidoMaterno(),
                     req.fechaNacimiento(), req.genero(), req.estadoCivil(),
@@ -229,23 +233,23 @@ public class ClienteController {
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
-                    req.asesorId(),  // puede elegir asesor
-                    p.sucursalId()   // sucursalId forzado
-            );
+                    req.asesorId(), // puede elegir asesor
+                    p.sucursalId() // sucursalId forzado
+                );
             default -> req; // ADMINISTRADOR sin cambios
         };
     }
 
     // ── Documentos del cliente ────────────────────────────────────────
 
-    private static final java.util.Set<String> TIPOS_DOCUMENTO_VALIDOS =
-        java.util.Set.of("INE_FRENTE", "INE_REVERSO", "COMPROBANTE_DOMICILIO", "OTRO");
+    private static final java.util.Set<String> TIPOS_DOCUMENTO_VALIDOS = java.util.Set.of("INE_FRENTE", "INE_REVERSO",
+            "COMPROBANTE_DOMICILIO", "OTRO");
 
     record AgregarDocumentoRequest(
-        @jakarta.validation.constraints.NotBlank String tipo,
-        @jakarta.validation.constraints.NotBlank String url,
-        String nombre
-    ) {}
+            @jakarta.validation.constraints.NotBlank String tipo,
+            @jakarta.validation.constraints.NotBlank String url,
+            String nombre) {
+    }
 
     @GetMapping("/{id}/documentos")
     @PreAuthorize("isAuthenticated()")
@@ -324,9 +328,9 @@ public class ClienteController {
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
-                    p.userId(),      // asesorId forzado
-                    p.sucursalId()   // sucursalId forzado
-            );
+                    p.userId(), // asesorId forzado
+                    p.sucursalId() // sucursalId forzado
+                );
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> new ClienteUpdateRequest(
                     req.nombre(), req.apellidoPaterno(), req.apellidoMaterno(),
                     req.fechaNacimiento(), req.genero(), req.estadoCivil(),
@@ -345,9 +349,9 @@ public class ClienteController {
                     req.ref1Nombre(), req.ref1Telefono(), req.ref1Parentesco(),
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
-                    req.asesorId(),  // puede elegir asesor
-                    p.sucursalId()   // sucursalId forzado
-            );
+                    req.asesorId(), // puede elegir asesor
+                    p.sucursalId() // sucursalId forzado
+                );
             default -> req; // ADMINISTRADOR sin cambios
         };
     }

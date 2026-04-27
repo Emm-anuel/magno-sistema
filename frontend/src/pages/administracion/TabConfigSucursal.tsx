@@ -604,6 +604,7 @@ function SeccionNomina({ sucursalId }: { sucursalId: number }) {
     onSuccess: () => {
       toast.success('Día de pago actualizado')
       qc.invalidateQueries({ queryKey: ['admin-config', sucursalId] })
+      qc.invalidateQueries({ queryKey: ['caja-nomina'] })
     },
     onError: () => toast.error('Error al guardar'),
   })
@@ -618,6 +619,7 @@ function SeccionNomina({ sucursalId }: { sucursalId: number }) {
     onSuccess: () => {
       toast.success(editando ? 'Personal actualizado' : 'Personal agregado')
       qc.invalidateQueries({ queryKey: ['admin-nomina', sucursalId] })
+      qc.invalidateQueries({ queryKey: ['caja-nomina'] })
       cancelarForm()
     },
     onError: () => toast.error('Error al guardar'),
@@ -628,6 +630,7 @@ function SeccionNomina({ sucursalId }: { sucursalId: number }) {
     onSuccess: () => {
       toast.success('Registro eliminado')
       qc.invalidateQueries({ queryKey: ['admin-nomina', sucursalId] })
+      qc.invalidateQueries({ queryKey: ['caja-nomina'] })
     },
     onError: () => toast.error('Error al eliminar'),
   })

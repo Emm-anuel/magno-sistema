@@ -293,7 +293,7 @@ function SeccionNomina({ cajaDiaId }: { cajaDiaId: number }) {
     onSuccess: () => {
       toast.success('Nómina registrada')
       qc.invalidateQueries({ queryKey: ['caja-nomina', cajaDiaId] })
-      qc.invalidateQueries({ queryKey: ['caja-preview'] })
+      qc.invalidateQueries({ queryKey: ['caja-cierre-preview'] })
       setConfirmando(false)
     },
     onError: () => toast.error('Error al registrar la nómina'),
@@ -304,7 +304,7 @@ function SeccionNomina({ cajaDiaId }: { cajaDiaId: number }) {
     onSuccess: () => {
       toast.success('Nómina anulada')
       qc.invalidateQueries({ queryKey: ['caja-nomina', cajaDiaId] })
-      qc.invalidateQueries({ queryKey: ['caja-preview'] })
+      qc.invalidateQueries({ queryKey: ['caja-cierre-preview'] })
     },
     onError: () => toast.error('Error al anular la nómina'),
   })
