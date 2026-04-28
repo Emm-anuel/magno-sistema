@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -30,16 +29,6 @@ public class Sucursal {
     @Column(length = 20)
     private String telefono;
 
-    /** responsable_id como Long simple para evitar FK circular con Usuario */
-    @Column(name = "responsable_id")
-    private Long responsableId;
-
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal multaBase;
-
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal ahorroDiario;
-
     @Column(nullable = false)
     private Boolean activa;
 
@@ -54,7 +43,8 @@ public class Sucursal {
         OffsetDateTime now = OffsetDateTime.now();
         createdAt = now;
         updatedAt = now;
-        if (activa == null) activa = true;
+        if (activa == null)
+            activa = true;
     }
 
     @PreUpdate

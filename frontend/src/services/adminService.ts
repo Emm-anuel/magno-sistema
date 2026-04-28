@@ -42,16 +42,6 @@ export interface AdminConcepto {
   nombre: string
 }
 
-export interface BitacoraConfigItem {
-  id: number
-  createdAt: string
-  usuarioNombre: string | null
-  sucursalNombre: string | null
-  seccion: string
-  campo: string
-  valorAnterior: string | null
-  valorNuevo: string | null
-}
 
 export interface PageResult<T> {
   content: T[]
@@ -202,25 +192,5 @@ export const adminService = {
   eliminarConcepto: (sucursalId: number, id: number) =>
     api.delete(`/admin/sucursales/${sucursalId}/conceptos/${id}`),
 
-  // Bitácora de configuración
-  getBitacora: (params: {
-    sucursalId?: number
-    seccion?: string
-    desde?: string
-    hasta?: string
-    page?: number
-    size?: number
-  }) => {
-    const p: Record<string, string> = {}
-    if (params.sucursalId !== undefined) p.sucursalId = String(params.sucursalId)
-    if (params.seccion)    p.seccion    = params.seccion
-    if (params.desde)      p.desde      = params.desde
-    if (params.hasta)      p.hasta      = params.hasta
-    if (params.page  !== undefined) p.page  = String(params.page)
-    if (params.size  !== undefined) p.size  = String(params.size)
-    return api.get<PageResult<BitacoraConfigItem>>(
-      '/admin/bitacora',
-      { params: p }
-    ).then(r => r.data)
-  },
+  // Bitácora removed — UI no longer references this endpoint
 }

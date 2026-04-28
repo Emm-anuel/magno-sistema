@@ -55,8 +55,6 @@ export interface Sucursal {
   nombre: string
   direccion?: string
   telefono?: string
-  multa_base: number
-  ahorro_diario: number
   activa: boolean
 }
 

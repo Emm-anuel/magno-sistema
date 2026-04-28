@@ -76,6 +76,15 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                      @Param("sucursalId") Long sucursalId,
                      @Param("fecha") LocalDate fecha);
 
+       @Query("SELECT COALESCE(SUM(p.montoRecibido), 0) FROM Pago p " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND p.deletedAt IS NULL")
+       java.math.BigDecimal sumIngresoBySucursalAndFechaRange(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
        @Query("SELECT p.asesor.nombreCompleto, COUNT(p), COALESCE(SUM(p.montoRecibido), 0) " +
                      "FROM Pago p " +
                      "WHERE p.credito.sucursal.id = :sucursalId " +
@@ -116,6 +125,41 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                      @Param("asesorId") Long asesorId,
                      @Param("desde") LocalDate desde,
                      @Param("hasta") LocalDate hasta);
+
+       @Query("SELECT COALESCE(SUM(p.multaAplicada), 0) FROM Pago p " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND p.multaAplicada > 0 " +
+                     "AND p.deletedAt IS NULL")
+       java.math.BigDecimal sumMultasBySucursalAndFechaRange(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
+       @Query("SELECT COALESCE(SUM(p.multaAplicada), 0) FROM Pago p " +
+                     "WHERE p.asesor.id = :asesorId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND p.multaAplicada > 0 " +
+                     "AND p.deletedAt IS NULL")
+       java.math.BigDecimal sumMultasByAsesorAndFechaRange(
+                     @Param("asesorId") Long asesorId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
+       @Query("SELECT p.asesor.id, p.asesor.nombreCompleto, COUNT(p), " +
+                     "COALESCE(SUM(p.montoRecibido), 0), COALESCE(SUM(p.multaAplicada), 0) " +
+                     "FROM Pago p " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND p.fechaPago >= :desde AND p.fechaPago <= :hasta " +
+                     "AND (:asesorId IS NULL OR p.asesor.id = :asesorId) " +
+                     "AND p.deletedAt IS NULL " +
+                     "GROUP BY p.asesor.id, p.asesor.nombreCompleto " +
+                     "ORDER BY SUM(p.montoRecibido) DESC")
+       List<Object[]> findIngresosPorAsesorBySucursalAndFechaRange(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta,
+                     @Param("asesorId") Long asesorId);
 
        @Query("SELECT COUNT(p) FROM Pago p " +
                      "WHERE p.asesor.id = :asesorId " +

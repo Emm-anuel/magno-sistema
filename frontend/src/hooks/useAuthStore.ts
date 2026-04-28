@@ -14,8 +14,6 @@ function normalizeUsuarioPersistido(raw: Usuario | Record<string, any> | null): 
     sucursal: {
       ...sucursal,
       nombre: sucursal.nombre ?? '',
-      multa_base: sucursal.multa_base ?? sucursal.multaBase ?? 0,
-      ahorro_diario: sucursal.ahorro_diario ?? sucursal.ahorroDiario ?? 0,
       activa: sucursal.activa ?? true,
     },
   } as Usuario

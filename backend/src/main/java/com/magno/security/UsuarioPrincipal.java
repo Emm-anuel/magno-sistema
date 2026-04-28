@@ -41,10 +41,30 @@ public class UsuarioPrincipal implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return Boolean.TRUE.equals(usuario.getActivo());
+        if (!Boolean.TRUE.equals(usuario.getActivo())) {
+            return false;
+        }
+        if (usuario.getSucursal() == null) {
+            return false;
+        }
+        if (!Boolean.TRUE.equals(usuario.getSucursal().getActiva())) {
+            return "ADMINISTRADOR".equals(usuario.getRol().getNombre());
+        }
+        return true;
     }
 
-    @Override public boolean isAccountNonExpired()  { return true; }
-    @Override public boolean isAccountNonLocked()   { return true; }
-    @Override public boolean isCredentialsNonExpired() { return true; }
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
 }

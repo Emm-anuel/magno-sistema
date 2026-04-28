@@ -46,6 +46,18 @@ public interface RenovacionRepository extends JpaRepository<Renovacion, Long> {
                      @Param("asesorId") Long asesorId,
                      @Param("sucursalId") Long sucursalId);
 
+       @Query("SELECT COALESCE(SUM(r.montoDesembolso), 0) FROM Renovacion r " +
+                     "WHERE r.deletedAt IS NULL " +
+                     "AND r.estado = com.magno.model.EstadoRenovacion.ACTIVO " +
+                     "AND r.fecha BETWEEN :desde AND :hasta " +
+                     "AND (:asesorId IS NULL OR r.asesor.id = :asesorId) " +
+                     "AND (:sucursalId IS NULL OR r.creditoNuevo.sucursal.id = :sucursalId)")
+       java.math.BigDecimal sumDesembolsosByScopeAndFecha(
+                     @Param("sucursalId") Long sucursalId,
+                     @Param("asesorId") Long asesorId,
+                     @Param("desde") LocalDate desde,
+                     @Param("hasta") LocalDate hasta);
+
        // Renovaciones SOLICITADAS pendientes de aprobación
        @Query("SELECT r FROM Renovacion r " +
                      "WHERE r.deletedAt IS NULL " +

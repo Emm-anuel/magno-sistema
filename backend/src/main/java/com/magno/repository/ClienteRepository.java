@@ -29,17 +29,21 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long>,
 
     long countByActivoTrue();
 
-    /** Busca clientes que pertenecen a un asesor específico (lista completa para ruta del día). */
+    /**
+     * Busca clientes que pertenecen a un asesor específico (lista completa para
+     * ruta del día).
+     */
     List<Cliente> findByAsesorIdAndActivoTrue(Long asesorId);
 
     /** Busca clientes que pertenecen a un asesor específico (paginado). */
     Page<Cliente> findByAsesorIdAndActivoTrue(Long asesorId, Pageable pageable);
 
+    long countByAsesorIdAndActivoTrue(Long asesorId);
+
     /**
      * Verifica si el cliente tiene algún crédito activo.
      * Usa native query para no necesitar la entidad Credito todavía.
      */
-    @Query(value = "SELECT COUNT(*) > 0 FROM creditos WHERE cliente_id = :clienteId AND estado = 'ACTIVO' AND deleted_at IS NULL",
-           nativeQuery = true)
+    @Query(value = "SELECT COUNT(*) > 0 FROM creditos WHERE cliente_id = :clienteId AND estado = 'ACTIVO' AND deleted_at IS NULL", nativeQuery = true)
     boolean tieneCredito(@Param("clienteId") Long clienteId);
 }

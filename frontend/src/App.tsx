@@ -7,6 +7,7 @@ import AppLayout from '@/pages/AppLayout'
 import DashboardPage from '@/pages/dashboard/DashboardPage'
 import UsuariosPage from '@/pages/usuarios/UsuariosPage'
 import UsuarioDetallePage from '@/pages/usuarios/UsuarioDetallePage'
+import SucursalesPage from '@/pages/sucursales/SucursalesPage'
 import ClientesPage from '@/pages/clientes/ClientesPage'
 import ClienteDetallePage from '@/pages/clientes/ClienteDetallePage'
 import CreditosNuevosPage from '@/pages/creditos/CreditosNuevosPage'
@@ -78,10 +79,9 @@ export default function App() {
 
             {/* Solo Administrador */}
             <Route element={<ProtectedRoute allowedRoles={ADMIN_ONLY_ROLES} />}>
-              <Route path="/sucursales" element={<ModulePlaceholderPage />} />
+              <Route path="/sucursales" element={<SucursalesPage />} />
               <Route path="/usuarios" element={<UsuariosPage />} />
               <Route path="/usuarios/:id" element={<UsuarioDetallePage />} />
-              <Route path="/bitacora" element={<ModulePlaceholderPage />} />
             </Route>
 
             {/* Administrador y Gerente de Sucursal */}

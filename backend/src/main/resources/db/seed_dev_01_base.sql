@@ -37,24 +37,24 @@ BEGIN
 -- ────────────────────────────────────────────────────────────────
 
 IF NOT EXISTS (SELECT 1 FROM sucursales WHERE nombre = 'Centro') THEN
-  INSERT INTO sucursales (nombre, direccion, telefono, multa_base, ahorro_diario, activa)
-  VALUES ('Centro', 'Av. Hidalgo 100, Centro, Pachuca', '7712000001', 50.00, 2000.00, TRUE)
+  INSERT INTO sucursales (nombre, direccion, telefono, activa)
+  VALUES ('Centro', 'Av. Hidalgo 100, Centro, Pachuca', '7712000001', TRUE)
   RETURNING id INTO v_suc_centro;
 ELSE
   SELECT id INTO v_suc_centro FROM sucursales WHERE nombre = 'Centro';
 END IF;
 
 IF NOT EXISTS (SELECT 1 FROM sucursales WHERE nombre = 'Norte') THEN
-  INSERT INTO sucursales (nombre, direccion, telefono, multa_base, ahorro_diario, activa)
-  VALUES ('Norte', 'Blvd. Norte 450, Col. Industrial, Pachuca', '7712000010', 50.00, 2000.00, TRUE)
+  INSERT INTO sucursales (nombre, direccion, telefono, activa)
+  VALUES ('Norte', 'Blvd. Norte 450, Col. Industrial, Pachuca', '7712000010', TRUE)
   RETURNING id INTO v_suc_norte;
 ELSE
   SELECT id INTO v_suc_norte FROM sucursales WHERE nombre = 'Norte';
 END IF;
 
 IF NOT EXISTS (SELECT 1 FROM sucursales WHERE nombre = 'Sur') THEN
-  INSERT INTO sucursales (nombre, direccion, telefono, multa_base, ahorro_diario, activa)
-  VALUES ('Sur', 'Calle Morelos 88, Col. Los Pinos, Mineral de la Reforma', '7712000020', 50.00, 2000.00, TRUE)
+  INSERT INTO sucursales (nombre, direccion, telefono, activa)
+  VALUES ('Sur', 'Calle Morelos 88, Col. Los Pinos, Mineral de la Reforma', '7712000020', TRUE)
   RETURNING id INTO v_suc_sur;
 ELSE
   SELECT id INTO v_suc_sur FROM sucursales WHERE nombre = 'Sur';

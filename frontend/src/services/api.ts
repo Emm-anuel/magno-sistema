@@ -15,8 +15,6 @@ function normalizeUsuario(raw: any): AuthResponse['usuario'] {
       nombre: sucursal?.nombre ?? '',
       direccion: sucursal?.direccion,
       telefono: sucursal?.telefono,
-      multa_base: sucursal?.multa_base ?? sucursal?.multaBase ?? 0,
-      ahorro_diario: sucursal?.ahorro_diario ?? sucursal?.ahorroDiario ?? 0,
       activa: sucursal?.activa ?? true,
     },
     activo: raw?.activo ?? true,
@@ -35,6 +33,16 @@ function normalizeUsuario(raw: any): AuthResponse['usuario'] {
     ref2_nombre: raw?.ref2_nombre ?? raw?.ref2Nombre,
     ref2_telefono: raw?.ref2_telefono ?? raw?.ref2Telefono,
     ref2_parentesco: raw?.ref2_parentesco ?? raw?.ref2Parentesco,
+  }
+}
+
+function normalizeSucursal(raw: any): import('@/types').Sucursal {
+  return {
+    id: raw?.id,
+    nombre: raw?.nombre ?? '',
+    direccion: raw?.direccion,
+    telefono: raw?.telefono,
+    activa: raw?.activa ?? true,
   }
 }
 
@@ -239,6 +247,14 @@ function toClienteRequestPayload(data: any) {
   }
 }
 
+function toSucursalRequestPayload(data: any) {
+  return {
+    nombre: data?.nombre,
+    direccion: data?.direccion,
+    telefono: data?.telefono,
+  }
+}
+
 export const api = axios.create({
   baseURL: '/api',
   headers: { 'Content-Type': 'application/json' },
@@ -331,6 +347,27 @@ export const usuarioService = {
 
   cambiarEstado: (id: number, activo: boolean) =>
     api.patch<any>(`/usuarios/${id}/estado`, { activo }).then((r) => normalizeUsuario(r.data)),
+}
+
+// ── Sucursales ───────────────────────────────────────────────────
+export const sucursalService = {
+  listarActivas: () =>
+    api.get<any[]>('/sucursales').then((r) => r.data.map(normalizeSucursal)),
+
+  listarTodas: () =>
+    api.get<any[]>('/sucursales/admin').then((r) => r.data.map(normalizeSucursal)),
+
+  obtener: (id: number) =>
+    api.get<any>(`/sucursales/${id}`).then((r) => normalizeSucursal(r.data)),
+
+  crear: (data: import('@/types').Sucursal) =>
+    api.post<any>('/sucursales', toSucursalRequestPayload(data)).then((r) => normalizeSucursal(r.data)),
+
+  actualizar: (id: number, data: import('@/types').Sucursal) =>
+    api.put<any>(`/sucursales/${id}`, toSucursalRequestPayload(data)).then((r) => normalizeSucursal(r.data)),
+
+  cambiarEstado: (id: number, activa: boolean) =>
+    api.patch<any>(`/sucursales/${id}/estado`, { activa }).then((r) => normalizeSucursal(r.data)),
 }
 
 // ── Clientes ─────────────────────────────────────────────────────

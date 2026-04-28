@@ -28,8 +28,8 @@ public class AuthController {
     private final UsuarioRepository usuarioRepo;
 
     public AuthController(AuthenticationManager authManager,
-                          JwtService jwtService,
-                          UsuarioRepository usuarioRepo) {
+            JwtService jwtService,
+            UsuarioRepository usuarioRepo) {
         this.authManager = authManager;
         this.jwtService = jwtService;
         this.usuarioRepo = usuarioRepo;
@@ -39,8 +39,7 @@ public class AuthController {
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         try {
             Authentication auth = authManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.email(), request.password())
-            );
+                    new UsernamePasswordAuthenticationToken(request.email(), request.password()));
 
             // Cargar datos completos del usuario
             var usuario = usuarioRepo.findByEmail(auth.getName())
@@ -50,14 +49,13 @@ public class AuthController {
                     usuario.getId(),
                     usuario.getEmail(),
                     usuario.getRol().getNombre(),
-                    usuario.getSucursal().getId()
-            );
+                    usuario.getSucursal().getId());
 
             return ResponseEntity.ok(new LoginResponse(token, UsuarioDTO.from(usuario)));
 
         } catch (DisabledException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("message", "El usuario está inactivo"));
+                    .body(Map.of("message", "El usuario o su sucursal están inactivos"));
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("message", "Credenciales incorrectas"));

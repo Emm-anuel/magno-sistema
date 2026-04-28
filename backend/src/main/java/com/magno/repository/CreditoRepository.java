@@ -79,6 +79,18 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         @Param("hasta") java.time.OffsetDateTime hasta);
 
         @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
+                        "WHERE (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
+                        "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+                        "AND c.fechaDesembolso >= :desde " +
+                        "AND c.fechaDesembolso < :hasta " +
+                        "AND c.deletedAt IS NULL")
+        java.math.BigDecimal sumDesembolsosByScopeAndFecha(
+                        @Param("sucursalId") Long sucursalId,
+                        @Param("asesorId") Long asesorId,
+                        @Param("desde") java.time.OffsetDateTime desde,
+                        @Param("hasta") java.time.OffsetDateTime hasta);
+
+        @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
                         "WHERE c.sucursal.id = :sucursalId " +
                         "AND c.tipo = :tipo " +
                         "AND c.fechaDesembolso >= :desde " +
@@ -96,6 +108,15 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
                         "ORDER BY c.cliente.apellidoPaterno ASC, c.cliente.nombre ASC")
         List<Credito> findActivosBySucursalAndAsesor(
+                        @Param("sucursalId") Long sucursalId,
+                        @Param("asesorId") Long asesorId);
+
+        @Query("SELECT COUNT(c) FROM Credito c " +
+                        "WHERE c.estado = com.magno.model.EstadoCredito.ACTIVO " +
+                        "AND c.deletedAt IS NULL " +
+                        "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
+                        "AND (:asesorId IS NULL OR c.asesor.id = :asesorId)")
+        long countActivosByScope(
                         @Param("sucursalId") Long sucursalId,
                         @Param("asesorId") Long asesorId);
 

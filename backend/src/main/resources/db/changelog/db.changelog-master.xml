@@ -189,4 +189,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V24-sucursales-drop-campos" author="magno">
+        <sqlFile
+            path="db/changelog/V24__sucursales_drop_campos.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

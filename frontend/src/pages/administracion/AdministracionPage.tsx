@@ -5,7 +5,6 @@ import { api } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import TabConfigSucursal from '@/pages/administracion/TabConfigSucursal'
 import TabDiasInhabiles from '@/pages/administracion/TabDiasInhabiles'
-import TabBitacora from '@/pages/administracion/TabBitacora'
 
 interface Sucursal {
   id: number
@@ -15,7 +14,6 @@ interface Sucursal {
 const TABS = [
   { id: 'config',    label: 'Configuración',   icon: Settings },
   { id: 'inhabiles', label: 'Días Inhábiles',   icon: CalendarOff },
-  { id: 'bitacora',  label: 'Bitácora',         icon: ClipboardList },
 ] as const
 
 type TabId = typeof TABS[number]['id']
@@ -109,9 +107,7 @@ export default function AdministracionPage() {
             <TabDiasInhabiles />
           )}
 
-          {tab === 'bitacora' && (
-            <TabBitacora />
-          )}
+          {/* Bitácora removida */}
         </>
       )}
     </div>

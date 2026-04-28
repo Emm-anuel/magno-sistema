@@ -56,9 +56,9 @@ ALTER TABLE bitacora ENABLE TRIGGER ALL;
 
 -- Reinsertar sucursal y usuario principal por defecto
 INSERT INTO sucursales
-    (nombre, multa_base, ahorro_diario)
+    (nombre)
 VALUES
-    ('Sucursal Principal', 50.00, 2000.00);
+    ('Sucursal Principal');
 
 INSERT INTO usuarios
     (
