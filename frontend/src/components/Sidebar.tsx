@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { clsx } from 'clsx'
 import {
   LayoutDashboard, CreditCard, Wallet, RefreshCw, Users, History,
-  Archive, Receipt, BarChart2, Building2, UserCog, ScrollText, Settings, X,
+  Archive, Receipt, BarChart2, Building2, UserCog, Settings, X,
   CalendarDays, TrendingUp,
 } from 'lucide-react'
 import type { Rol } from '@/types'
