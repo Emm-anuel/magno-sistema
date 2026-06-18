@@ -152,8 +152,19 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
   const handleGeolocate = () => {
     if (!navigator.geolocation) return
     navigator.geolocation.getCurrentPosition(
-      (pos) => onChange(pos.coords.latitude, pos.coords.longitude),
-      () => {},
+      (pos) => {
+        setSearchError('')
+        onChange(pos.coords.latitude, pos.coords.longitude)
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setSearchError('Permiso de ubicación denegado. Actívalo en la configuración del navegador.')
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setSearchError('No se pudo obtener la ubicación. Verifica tu conexión o GPS.')
+        } else {
+          setSearchError('No se pudo obtener la ubicación (tiempo de espera agotado).')
+        }
+      },
       { enableHighAccuracy: true, timeout: 8000 },
     )
   }
