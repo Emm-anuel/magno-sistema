@@ -53,40 +53,74 @@ function SectionCard({ title, subtitle, open, onToggle, children }: SectionCardP
 
 // ── Sección 1 — Multas ───────────────────────────────────────────────
 
+type MultaRow = {
+  rangoMin: number; rangoMax: number
+  multaNoPago: number; multaIncompletos: number
+  multaSemanalNoPago: number; multaSemanalIncompletos: number
+}
+
+function toMultaRow(m: AdminConfigMulta): MultaRow {
+  return {
+    rangoMin: m.rangoMin, rangoMax: m.rangoMax,
+    multaNoPago: m.multaNoPago, multaIncompletos: m.multaIncompletos,
+    multaSemanalNoPago: m.multaSemanalNoPago, multaSemanalIncompletos: m.multaSemanalIncompletos,
+  }
+}
+
 function SeccionMultas({ sucursalId }: { sucursalId: number }) {
   const qc = useQueryClient()
   const [open, setOpen] = useState(true)
-  const [rows, setRows] = useState<AdminConfigMulta[]>([])
+  const [rows, setRows] = useState<MultaRow[]>([])
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['admin-multas', sucursalId],
     queryFn: () => adminService.getMultas(sucursalId),
   })
 
-  useEffect(() => { setRows(data) }, [data])
+  useEffect(() => { setRows(data.map(toMultaRow)) }, [data])
 
   const mutation = useMutation({
-    mutationFn: async () => {
-      for (const m of rows) {
-        await adminService.saveMulta(sucursalId, m.id, {
-          rangoMin:                m.rangoMin,
-          rangoMax:                m.rangoMax,
-          multaNoPago:             m.multaNoPago,
-          multaIncompletos:        m.multaIncompletos,
-          multaSemanalNoPago:      m.multaSemanalNoPago,
-          multaSemanalIncompletos: m.multaSemanalIncompletos,
-        })
-      }
-    },
+    mutationFn: () => adminService.saveMultas(sucursalId, { multas: rows }),
     onSuccess: () => {
       toast.success('Multas actualizadas')
       qc.invalidateQueries({ queryKey: ['admin-multas', sucursalId] })
     },
-    onError: () => toast.error('Error al guardar multas'),
+    onError: (e: any) => toast.error(e?.message ?? 'Error al guardar multas'),
   })
 
-  function update(idx: number, field: keyof AdminConfigMulta, value: string) {
+  function update(idx: number, field: keyof MultaRow, value: string) {
     setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: Number(value) || 0 } : r))
+  }
+
+  function addRow() {
+    setRows(prev => [...prev, {
+      rangoMin: 0, rangoMax: 0,
+      multaNoPago: 50, multaIncompletos: 50,
+      multaSemanalNoPago: 300, multaSemanalIncompletos: 300,
+    }])
+  }
+
+  function removeRow(idx: number) {
+    setRows(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function guardar() {
+    if (rows.length === 0) {
+      toast.error('Agrega al menos un rango de multa antes de guardar')
+      return
+    }
+    const invalido = rows.some(r => r.rangoMax <= r.rangoMin)
+    if (invalido) {
+      toast.error('En cada rango, "Hasta" debe ser mayor que "Desde"')
+      return
+    }
+    const ordenados = [...rows].sort((a, b) => a.rangoMin - b.rangoMin)
+    const solapado = ordenados.some((r, i) => i > 0 && r.rangoMin <= ordenados[i - 1].rangoMax)
+    if (solapado) {
+      toast.error('Los rangos no pueden solaparse ni repetirse entre sí')
+      return
+    }
+    mutation.mutate()
   }
 
   return (
@@ -98,8 +132,6 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
     >
       {isLoading ? (
         <p className="text-[#adb5bd] text-[13px] py-4 text-center">Cargando...</p>
-      ) : rows.length === 0 ? (
-        <p className="text-[#adb5bd] text-[13px]">Sin configuración de multas.</p>
       ) : (
         <>
           {/* Desktop */}
@@ -107,18 +139,39 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
             <table className="tabla">
               <thead>
                 <tr>
-                  <th>Rango de monto</th>
+                  <th>Desde</th>
+                  <th>Hasta</th>
                   <th className="text-right">No pago (diario)</th>
                   <th className="text-right">Incompleto (diario)</th>
                   <th className="text-right">No pago (semanal)</th>
                   <th className="text-right">Incompleto (semanal)</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((m, i) => (
-                  <tr key={m.id}>
-                    <td className="font-medium text-[#495057]">
-                      ${fmt(m.rangoMin)} – ${fmt(m.rangoMax)}
+                {rows.length === 0 ? (
+                  <tr><td colSpan={7} className="text-center text-[#adb5bd] py-4">Sin configuración de multas</td></tr>
+                ) : rows.map((m, i) => (
+                  <tr key={i}>
+                    <td>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[#adb5bd] text-[12px]">$</span>
+                        <input
+                          type="number" min="0" value={m.rangoMin}
+                          onChange={e => update(i, 'rangoMin', e.target.value)}
+                          className="input w-24"
+                        />
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[#adb5bd] text-[12px]">$</span>
+                        <input
+                          type="number" min="0" value={m.rangoMax}
+                          onChange={e => update(i, 'rangoMax', e.target.value)}
+                          className="input w-24"
+                        />
+                      </div>
                     </td>
                     {(
                       [
@@ -126,7 +179,7 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
                         ['multaIncompletos', m.multaIncompletos],
                         ['multaSemanalNoPago', m.multaSemanalNoPago],
                         ['multaSemanalIncompletos', m.multaSemanalIncompletos],
-                      ] as [keyof AdminConfigMulta, number][]
+                      ] as [keyof MultaRow, number][]
                     ).map(([field, val]) => (
                       <td key={field} className="text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -142,6 +195,15 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
                         </div>
                       </td>
                     ))}
+                    <td>
+                      <button
+                        type="button"
+                        onClick={() => removeRow(i)}
+                        className="btn btn-sm text-[#dc2626] hover:bg-[#fee2e2]"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -151,10 +213,21 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
           {/* Mobile */}
           <div className="md:hidden space-y-3 mb-4">
             {rows.map((m, i) => (
-              <div key={m.id} className="border border-[#e9ecef] rounded-lg p-3 space-y-2">
-                <p className="text-[12px] font-semibold text-[#495057]">
-                  Rango: ${fmt(m.rangoMin)} – ${fmt(m.rangoMax)}
-                </p>
+              <div key={i} className="border border-[#e9ecef] rounded-lg p-3 space-y-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-[10px] text-[#adb5bd] mb-0.5">Desde ($)</p>
+                    <input type="number" value={m.rangoMin}
+                      onChange={e => update(i, 'rangoMin', e.target.value)}
+                      className="input" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#adb5bd] mb-0.5">Hasta ($)</p>
+                    <input type="number" value={m.rangoMax}
+                      onChange={e => update(i, 'rangoMax', e.target.value)}
+                      className="input" />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {(
                     [
@@ -162,7 +235,7 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
                       ['multaIncompletos', 'Incompleto diario', m.multaIncompletos],
                       ['multaSemanalNoPago', 'No pago semanal', m.multaSemanalNoPago],
                       ['multaSemanalIncompletos', 'Incompleto semanal', m.multaSemanalIncompletos],
-                    ] as [keyof AdminConfigMulta, string, number][]
+                    ] as [keyof MultaRow, string, number][]
                   ).map(([field, label, val]) => (
                     <div key={field}>
                       <p className="text-[10px] text-[#adb5bd] mb-0.5">{label}</p>
@@ -179,14 +252,22 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
                     </div>
                   ))}
                 </div>
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => removeRow(i)} className="btn btn-sm text-[#dc2626]">
+                    <Trash2 className="w-3.5 h-3.5" /> Eliminar
+                  </button>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            <button type="button" onClick={addRow} className="btn btn-sm">
+              <Plus className="w-3.5 h-3.5" /> Agregar rango
+            </button>
             <button
               className="btn-primary"
-              onClick={() => mutation.mutate()}
+              onClick={guardar}
               disabled={mutation.isPending}
             >
               {mutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
@@ -202,6 +283,149 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
 // ── Sección 2 — Rangos de Crédito ────────────────────────────────────
 
 type RangoRow = { rangoMin: number; rangoMax: number; plazo: number; tasaInteres: number }
+
+interface RangoTableProps {
+  rows: RangoRow[]
+  tipo: 'diario' | 'semanal'
+  updateRow: (tipo: 'diario' | 'semanal', idx: number, field: keyof RangoRow, value: string) => void
+  removeRow: (tipo: 'diario' | 'semanal', idx: number) => void
+  addRow: (tipo: 'diario' | 'semanal') => void
+}
+
+function RangoTable({ rows, tipo, updateRow, removeRow, addRow }: RangoTableProps) {
+  return (
+    <div>
+      <p className="text-[11px] font-semibold text-[#495057] uppercase tracking-wide mb-2">
+        {tipo === 'diario' ? 'Crédito Diario' : 'Crédito Semanal'}
+      </p>
+
+      {/* Desktop */}
+      <div className="hidden md:block overflow-x-auto mb-2">
+        <table className="tabla">
+          <thead>
+            <tr>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th>{tipo === 'diario' ? 'Días' : 'Semanas'}</th>
+              <th>Tasa %</th>
+              <th className="text-right">Pago estimado*</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr><td colSpan={6} className="text-center text-[#adb5bd] py-4">Sin rangos configurados</td></tr>
+            ) : rows.map((r, i) => (
+              <tr key={i}>
+                <td>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#adb5bd] text-[12px]">$</span>
+                    <input
+                      type="number" min="0" value={r.rangoMin}
+                      onChange={e => updateRow(tipo, i, 'rangoMin', e.target.value)}
+                      className="input w-28"
+                    />
+                  </div>
+                </td>
+                <td>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[#adb5bd] text-[12px]">$</span>
+                    <input
+                      type="number" min="0" value={r.rangoMax}
+                      onChange={e => updateRow(tipo, i, 'rangoMax', e.target.value)}
+                      className="input w-28"
+                    />
+                  </div>
+                </td>
+                <td>
+                  <input
+                    type="number" min="1" value={r.plazo}
+                    onChange={e => updateRow(tipo, i, 'plazo', e.target.value)}
+                    className="input w-20"
+                  />
+                </td>
+                <td>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" min="0" max="100" step="0.5"
+                      value={+(r.tasaInteres * 100).toFixed(1)}
+                      onChange={e => updateRow(tipo, i, 'tasaInteres', String(Number(e.target.value) / 100))}
+                      className="input w-20"
+                    />
+                    <span className="text-[#adb5bd] text-[12px]">%</span>
+                  </div>
+                </td>
+                <td className="text-right font-mono text-[12px] text-[#2d6a4f]">
+                  ${fmt(pagoEstimado(r.rangoMin, r.tasaInteres, r.plazo))}
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(tipo, i)}
+                    className="btn btn-sm text-[#dc2626] hover:bg-[#fee2e2]"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile */}
+      <div className="md:hidden space-y-2 mb-2">
+        {rows.map((r, i) => (
+          <div key={i} className="border border-[#e9ecef] rounded-lg p-3">
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <div>
+                <p className="text-[10px] text-[#adb5bd] mb-0.5">Desde ($)</p>
+                <input type="number" value={r.rangoMin}
+                  onChange={e => updateRow(tipo, i, 'rangoMin', e.target.value)}
+                  className="input" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#adb5bd] mb-0.5">Hasta ($)</p>
+                <input type="number" value={r.rangoMax}
+                  onChange={e => updateRow(tipo, i, 'rangoMax', e.target.value)}
+                  className="input" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#adb5bd] mb-0.5">{tipo === 'diario' ? 'Días' : 'Semanas'}</p>
+                <input type="number" value={r.plazo}
+                  onChange={e => updateRow(tipo, i, 'plazo', e.target.value)}
+                  className="input" />
+              </div>
+              <div>
+                <p className="text-[10px] text-[#adb5bd] mb-0.5">Tasa %</p>
+                <input type="number" step="0.5"
+                  value={+(r.tasaInteres * 100).toFixed(1)}
+                  onChange={e => updateRow(tipo, i, 'tasaInteres', String(Number(e.target.value) / 100))}
+                  className="input" />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-[#2d6a4f] font-semibold">
+                Pago est. ${fmt(pagoEstimado(r.rangoMin, r.tasaInteres, r.plazo))}
+              </span>
+              <button type="button" onClick={() => removeRow(tipo, i)}
+                className="btn btn-sm text-[#dc2626]">
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button type="button" onClick={() => addRow(tipo)} className="btn btn-sm">
+        <Plus className="w-3.5 h-3.5" /> Agregar rango
+      </button>
+      <p className="text-[10px] text-[#adb5bd] mt-1.5">
+        * Pago estimado calculado sobre el monto mínimo del rango
+      </p>
+    </div>
+  )
+}
 
 function SeccionRangos({ sucursalId }: { sucursalId: number }) {
   const qc = useQueryClient()
@@ -232,6 +456,14 @@ function SeccionRangos({ sucursalId }: { sucursalId: number }) {
     onError: () => toast.error('Error al guardar rangos'),
   })
 
+  function guardar() {
+    if (diario.length === 0 || semanal.length === 0) {
+      toast.error('Agrega al menos un rango de Crédito Diario y uno de Crédito Semanal antes de guardar')
+      return
+    }
+    mutation.mutate()
+  }
+
   function updateRow(tipo: 'diario' | 'semanal', idx: number, field: keyof RangoRow, value: string) {
     const setter = tipo === 'diario' ? setDiario : setSemanal
     setter(prev => prev.map((r, i) => i === idx ? { ...r, [field]: Number(value) || 0 } : r))
@@ -248,141 +480,6 @@ function SeccionRangos({ sucursalId }: { sucursalId: number }) {
     else setSemanal(prev => prev.filter((_, i) => i !== idx))
   }
 
-  function RangoTable({ rows, tipo }: { rows: RangoRow[]; tipo: 'diario' | 'semanal' }) {
-    return (
-      <div>
-        <p className="text-[11px] font-semibold text-[#495057] uppercase tracking-wide mb-2">
-          {tipo === 'diario' ? 'Crédito Diario' : 'Crédito Semanal'}
-        </p>
-
-        {/* Desktop */}
-        <div className="hidden md:block overflow-x-auto mb-2">
-          <table className="tabla">
-            <thead>
-              <tr>
-                <th>Desde</th>
-                <th>Hasta</th>
-                <th>{tipo === 'diario' ? 'Días' : 'Semanas'}</th>
-                <th>Tasa %</th>
-                <th className="text-right">Pago estimado*</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-[#adb5bd] py-4">Sin rangos configurados</td></tr>
-              ) : rows.map((r, i) => (
-                <tr key={i}>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[#adb5bd] text-[12px]">$</span>
-                      <input
-                        type="number" min="0" value={r.rangoMin}
-                        onChange={e => updateRow(tipo, i, 'rangoMin', e.target.value)}
-                        className="input w-28"
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[#adb5bd] text-[12px]">$</span>
-                      <input
-                        type="number" min="0" value={r.rangoMax}
-                        onChange={e => updateRow(tipo, i, 'rangoMax', e.target.value)}
-                        className="input w-28"
-                      />
-                    </div>
-                  </td>
-                  <td>
-                    <input
-                      type="number" min="1" value={r.plazo}
-                      onChange={e => updateRow(tipo, i, 'plazo', e.target.value)}
-                      className="input w-20"
-                    />
-                  </td>
-                  <td>
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="number" min="0" max="100" step="0.5"
-                        value={+(r.tasaInteres * 100).toFixed(1)}
-                        onChange={e => updateRow(tipo, i, 'tasaInteres', String(Number(e.target.value) / 100))}
-                        className="input w-20"
-                      />
-                      <span className="text-[#adb5bd] text-[12px]">%</span>
-                    </div>
-                  </td>
-                  <td className="text-right font-mono text-[12px] text-[#2d6a4f]">
-                    ${fmt(pagoEstimado(r.rangoMin, r.tasaInteres, r.plazo))}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(tipo, i)}
-                      className="btn btn-sm text-[#dc2626] hover:bg-[#fee2e2]"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile */}
-        <div className="md:hidden space-y-2 mb-2">
-          {rows.map((r, i) => (
-            <div key={i} className="border border-[#e9ecef] rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div>
-                  <p className="text-[10px] text-[#adb5bd] mb-0.5">Desde ($)</p>
-                  <input type="number" value={r.rangoMin}
-                    onChange={e => updateRow(tipo, i, 'rangoMin', e.target.value)}
-                    className="input" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-[#adb5bd] mb-0.5">Hasta ($)</p>
-                  <input type="number" value={r.rangoMax}
-                    onChange={e => updateRow(tipo, i, 'rangoMax', e.target.value)}
-                    className="input" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-[#adb5bd] mb-0.5">{tipo === 'diario' ? 'Días' : 'Semanas'}</p>
-                  <input type="number" value={r.plazo}
-                    onChange={e => updateRow(tipo, i, 'plazo', e.target.value)}
-                    className="input" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-[#adb5bd] mb-0.5">Tasa %</p>
-                  <input type="number" step="0.5"
-                    value={+(r.tasaInteres * 100).toFixed(1)}
-                    onChange={e => updateRow(tipo, i, 'tasaInteres', String(Number(e.target.value) / 100))}
-                    className="input" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-[#2d6a4f] font-semibold">
-                  Pago est. ${fmt(pagoEstimado(r.rangoMin, r.tasaInteres, r.plazo))}
-                </span>
-                <button type="button" onClick={() => removeRow(tipo, i)}
-                  className="btn btn-sm text-[#dc2626]">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button type="button" onClick={() => addRow(tipo)} className="btn btn-sm">
-          <Plus className="w-3.5 h-3.5" /> Agregar rango
-        </button>
-        <p className="text-[10px] text-[#adb5bd] mt-1.5">
-          * Pago estimado calculado sobre el monto mínimo del rango
-        </p>
-      </div>
-    )
-  }
-
   return (
     <SectionCard
       title="Parámetros de Crédito"
@@ -394,14 +491,14 @@ function SeccionRangos({ sucursalId }: { sucursalId: number }) {
         <p className="text-[#adb5bd] text-[13px] py-4 text-center">Cargando...</p>
       ) : (
         <div className="space-y-5">
-          <RangoTable rows={diario} tipo="diario" />
+          <RangoTable rows={diario} tipo="diario" updateRow={updateRow} removeRow={removeRow} addRow={addRow} />
           <div className="border-t border-[#e9ecef] pt-4">
-            <RangoTable rows={semanal} tipo="semanal" />
+            <RangoTable rows={semanal} tipo="semanal" updateRow={updateRow} removeRow={removeRow} addRow={addRow} />
           </div>
           <div className="flex justify-end pt-1">
             <button
               className="btn-primary"
-              onClick={() => mutation.mutate()}
+              onClick={guardar}
               disabled={mutation.isPending}
             >
               {mutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}

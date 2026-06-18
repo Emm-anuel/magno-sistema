@@ -105,30 +105,43 @@ public class AdministracionService {
     }
 
     @Transactional
-    public ConfigMultaAdminDTO saveMulta(Long sucursalId, Long multaId,
-                                         ConfigMultaAdminRequest req, Long usuarioId) {
-        ConfigMulta multa = configMultaRepo.findById(multaId)
-                .orElseThrow(() -> new EntityNotFoundException("Configuración de multa no encontrada: " + multaId));
+    public List<ConfigMultaAdminDTO> saveMultas(Long sucursalId, ConfigMultaListRequest req, Long usuarioId) {
+        validarSucursal(sucursalId);
+        validarRangosMultaNoSolapados(req.multas());
 
-        if (!multa.getSucursalId().equals(sucursalId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "La configuración no pertenece a esta sucursal");
+        configMultaRepo.deleteBySucursalId(sucursalId);
+        configMultaRepo.flush();
+        for (ConfigMultaListRequest.MultaItem item : req.multas()) {
+            configMultaRepo.save(ConfigMulta.builder()
+                    .sucursalId(sucursalId)
+                    .rangoMin(item.rangoMin())
+                    .rangoMax(item.rangoMax())
+                    .multaNoPago(item.multaNoPago())
+                    .multaIncompletos(item.multaIncompletos())
+                    .multaSemanalNoPago(item.multaSemanalNoPago())
+                    .multaSemanalIncompletos(item.multaSemanalIncompletos())
+                    .build());
         }
 
-        String prevNoPago      = multa.getMultaNoPago().toPlainString();
-        String prevIncompletos = multa.getMultaIncompletos().toPlainString();
+        registrarCambio(usuarioId, sucursalId, "MULTAS", "rangos_completos",
+                "reemplazado", req.multas().size() + " rangos de multa");
 
-        multa.setRangoMin(req.rangoMin());
-        multa.setRangoMax(req.rangoMax());
-        multa.setMultaNoPago(req.multaNoPago());
-        multa.setMultaIncompletos(req.multaIncompletos());
-        multa.setMultaSemanalNoPago(req.multaSemanalNoPago());
-        multa.setMultaSemanalIncompletos(req.multaSemanalIncompletos());
-        configMultaRepo.save(multa);
+        return configMultaRepo.findBySucursalId(sucursalId).stream()
+                .map(ConfigMultaAdminDTO::from)
+                .toList();
+    }
 
-        registrarCambio(usuarioId, sucursalId, "MULTAS", "multa_no_pago", prevNoPago, req.multaNoPago().toPlainString());
-        registrarCambio(usuarioId, sucursalId, "MULTAS", "multa_incompletos", prevIncompletos, req.multaIncompletos().toPlainString());
-
-        return ConfigMultaAdminDTO.from(multa);
+    /** El cobro busca el rango de multa por monto con un Optional de resultado único — los rangos no pueden solaparse. */
+    private void validarRangosMultaNoSolapados(List<ConfigMultaListRequest.MultaItem> items) {
+        List<ConfigMultaListRequest.MultaItem> ordenados = items.stream()
+                .sorted(java.util.Comparator.comparing(ConfigMultaListRequest.MultaItem::rangoMin))
+                .toList();
+        for (int i = 1; i < ordenados.size(); i++) {
+            if (ordenados.get(i).rangoMin().compareTo(ordenados.get(i - 1).rangoMax()) <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Los rangos de multa no pueden solaparse ni repetirse entre sí");
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -147,8 +160,13 @@ public class AdministracionService {
                                                    Long usuarioId) {
         validarSucursal(sucursalId);
 
-        // Reemplazar todos los rangos DIARIO de la sucursal
+        // Las filas viejas deben quedar borradas en la BD antes de insertar las nuevas:
+        // con GenerationType.IDENTITY el INSERT se ejecuta de inmediato y puede chocar
+        // contra uq_config_rango si un rango nuevo reutiliza el mismo rango_min.
         configRangoRepo.deleteBySucursalIdAndTipoPago(sucursalId, "DIARIO");
+        configRangoRepo.deleteBySucursalIdAndTipoPago(sucursalId, "SEMANAL");
+        configRangoRepo.flush();
+
         for (ConfigRangoCreditoRequest.RangoItem item : req.diario()) {
             configRangoRepo.save(ConfigRangoCredito.builder()
                     .sucursalId(sucursalId)
@@ -161,8 +179,6 @@ public class AdministracionService {
                     .build());
         }
 
-        // Reemplazar todos los rangos SEMANAL de la sucursal
-        configRangoRepo.deleteBySucursalIdAndTipoPago(sucursalId, "SEMANAL");
         for (ConfigRangoCreditoRequest.RangoItem item : req.semanal()) {
             configRangoRepo.save(ConfigRangoCredito.builder()
                     .sucursalId(sucursalId)
@@ -200,6 +216,7 @@ public class AdministracionService {
         validarSucursal(sucursalId);
 
         configUmbralRepo.deleteBySucursalId(sucursalId);
+        configUmbralRepo.flush();
         for (ConfigUmbralRenovacionRequest.UmbralItem item : req.umbrales()) {
             configUmbralRepo.save(ConfigUmbralRenovacion.builder()
                     .sucursalId(sucursalId)

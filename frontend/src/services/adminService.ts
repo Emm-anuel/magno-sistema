@@ -121,13 +121,15 @@ export const adminService = {
     api.get<any[]>(`/admin/sucursales/${sucursalId}/multas`)
        .then(r => r.data.map(normalizeMulta)),
 
-  saveMulta: (sucursalId: number, multaId: number, payload: {
-    rangoMin: number; rangoMax: number
-    multaNoPago: number; multaIncompletos: number
-    multaSemanalNoPago: number; multaSemanalIncompletos: number
+  saveMultas: (sucursalId: number, payload: {
+    multas: Array<{
+      rangoMin: number; rangoMax: number
+      multaNoPago: number; multaIncompletos: number
+      multaSemanalNoPago: number; multaSemanalIncompletos: number
+    }>
   }) =>
-    api.put<any>(`/admin/sucursales/${sucursalId}/multas/${multaId}`, payload)
-       .then(r => normalizeMulta(r.data)),
+    api.put<any[]>(`/admin/sucursales/${sucursalId}/multas`, payload)
+       .then(r => r.data.map(normalizeMulta)),
 
   // Rangos crédito
   getRangos: (sucursalId: number) =>

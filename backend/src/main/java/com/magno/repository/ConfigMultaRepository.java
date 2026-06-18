@@ -27,4 +27,6 @@ public interface ConfigMultaRepository extends JpaRepository<ConfigMulta, Long> 
             @Param("sucursalId") Long sucursalId,
             @Param("monto") BigDecimal monto
     );
+
+    void deleteBySucursalId(Long sucursalId);
 }

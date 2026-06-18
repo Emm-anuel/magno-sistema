@@ -60,14 +60,13 @@ public class AdministracionController {
         return ResponseEntity.ok(adminService.getMultas(sucursalId));
     }
 
-    @PutMapping("/sucursales/{sucursalId}/multas/{id}")
-    public ResponseEntity<ConfigMultaAdminDTO> saveMulta(
+    @PutMapping("/sucursales/{sucursalId}/multas")
+    public ResponseEntity<List<ConfigMultaAdminDTO>> saveMultas(
             @PathVariable Long sucursalId,
-            @PathVariable Long id,
-            @Valid @RequestBody ConfigMultaAdminRequest req,
+            @Valid @RequestBody ConfigMultaListRequest req,
             Authentication auth) {
         validarAccesoSucursal(sucursalId, auth);
-        return ResponseEntity.ok(adminService.saveMulta(sucursalId, id, req, uid(auth)));
+        return ResponseEntity.ok(adminService.saveMultas(sucursalId, req, uid(auth)));
     }
 
     // ─────────────────────────────────────────────────────────────────
