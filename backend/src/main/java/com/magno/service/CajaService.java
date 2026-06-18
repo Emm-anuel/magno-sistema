@@ -38,6 +38,7 @@ public class CajaService {
         private final ConfigSucursalRepository configSucursalRepo;
         private final PagoRepository pagoRepo;
         private final CreditoRepository creditoRepo;
+        private final RenovacionRepository renovacionRepo;
         private final UsuarioRepository usuarioRepo;
         private final SucursalRepository sucursalRepo;
         private final GastoRepository gastoRepo;
@@ -48,6 +49,7 @@ public class CajaService {
                         ConfigSucursalRepository configSucursalRepo,
                         PagoRepository pagoRepo,
                         CreditoRepository creditoRepo,
+                        RenovacionRepository renovacionRepo,
                         UsuarioRepository usuarioRepo,
                         SucursalRepository sucursalRepo,
                         GastoRepository gastoRepo,
@@ -57,6 +59,7 @@ public class CajaService {
                 this.configSucursalRepo = configSucursalRepo;
                 this.pagoRepo = pagoRepo;
                 this.creditoRepo = creditoRepo;
+                this.renovacionRepo = renovacionRepo;
                 this.usuarioRepo = usuarioRepo;
                 this.sucursalRepo = sucursalRepo;
                 this.gastoRepo = gastoRepo;
@@ -69,6 +72,13 @@ public class CajaService {
         public CajaDiaDetalleDTO abrir(AbrirCajaRequest req, JwtPrincipal principal) {
                 Long sucursalId = effectiveSucursalId(req.sucursalId(), principal);
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
+
+                cajaDiaRepo.findBySucursalIdAndEstadoAndFechaBefore(sucursalId, EstadoCaja.ABIERTA, hoy)
+                                .ifPresent(c -> {
+                                        throw new IllegalArgumentException(
+                                                        "Hay una caja sin cerrar del " + c.getFecha()
+                                                                        + ". Ciérrala antes de abrir la de hoy.");
+                                });
 
                 if (cajaDiaRepo.findBySucursalIdAndFecha(sucursalId, hoy).isPresent()) {
                         throw new IllegalArgumentException("Ya existe una caja registrada para esta sucursal hoy");
@@ -106,7 +116,9 @@ public class CajaService {
                 OffsetDateTime finTs = hoy.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
 
                 BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, hoy);
-                BigDecimal desembolsos = creditoRepo.sumDesembolsosBySucursalAndFecha(sucursalId, inicioTs, finTs);
+                BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosBySucursalAndFecha(sucursalId, inicioTs, finTs);
+                BigDecimal desembolsosRenov = renovacionRepo.sumDesembolsosByScopeAndFecha(sucursalId, null, hoy, hoy);
+                BigDecimal desembolsos = desembolsosNuevos.add(desembolsosRenov);
                 BigDecimal sumInversiones = movimientoRepo.sumMontoByCajaDiaId(caja.getId());
                 BigDecimal subtotalCaja = ingresoCarteras.subtract(desembolsos).add(sumInversiones);
 
@@ -279,8 +291,8 @@ public class CajaService {
 
                 BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosByTipoAndSucursalAndFecha(
                                 effectiveId, TipoCredito.NUEVO, inicioTs, finTs);
-                BigDecimal desembolsosRenovaciones = creditoRepo.sumDesembolsosByTipoAndSucursalAndFecha(
-                                effectiveId, TipoCredito.RENOVACION, inicioTs, finTs);
+                BigDecimal desembolsosRenovaciones = renovacionRepo.sumDesembolsosByScopeAndFecha(
+                                effectiveId, null, hoy, hoy);
                 BigDecimal totalDesembolsos = desembolsosNuevos.add(desembolsosRenovaciones);
 
                 BigDecimal subtotalCaja = caja.getMontoApertura()

@@ -6,6 +6,7 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <changeSet id="V1-init-schema" author="magno">
+        <validCheckSum>9:7c11e29c922919d4871da9ab46ca996f</validCheckSum>
         <sqlFile
             path="db/changelog/V1__init.sql"
             relativeToChangelogFile="false"

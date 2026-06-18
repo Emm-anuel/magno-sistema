@@ -180,7 +180,7 @@ CREATE TABLE creditos (
     fecha_inicio            DATE            NOT NULL,
     fecha_vencimiento       DATE            NOT NULL,
 
-    -- Primer pago adelantado (se descuenta del último)
+    -- Último pago cobrado por adelantado al momento del desembolso
     pago_adelantado         DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
 
     -- Garantía y evidencia

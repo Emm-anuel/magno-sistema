@@ -123,6 +123,9 @@ public class CreditoCalculoService {
         BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
         BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
         BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
+        // Último pago absorbe residuo del redondeo y es el cobrado por adelantado
+        BigDecimal ultimoPago = total.subtract(pago.multiply(BigDecimal.valueOf(producto.plazo() - 1L)))
+                .setScale(2, RoundingMode.HALF_UP);
 
         return new ResumenCalculo(
                 capital,
@@ -132,7 +135,7 @@ public class CreditoCalculoService {
                 total,
                 pagoExacto,
                 pago,
-                pago // pagoAdelantado = primer pago (mismo monto)
+                ultimoPago
         );
     }
 
@@ -180,15 +183,11 @@ public class CreditoCalculoService {
             BigDecimal monto;
             EstadoCalendarioPago estadoInicial;
 
-            if (num == 1) {
-                // Primer pago: ya cobrado como adelantado
-                monto = calculo.pagoPeriodico();
-                estadoInicial = EstadoCalendarioPago.ADELANTADO;
-            } else if (num == plazo) {
-                // Último pago: absorbe el residuo del redondeo para que la suma sea exacta
+            if (num == plazo) {
+                // Último pago: absorbe el residuo del redondeo + ya fue cobrado adelantado al desembolsar
                 BigDecimal pagados = calculo.pagoPeriodico().multiply(BigDecimal.valueOf(plazo - 1L));
                 monto = calculo.totalAPagar().subtract(pagados).setScale(2, RoundingMode.HALF_UP);
-                estadoInicial = EstadoCalendarioPago.PENDIENTE;
+                estadoInicial = EstadoCalendarioPago.ADELANTADO;
             } else {
                 monto = calculo.pagoPeriodico();
                 estadoInicial = EstadoCalendarioPago.PENDIENTE;
@@ -259,6 +258,9 @@ public class CreditoCalculoService {
         BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
         BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
         BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
+        // Último pago absorbe residuo del redondeo y es el cobrado por adelantado
+        BigDecimal ultimoPago = total.subtract(pago.multiply(BigDecimal.valueOf(producto.plazo() - 1L)))
+                .setScale(2, RoundingMode.HALF_UP);
 
         return new ResumenCalculo(
                 capital,
@@ -268,7 +270,7 @@ public class CreditoCalculoService {
                 total,
                 pagoExacto,
                 pago,
-                pago // pagoAdelantado = primer pago (mismo monto)
+                ultimoPago
         );
     }
 
@@ -313,15 +315,11 @@ public class CreditoCalculoService {
             BigDecimal monto;
             EstadoCalendarioPago estadoInicial;
 
-            if (num == 1) {
-                // Primer pago: ya cobrado como adelantado
-                monto = calculo.pagoPeriodico();
-                estadoInicial = EstadoCalendarioPago.ADELANTADO;
-            } else if (num == plazo) {
-                // Último pago: absorbe el residuo del redondeo para que la suma sea exacta
+            if (num == plazo) {
+                // Último pago: absorbe el residuo del redondeo + ya fue cobrado adelantado al desembolsar
                 BigDecimal pagados = calculo.pagoPeriodico().multiply(BigDecimal.valueOf(plazo - 1L));
                 monto = calculo.totalAPagar().subtract(pagados).setScale(2, RoundingMode.HALF_UP);
-                estadoInicial = EstadoCalendarioPago.PENDIENTE;
+                estadoInicial = EstadoCalendarioPago.ADELANTADO;
             } else {
                 monto = calculo.pagoPeriodico();
                 estadoInicial = EstadoCalendarioPago.PENDIENTE;

@@ -218,13 +218,12 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado }: Calenda
           </thead>
           <tbody className="divide-y divide-gray-100">
             {fechas.map((fecha, idx) => {
-              const isFirst = idx === 0
               const isLast = idx === fechas.length - 1
-              const nota = isFirst ? 'Pago adelantado' : isLast ? 'Último pago' : ''
-              const montoFila = isFirst ? (safeN(pagoAdelantado) > 0 ? safeN(pagoAdelantado) : pago) : pago
+              const nota = isLast ? 'Pago adelantado' : ''
+              const montoFila = isLast ? (safeN(pagoAdelantado) > 0 ? safeN(pagoAdelantado) : pago) : pago
 
               return (
-                <tr key={fecha.toISOString()} className={isFirst ? 'bg-green-50' : ''}>
+                <tr key={fecha.toISOString()} className={isLast ? 'bg-green-50' : ''}>
                   <td className="px-3 py-1.5 text-gray-700">{idx + 1}</td>
                   <td className="px-3 py-1.5 text-gray-700">{fmtDate(fecha)}</td>
                   <td className="px-3 py-1.5 text-right text-gray-700">{fmt(montoFila)}</td>

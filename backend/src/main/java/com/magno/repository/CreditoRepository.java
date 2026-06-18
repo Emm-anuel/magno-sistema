@@ -68,8 +68,9 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
         java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
 
-        @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
+        @Query("SELECT COALESCE(SUM(c.montoCapital - c.pagoAdelantado), 0) FROM Credito c " +
                         "WHERE c.sucursal.id = :sucursalId " +
+                        "AND c.tipo = com.magno.model.TipoCredito.NUEVO " +
                         "AND c.fechaDesembolso >= :desde " +
                         "AND c.fechaDesembolso < :hasta " +
                         "AND c.deletedAt IS NULL")
@@ -78,9 +79,10 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         @Param("desde") java.time.OffsetDateTime desde,
                         @Param("hasta") java.time.OffsetDateTime hasta);
 
-        @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
+        @Query("SELECT COALESCE(SUM(c.montoCapital - c.pagoAdelantado), 0) FROM Credito c " +
                         "WHERE (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
                         "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+                        "AND c.tipo = com.magno.model.TipoCredito.NUEVO " +
                         "AND c.fechaDesembolso >= :desde " +
                         "AND c.fechaDesembolso < :hasta " +
                         "AND c.deletedAt IS NULL")
@@ -90,7 +92,7 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         @Param("desde") java.time.OffsetDateTime desde,
                         @Param("hasta") java.time.OffsetDateTime hasta);
 
-        @Query("SELECT COALESCE(SUM(c.montoCapital), 0) FROM Credito c " +
+        @Query("SELECT COALESCE(SUM(c.montoCapital - c.pagoAdelantado), 0) FROM Credito c " +
                         "WHERE c.sucursal.id = :sucursalId " +
                         "AND c.tipo = :tipo " +
                         "AND c.fechaDesembolso >= :desde " +

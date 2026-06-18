@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import BusinessMap from '@/components/BusinessMap'
+import FileUpload from '@/components/FileUpload'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
@@ -522,6 +523,10 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   const [celularStatus, setCelularStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
   const curpTimeout = useRef<ReturnType<typeof setTimeout>>()
   const celularTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const [docIneFrente, setDocIneFrente] = useState<string | null>(null)
+  const [docIneReverso, setDocIneReverso] = useState<string | null>(null)
+  const [docComprobante, setDocComprobante] = useState<string | null>(null)
+  const [formSubmitted, setFormSubmitted] = useState(false)
 
   const {
     register,
@@ -589,11 +594,6 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
   const createMutation = useMutation({
     mutationFn: (data: ClienteCreateRequest) => clienteService.crear(data),
-    onSuccess: () => { toast.success('Cliente creado'); onSaved() },
-    onError: (e: any) => {
-      const msg = e.message ?? e.error ?? 'Error al crear cliente'
-      toast.error(msg, { duration: 5000 })
-    },
   })
 
   const editMutation = useMutation({
@@ -631,8 +631,19 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   }, [isEdit, cliente])
 
   const onSubmit = async (data: ClienteForm) => {
+    setFormSubmitted(true)
     if (curpStatus === 'taken') { toast.error('El CURP ya está registrado'); return }
     if (celularStatus === 'taken') { toast.error('El celular ya está registrado'); return }
+
+    if (!isEdit && (mapLat === null || mapLng === null)) {
+      toast.error('La ubicación del negocio es obligatoria')
+      return
+    }
+
+    if (!isEdit && (!docIneFrente || !docIneReverso || !docComprobante)) {
+      toast.error('Sube los tres documentos: INE frente, INE reverso y comprobante de domicilio')
+      return
+    }
 
     const payload: ClienteCreateRequest = {
       ...data,
@@ -643,7 +654,6 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       gastos_semanales:    data.gastos_semanales     || undefined,
       gastos_renta:        data.gastos_renta         || undefined,
       gastos_otros:        data.gastos_otros         || undefined,
-      // Forzar asesor/sucursal según rol
       asesor_id:    puedeAsignarAsesor    ? (data.asesor_id || undefined)    : authUsuario?.id,
       sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : authUsuario!.sucursal.id,
       negocio_lat:  mapLat ?? undefined,
@@ -656,7 +666,23 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       if (isEdit) {
         await editMutation.mutateAsync({ id: cliente!.id, data: payload })
       } else {
-        await createMutation.mutateAsync(payload)
+        const nuevoCliente = await createMutation.mutateAsync(payload)
+        try {
+          await Promise.all([
+            clienteService.agregarDocumento(nuevoCliente.id, 'INE_FRENTE', docIneFrente!),
+            clienteService.agregarDocumento(nuevoCliente.id, 'INE_REVERSO', docIneReverso!),
+            clienteService.agregarDocumento(nuevoCliente.id, 'COMPROBANTE_DOMICILIO', docComprobante!),
+          ])
+          toast.success('Cliente creado')
+        } catch {
+          toast.error('Cliente creado. No se pudieron guardar los documentos; agrégalos desde la pestaña Documentos.', { duration: 8000 })
+        }
+        onSaved()
+      }
+    } catch (e: any) {
+      if (!isEdit) {
+        const msg = e.message ?? e.error ?? 'Error al crear cliente'
+        toast.error(msg, { duration: 5000 })
       }
     } finally {
       setIsProcessing(false)
@@ -867,7 +893,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
               {/* ── Ubicación del negocio ── */}
               <div className="mt-4">
                 <p className="text-[11px] font-semibold text-[#6c757d] uppercase tracking-wide mb-2">
-                  Ubicación del negocio (opcional)
+                  Ubicación del negocio{!isEdit ? ' *' : ' (opcional)'}
                 </p>
                 <BusinessMap
                   lat={mapLat}
@@ -877,8 +903,62 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     setMapLng(lat === 0 && lng === 0 ? null : lng)
                   }}
                 />
+                {!isEdit && formSubmitted && (mapLat === null || mapLng === null) && (
+                  <p className="text-[#dc2626] text-[11px] mt-1">Marca la ubicación del negocio en el mapa</p>
+                )}
               </div>
             </section>
+
+            {/* ── SECCIÓN: Documentos (solo creación) ── */}
+            {!isEdit && (
+              <section>
+                <p className="sec-title">Documentos</p>
+                <p className="text-[12px] text-[#6c757d] mb-3">
+                  Los tres documentos son obligatorios para registrar al cliente.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[12px] font-medium text-[#495057] mb-1.5">INE — Frente *</p>
+                    <FileUpload
+                      accept="image/*,.pdf"
+                      folder="clientes-documentos/nuevos/INE_FRENTE"
+                      compress
+                      label="Foto del frente del INE"
+                      onUploadComplete={(url) => setDocIneFrente(url)}
+                    />
+                    {formSubmitted && !docIneFrente && (
+                      <p className="text-[#dc2626] text-[11px] mt-0.5">Requerido</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[#495057] mb-1.5">INE — Reverso *</p>
+                    <FileUpload
+                      accept="image/*,.pdf"
+                      folder="clientes-documentos/nuevos/INE_REVERSO"
+                      compress
+                      label="Foto del reverso del INE"
+                      onUploadComplete={(url) => setDocIneReverso(url)}
+                    />
+                    {formSubmitted && !docIneReverso && (
+                      <p className="text-[#dc2626] text-[11px] mt-0.5">Requerido</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[#495057] mb-1.5">Comprobante de domicilio *</p>
+                    <FileUpload
+                      accept="image/*,.pdf"
+                      folder="clientes-documentos/nuevos/COMPROBANTE_DOMICILIO"
+                      compress
+                      label="Foto o PDF del comprobante de domicilio"
+                      onUploadComplete={(url) => setDocComprobante(url)}
+                    />
+                    {formSubmitted && !docComprobante && (
+                      <p className="text-[#dc2626] text-[11px] mt-0.5">Requerido</p>
+                    )}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {/* ── SECCIÓN 5: Referencias Personales ── */}
             <section>

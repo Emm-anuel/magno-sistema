@@ -244,8 +244,8 @@ export default function DashboardPage() {
 
       {!isLoading && (
         <>
-          {/* ── Métricas (6 cards) ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          {/* ── Métricas (6 cards admin / 5 cards resto) ── */}
+          <div className={`grid grid-cols-2 gap-3 ${isAdmin ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-3 xl:grid-cols-5'}`}>
             <div className="metric-card">
               <p className="metric-label">Cobros {rangeLabel.toLowerCase()}</p>
               <p className="metric-val text-[#2d6a4f]">{fmtMoney(kpis?.cobros)}</p>
@@ -261,11 +261,13 @@ export default function DashboardPage() {
               <p className="metric-val text-[#dc2626]">{fmtMoney(kpis?.multas)}</p>
               <p className="metric-sub">Pagos con multa</p>
             </div>
-            <div className="metric-card">
-              <p className="metric-label">Apartado</p>
-              <p className="metric-val text-[#f59e0b]">{fmtMoney(kpis?.montoAhorro)}</p>
-              <p className="metric-sub">{fmtPct(kpis?.porcentajeAhorro)} del ingreso</p>
-            </div>
+            {isAdmin && (
+              <div className="metric-card">
+                <p className="metric-label">Apartado</p>
+                <p className="metric-val text-[#f59e0b]">{fmtMoney(kpis?.montoAhorro)}</p>
+                <p className="metric-sub">{fmtPct(kpis?.porcentajeAhorro)} del ingreso</p>
+              </div>
+            )}
             <div className="metric-card">
               <p className="metric-label">Desembolsos {rangeLabel.toLowerCase()}</p>
               <p className="metric-val">{fmtMoney(kpis?.desembolsos)}</p>
