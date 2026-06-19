@@ -56,6 +56,7 @@ services:
       S3_ACCESS_KEY:     ${S3_ACCESS_KEY}
       S3_SECRET_KEY:     ${S3_SECRET_KEY}
       S3_BUCKET:         ${S3_BUCKET:-magno-files}
+      S3_PUBLIC_URL:     ${S3_PUBLIC_URL}
       MAIL_HOST:         ${MAIL_HOST}
       MAIL_PORT:         ${MAIL_PORT:-587}
       MAIL_USER:         ${MAIL_USER}
