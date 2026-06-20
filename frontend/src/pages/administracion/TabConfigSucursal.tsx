@@ -484,6 +484,11 @@ function SeccionRangos({ sucursalId }: { sucursalId: number }) {
       toast.error('Agrega al menos un rango de Crédito Diario y uno de Crédito Semanal antes de guardar')
       return
     }
+    const invalido = [...diario, ...semanal].some(r => Number(r.rangoMax) <= Number(r.rangoMin))
+    if (invalido) {
+      toast.error('En cada rango, "Hasta" debe ser mayor que "Desde"')
+      return
+    }
     mutation.mutate()
   }
 
