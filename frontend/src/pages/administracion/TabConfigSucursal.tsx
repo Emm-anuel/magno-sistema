@@ -54,16 +54,16 @@ function SectionCard({ title, subtitle, open, onToggle, children }: SectionCardP
 // ── Sección 1 — Multas ───────────────────────────────────────────────
 
 type MultaRow = {
-  rangoMin: number; rangoMax: number
-  multaNoPago: number; multaIncompletos: number
-  multaSemanalNoPago: number; multaSemanalIncompletos: number
+  rangoMin: string; rangoMax: string
+  multaNoPago: string; multaIncompletos: string
+  multaSemanalNoPago: string; multaSemanalIncompletos: string
 }
 
 function toMultaRow(m: AdminConfigMulta): MultaRow {
   return {
-    rangoMin: m.rangoMin, rangoMax: m.rangoMax,
-    multaNoPago: m.multaNoPago, multaIncompletos: m.multaIncompletos,
-    multaSemanalNoPago: m.multaSemanalNoPago, multaSemanalIncompletos: m.multaSemanalIncompletos,
+    rangoMin: String(m.rangoMin), rangoMax: String(m.rangoMax),
+    multaNoPago: String(m.multaNoPago), multaIncompletos: String(m.multaIncompletos),
+    multaSemanalNoPago: String(m.multaSemanalNoPago), multaSemanalIncompletos: String(m.multaSemanalIncompletos),
   }
 }
 
@@ -80,7 +80,16 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
   useEffect(() => { setRows(data.map(toMultaRow)) }, [data])
 
   const mutation = useMutation({
-    mutationFn: () => adminService.saveMultas(sucursalId, { multas: rows }),
+    mutationFn: () => adminService.saveMultas(sucursalId, {
+      multas: rows.map(r => ({
+        rangoMin: Number(r.rangoMin) || 0,
+        rangoMax: Number(r.rangoMax) || 0,
+        multaNoPago: Number(r.multaNoPago) || 0,
+        multaIncompletos: Number(r.multaIncompletos) || 0,
+        multaSemanalNoPago: Number(r.multaSemanalNoPago) || 0,
+        multaSemanalIncompletos: Number(r.multaSemanalIncompletos) || 0,
+      })),
+    }),
     onSuccess: () => {
       toast.success('Multas actualizadas')
       qc.invalidateQueries({ queryKey: ['admin-multas', sucursalId] })
@@ -89,14 +98,14 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
   })
 
   function update(idx: number, field: keyof MultaRow, value: string) {
-    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: Number(value) || 0 } : r))
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r))
   }
 
   function addRow() {
     setRows(prev => [...prev, {
-      rangoMin: 0, rangoMax: 0,
-      multaNoPago: 50, multaIncompletos: 50,
-      multaSemanalNoPago: 300, multaSemanalIncompletos: 300,
+      rangoMin: '0', rangoMax: '0',
+      multaNoPago: '50', multaIncompletos: '50',
+      multaSemanalNoPago: '300', multaSemanalIncompletos: '300',
     }])
   }
 
@@ -109,13 +118,13 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
       toast.error('Agrega al menos un rango de multa antes de guardar')
       return
     }
-    const invalido = rows.some(r => r.rangoMax <= r.rangoMin)
+    const invalido = rows.some(r => Number(r.rangoMax) <= Number(r.rangoMin))
     if (invalido) {
       toast.error('En cada rango, "Hasta" debe ser mayor que "Desde"')
       return
     }
-    const ordenados = [...rows].sort((a, b) => a.rangoMin - b.rangoMin)
-    const solapado = ordenados.some((r, i) => i > 0 && r.rangoMin <= ordenados[i - 1].rangoMax)
+    const ordenados = [...rows].sort((a, b) => Number(a.rangoMin) - Number(b.rangoMin))
+    const solapado = ordenados.some((r, i) => i > 0 && Number(r.rangoMin) <= Number(ordenados[i - 1].rangoMax))
     if (solapado) {
       toast.error('Los rangos no pueden solaparse ni repetirse entre sí')
       return
@@ -179,7 +188,7 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
                         ['multaIncompletos', m.multaIncompletos],
                         ['multaSemanalNoPago', m.multaSemanalNoPago],
                         ['multaSemanalIncompletos', m.multaSemanalIncompletos],
-                      ] as [keyof MultaRow, number][]
+                      ] as [keyof MultaRow, string][]
                     ).map(([field, val]) => (
                       <td key={field} className="text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -235,7 +244,7 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
                       ['multaIncompletos', 'Incompleto diario', m.multaIncompletos],
                       ['multaSemanalNoPago', 'No pago semanal', m.multaSemanalNoPago],
                       ['multaSemanalIncompletos', 'Incompleto semanal', m.multaSemanalIncompletos],
-                    ] as [keyof MultaRow, string, number][]
+                    ] as [keyof MultaRow, string, string][]
                   ).map(([field, label, val]) => (
                     <div key={field}>
                       <p className="text-[10px] text-[#adb5bd] mb-0.5">{label}</p>
@@ -282,7 +291,16 @@ function SeccionMultas({ sucursalId }: { sucursalId: number }) {
 
 // ── Sección 2 — Rangos de Crédito ────────────────────────────────────
 
-type RangoRow = { rangoMin: number; rangoMax: number; plazo: number; tasaInteres: number }
+type RangoRow = { rangoMin: string; rangoMax: string; plazo: string; tasaInteresPct: string }
+
+function toPayloadRow(r: RangoRow) {
+  return {
+    rangoMin: Number(r.rangoMin) || 0,
+    rangoMax: Number(r.rangoMax) || 0,
+    plazo: Number(r.plazo) || 0,
+    tasaInteres: (Number(r.tasaInteresPct) || 0) / 100,
+  }
+}
 
 interface RangoTableProps {
   rows: RangoRow[]
@@ -348,15 +366,15 @@ function RangoTable({ rows, tipo, updateRow, removeRow, addRow }: RangoTableProp
                   <div className="flex items-center gap-1">
                     <input
                       type="number" min="0" max="100" step="0.5"
-                      value={+(r.tasaInteres * 100).toFixed(1)}
-                      onChange={e => updateRow(tipo, i, 'tasaInteres', String(Number(e.target.value) / 100))}
+                      value={r.tasaInteresPct}
+                      onChange={e => updateRow(tipo, i, 'tasaInteresPct', e.target.value)}
                       className="input w-20"
                     />
                     <span className="text-[#adb5bd] text-[12px]">%</span>
                   </div>
                 </td>
                 <td className="text-right font-mono text-[12px] text-[#2d6a4f]">
-                  ${fmt(pagoEstimado(r.rangoMin, r.tasaInteres, r.plazo))}
+                  ${fmt(pagoEstimado(Number(r.rangoMin) || 0, (Number(r.tasaInteresPct) || 0) / 100, Number(r.plazo) || 0))}
                 </td>
                 <td>
                   <button
@@ -399,14 +417,14 @@ function RangoTable({ rows, tipo, updateRow, removeRow, addRow }: RangoTableProp
               <div>
                 <p className="text-[10px] text-[#adb5bd] mb-0.5">Tasa %</p>
                 <input type="number" step="0.5"
-                  value={+(r.tasaInteres * 100).toFixed(1)}
-                  onChange={e => updateRow(tipo, i, 'tasaInteres', String(Number(e.target.value) / 100))}
+                  value={r.tasaInteresPct}
+                  onChange={e => updateRow(tipo, i, 'tasaInteresPct', e.target.value)}
                   className="input" />
               </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-[#2d6a4f] font-semibold">
-                Pago est. ${fmt(pagoEstimado(r.rangoMin, r.tasaInteres, r.plazo))}
+                Pago est. ${fmt(pagoEstimado(Number(r.rangoMin) || 0, (Number(r.tasaInteresPct) || 0) / 100, Number(r.plazo) || 0))}
               </span>
               <button type="button" onClick={() => removeRow(tipo, i)}
                 className="btn btn-sm text-[#dc2626]">
@@ -440,15 +458,20 @@ function SeccionRangos({ sucursalId }: { sucursalId: number }) {
 
   useEffect(() => {
     setDiario(data.filter(r => r.tipoPago === 'DIARIO').map(r => ({
-      rangoMin: r.rangoMin, rangoMax: r.rangoMax, plazo: r.plazo, tasaInteres: r.tasaInteres,
+      rangoMin: String(r.rangoMin), rangoMax: String(r.rangoMax), plazo: String(r.plazo),
+      tasaInteresPct: String(+(r.tasaInteres * 100).toFixed(1)),
     })))
     setSemanal(data.filter(r => r.tipoPago === 'SEMANAL').map(r => ({
-      rangoMin: r.rangoMin, rangoMax: r.rangoMax, plazo: r.plazo, tasaInteres: r.tasaInteres,
+      rangoMin: String(r.rangoMin), rangoMax: String(r.rangoMax), plazo: String(r.plazo),
+      tasaInteresPct: String(+(r.tasaInteres * 100).toFixed(1)),
     })))
   }, [data])
 
   const mutation = useMutation({
-    mutationFn: () => adminService.saveRangos(sucursalId, { diario, semanal }),
+    mutationFn: () => adminService.saveRangos(sucursalId, {
+      diario: diario.map(toPayloadRow),
+      semanal: semanal.map(toPayloadRow),
+    }),
     onSuccess: () => {
       toast.success('Rangos actualizados')
       qc.invalidateQueries({ queryKey: ['admin-rangos', sucursalId] })
@@ -466,11 +489,11 @@ function SeccionRangos({ sucursalId }: { sucursalId: number }) {
 
   function updateRow(tipo: 'diario' | 'semanal', idx: number, field: keyof RangoRow, value: string) {
     const setter = tipo === 'diario' ? setDiario : setSemanal
-    setter(prev => prev.map((r, i) => i === idx ? { ...r, [field]: Number(value) || 0 } : r))
+    setter(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r))
   }
 
   function addRow(tipo: 'diario' | 'semanal') {
-    const blank: RangoRow = { rangoMin: 0, rangoMax: 0, plazo: tipo === 'diario' ? 25 : 8, tasaInteres: tipo === 'diario' ? 0.30 : 0.40 }
+    const blank: RangoRow = { rangoMin: '0', rangoMax: '0', plazo: tipo === 'diario' ? '25' : '8', tasaInteresPct: tipo === 'diario' ? '30' : '40' }
     if (tipo === 'diario') setDiario(prev => [...prev, blank])
     else setSemanal(prev => [...prev, blank])
   }
