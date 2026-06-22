@@ -42,11 +42,13 @@ export const useAuthStore = create<AuthState>()(
       isHydrated:      false,
 
       login: (token, usuario) => {
+        console.warn(`DEBUG-AUTH [${new Date().toISOString()}] login() token=${token.slice(0, 20)}...`)
         localStorage.setItem('magno_token', token)
         set({ token, usuario, isAuthenticated: true })
       },
 
       logout: () => {
+        console.warn(`DEBUG-AUTH [${new Date().toISOString()}] logout()`)
         localStorage.removeItem('magno_token')
         set({ token: null, usuario: null, isAuthenticated: false })
       },

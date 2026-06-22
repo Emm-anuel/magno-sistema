@@ -5,6 +5,7 @@ export default function AuthLayout() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   if (isAuthenticated) {
+    console.warn(`DEBUG-AUTH [${new Date().toISOString()}] AuthLayout: isAuthenticated -> Navigate /dashboard`)
     return <Navigate to="/dashboard" replace />
   }
 

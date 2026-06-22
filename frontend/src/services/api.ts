@@ -271,13 +271,28 @@ api.interceptors.request.use((config) => {
 })
 
 // ── Interceptor de response: manejo de errores ───────────────────
+let redirectingToLogin = false
+
 api.interceptors.response.use(
   (res) => res,
   (error) => {
     const isLoginEndpoint = error.config?.url?.includes('/auth/login')
 
-    // Solo redirigir a /login en 401 si NO es la propia petición de login
-    if (error.response?.status === 401 && !isLoginEndpoint) {
+    // Solo redirigir a /login en 401 si NO es la propia petición de login.
+    // Guard con `redirectingToLogin`: varias peticiones en paralelo (o sus
+    // retries de React Query) pueden llegar con 401 antes de que el
+    // navegador termine de navegar a /login, y sin esta guarda cada una
+    // reinicia la navegación (window.location.href), dejando la app en un
+    // loop entre /dashboard y /login que nunca termina de cargar el login.
+    if (error.response?.status === 401) {
+      console.warn(
+        `DEBUG-AUTH [${new Date().toISOString()}] 401 en ${error.config?.url} (isLoginEndpoint=${isLoginEndpoint}, redirectingToLogin=${redirectingToLogin})`,
+      )
+    }
+
+    if (error.response?.status === 401 && !isLoginEndpoint && !redirectingToLogin) {
+      redirectingToLogin = true
+      console.warn(`DEBUG-AUTH [${new Date().toISOString()}] redirigiendo a /login por 401 en ${error.config?.url}`)
       localStorage.removeItem('magno_token')
       window.location.href = '/login'
     }

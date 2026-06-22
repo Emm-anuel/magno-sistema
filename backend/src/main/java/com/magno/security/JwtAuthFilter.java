@@ -13,12 +13,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
 
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
     private final JwtService jwtService;
 
@@ -35,6 +39,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String header = request.getHeader("Authorization");
 
         if (header == null || !header.startsWith("Bearer ")) {
+            log.warn("DEBUG-AUTH [{}] sin header Authorization Bearer", request.getRequestURI());
             chain.doFilter(request, response);
             return;
         }
@@ -43,6 +48,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         try {
             if (!jwtService.isValid(token)) {
+                log.warn("DEBUG-AUTH [{}] token presente pero isValid()=false (token={}...)",
+                        request.getRequestURI(), token.substring(0, Math.min(20, token.length())));
                 chain.doFilter(request, response);
                 return;
             }
@@ -62,9 +69,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 );
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                log.warn("DEBUG-AUTH [{}] auth OK para {} (rol={})", request.getRequestURI(), email, rol);
             }
-        } catch (JwtException | IllegalArgumentException | NullPointerException | ClassCastException ignored) {
-            // Token inválido o mal formado → no se establece autenticación, Spring Security denegará
+        } catch (JwtException | IllegalArgumentException | NullPointerException | ClassCastException e) {
+            log.warn("DEBUG-AUTH [{}] excepcion al procesar token: {}: {}",
+                    request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage());
         }
 
         chain.doFilter(request, response);
