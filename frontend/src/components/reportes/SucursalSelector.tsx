@@ -22,7 +22,7 @@ export default function SucursalSelector({
       if (list.length > 0 && sucursalId === null) {
         onChange(list[0].id)
       }
-    })
+    }).catch(() => {})
     return () => {
       alive = false
     }

@@ -8,6 +8,10 @@ import { formatLocalDate, todayLocalStr } from '@/utils/date'
 
 type RangeMode = 'hoy' | 'semana' | 'mes' | 'custom'
 
+function noopOnChange() {
+  // no-op: la sucursal es fija para roles no admin (modo readonly)
+}
+
 function dateFromStr(dateStr: string) {
   const [year, month, day] = dateStr.split('-').map(Number)
   return new Date(year, month - 1, day, 12, 0, 0)
@@ -157,12 +161,12 @@ export default function DashboardPage() {
           {canChooseSucursal ? (
             <SucursalSelector
               sucursalId={sucursalId}
-              onChange={(id) => setSucursalId(id)}
+              onChange={setSucursalId}
             />
           ) : (
             <SucursalSelector
               sucursalId={sucursalId}
-              onChange={() => undefined}
+              onChange={noopOnChange}
               readonly
               readonlyNombre={usuario?.sucursal?.nombre}
             />
