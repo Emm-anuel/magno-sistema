@@ -79,7 +79,8 @@ function getPresetDates(preset: PresetFecha): { desde: string; hasta: string } {
   }
 }
 
-function estadoFromPago(p: PagoCobroDTO): 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' {
+function estadoFromPago(p: PagoCobroDTO): 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' | 'PENDIENTE' {
+  if (p.esPendiente) return 'PENDIENTE'
   if (p.razonNoPago) return 'NO_PAGADO'
   if (p.esCompleto)  return 'PAGADO'
   return 'PARCIAL'
@@ -146,8 +147,8 @@ export default function TabHistorialCobros() {
     })
   }, [pagos, buscar, estadoFiltro])
 
-  const totalCobrado = filtrados.reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
-  const totalMultas  = filtrados.reduce((sum, p) => sum + Number(p.multaAplicada ?? 0), 0)
+  const totalCobrado = filtrados.reduce((sum, p) => sum + (p.esPendiente ? 0 : Number(p.montoRecibido ?? 0)), 0)
+  const totalMultas  = filtrados.reduce((sum, p) => sum + (p.esPendiente ? 0 : Number(p.multaAplicada ?? 0)), 0)
 
   return (
     <>
@@ -275,15 +276,19 @@ export default function TabHistorialCobros() {
                   <div className="flex items-center gap-2 mt-1">
                     <TipoPagoBadge tipo={p.tipoPago as TipoPago} size="sm" />
                     <span className={`badge ${
-                      estado === 'NO_PAGADO' ? 'badge-rojo'
-                      : estado === 'PAGADO'  ? 'badge-verde'
+                      estado === 'NO_PAGADO'  ? 'badge-rojo'
+                      : estado === 'PAGADO'   ? 'badge-verde'
+                      : estado === 'PENDIENTE'? 'badge-gris'
                       : 'badge-amarillo'
                     }`}>
-                      {estado === 'NO_PAGADO' ? 'No pagó' : estado === 'PAGADO' ? 'Pagado' : 'Parcial'}
+                      {estado === 'NO_PAGADO' ? 'No pagó'
+                        : estado === 'PAGADO'   ? 'Pagado'
+                        : estado === 'PENDIENTE'? 'Sin registrar'
+                        : 'Parcial'}
                     </span>
                   </div>
                   <p className="text-[13px] font-semibold mt-1 text-[#212529]">
-                    {estado === 'NO_PAGADO' ? '—' : fmtMoney(p.montoRecibido)}
+                    {estado === 'NO_PAGADO' || estado === 'PENDIENTE' ? '—' : fmtMoney(p.montoRecibido)}
                     <span className="text-[12px] font-normal text-[#6c757d]">
                       {' / '}{fmtMoney(p.montoEsperado)}
                     </span>
@@ -310,7 +315,7 @@ export default function TabHistorialCobros() {
                   >
                     Ver cliente
                   </button>
-                  {esAdminSupervisor && (
+                  {esAdminSupervisor && !p.esPendiente && (
                     <button
                       type="button"
                       className="btn btn-sm text-xs"
@@ -361,25 +366,30 @@ export default function TabHistorialCobros() {
                       <td className="text-[#6c757d]">#{p.numeroPago}</td>
                       <td className="text-right text-[#6c757d]">{fmtMoney(p.montoEsperado)}</td>
                       <td className={`text-right font-semibold ${
-                        estado === 'NO_PAGADO' ? 'text-[#dc2626]'
-                        : estado === 'PAGADO'  ? 'text-[#2d6a4f]'
+                        estado === 'NO_PAGADO'  ? 'text-[#dc2626]'
+                        : estado === 'PAGADO'   ? 'text-[#2d6a4f]'
+                        : estado === 'PENDIENTE'? 'text-[#6c757d]'
                         : 'text-[#f59e0b]'
                       }`}>
-                        {estado === 'NO_PAGADO' ? '—' : fmtMoney(p.montoRecibido)}
+                        {estado === 'NO_PAGADO' || estado === 'PENDIENTE' ? '—' : fmtMoney(p.montoRecibido)}
                       </td>
                       <td className={`text-right font-semibold ${difNeg ? 'text-[#dc2626]' : 'text-[#6c757d]'}`}>
-                        {estado === 'NO_PAGADO' ? '—' : (difNeg ? '-' : '') + fmtMoney(Math.abs(diferencia))}
+                        {estado === 'NO_PAGADO' || estado === 'PENDIENTE' ? '—' : (difNeg ? '-' : '') + fmtMoney(Math.abs(diferencia))}
                       </td>
                       <td>
                         <TipoPagoBadge tipo={p.tipoPago as TipoPago} size="sm" />
                       </td>
                       <td>
                         <span className={`badge ${
-                          estado === 'NO_PAGADO' ? 'badge-rojo'
-                          : estado === 'PAGADO'  ? 'badge-verde'
+                          estado === 'NO_PAGADO'  ? 'badge-rojo'
+                          : estado === 'PAGADO'   ? 'badge-verde'
+                          : estado === 'PENDIENTE'? 'badge-gris'
                           : 'badge-amarillo'
                         }`}>
-                          {estado === 'NO_PAGADO' ? 'No pagó' : estado === 'PAGADO' ? 'Pagado' : 'Parcial'}
+                          {estado === 'NO_PAGADO' ? 'No pagó'
+                            : estado === 'PAGADO'   ? 'Pagado'
+                            : estado === 'PENDIENTE'? 'Sin registrar'
+                            : 'Parcial'}
                         </span>
                       </td>
                       <td className="text-[#6c757d] whitespace-nowrap">{fmtDate(p.fechaPago)}</td>
@@ -401,7 +411,7 @@ export default function TabHistorialCobros() {
                           >
                             Ver cliente
                           </button>
-                          {esAdminSupervisor && (
+                          {esAdminSupervisor && !p.esPendiente && (
                             <button
                               type="button"
                               className="btn btn-sm text-xs"

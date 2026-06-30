@@ -337,11 +337,11 @@ function TarjetaPendiente({
               <span className="w-5 h-5 border-2 border-[#3d6b35] border-t-transparent rounded-full animate-spin" />
             ) : (
               <span className={`text-xl font-extrabold tabular-nums ${
-                (montoDesembolsoCalculado ?? Number(r.montoDesembolso)) >= 0
+                ((montoDesembolsoCalculado ?? Number(r.montoDesembolso)) + aCondonar) >= 0
                   ? 'text-[#3d6b35]'
                   : 'text-red-600'
               }`}>
-                {fmt(montoDesembolsoCalculado ?? r.montoDesembolso)}
+                {fmt((montoDesembolsoCalculado ?? Number(r.montoDesembolso)) + aCondonar)}
               </span>
             )}
           </div>
@@ -401,7 +401,11 @@ export default function TabPendientesRenovacion() {
     if (calcTimers.current[renovacionId]) clearTimeout(calcTimers.current[renovacionId])
     const num = parseFloat(val)
     if (!Number.isFinite(num) || num < 1000) {
-      setCalculos((prev) => ({ ...prev, [renovacionId]: { desembolso: 0, loading: false } }))
+      setCalculos((prev) => {
+        const next = { ...prev }
+        delete next[renovacionId]
+        return next
+      })
       return
     }
     setCalculos((prev) => ({ ...prev, [renovacionId]: { ...prev[renovacionId], loading: true } }))

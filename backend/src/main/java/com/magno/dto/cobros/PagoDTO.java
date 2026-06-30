@@ -1,5 +1,6 @@
 package com.magno.dto.cobros;
 
+import com.magno.model.CalendarioPago;
 import com.magno.model.Pago;
 
 import java.math.BigDecimal;
@@ -21,7 +22,8 @@ public record PagoDTO(
                 UsuarioResumenDTO registradoPor,
                 UsuarioResumenDTO modificadoPor,
                 OffsetDateTime fechaModificacion,
-                OffsetDateTime createdAt) {
+                OffsetDateTime createdAt,
+                Boolean esPendiente) {
 
         public static PagoDTO from(Pago p) {
                 return new PagoDTO(
@@ -47,7 +49,32 @@ public record PagoDTO(
                                                                 p.getModificadoPor().getNombreCompleto())
                                                 : null,
                                 p.getFechaModificacion(),
-                                p.getCreatedAt());
+                                p.getCreatedAt(),
+                                false);
+        }
+
+        public static PagoDTO fromCalendario(CalendarioPago cp) {
+                var c = cp.getCredito();
+                return new PagoDTO(
+                                null,
+                                c.getId(),
+                                new ClienteResumenCobrosDTO(
+                                                c.getCliente().getId(),
+                                                c.getCliente().getNombreCompleto()),
+                                cp.getNumeroPago(),
+                                cp.getFechaProgramada(),
+                                null,
+                                cp.getMontoEsperado(),
+                                null,
+                                null,
+                                BigDecimal.ZERO,
+                                c.getTipoPago().toString(),
+                                new UsuarioResumenDTO(c.getAsesor().getId(),
+                                                c.getAsesor().getNombreCompleto()),
+                                null,
+                                null,
+                                null,
+                                true);
         }
 
         public record ClienteResumenCobrosDTO(Long id, String nombreCompleto) {

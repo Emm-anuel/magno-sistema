@@ -92,7 +92,8 @@ function normalizePago(raw: any): PagoCobroDTO {
         }
       : null,
     fechaModificacion: raw.fechaModificacion ?? raw.fecha_modificacion ?? null,
-    createdAt: raw.createdAt ?? raw.created_at,
+    createdAt: raw.createdAt ?? raw.created_at ?? null,
+    esPendiente: raw.esPendiente ?? raw.es_pendiente ?? false,
   }
 }
 

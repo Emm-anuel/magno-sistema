@@ -55,6 +55,22 @@ public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, 
                         @Param("asesorId") Long asesorId,
                         Pageable pageable);
 
+        @Query("SELECT cp FROM CalendarioPago cp " +
+                        "JOIN FETCH cp.credito c " +
+                        "JOIN FETCH c.cliente cl " +
+                        "JOIN FETCH c.asesor a " +
+                        "WHERE c.deletedAt IS NULL " +
+                        "AND c.estado = com.magno.model.EstadoCredito.ACTIVO " +
+                        "AND cp.fechaProgramada BETWEEN :fechaDesde AND :fechaHasta " +
+                        "AND cp.estado = com.magno.model.EstadoCalendarioPago.PENDIENTE " +
+                        "AND (:asesorId IS NULL OR a.id = :asesorId) " +
+                        "AND (:clienteId IS NULL OR cl.id = :clienteId)")
+        List<CalendarioPago> findPendientesByFechaRange(
+                        @Param("fechaDesde") LocalDate fechaDesde,
+                        @Param("fechaHasta") LocalDate fechaHasta,
+                        @Param("asesorId") Long asesorId,
+                        @Param("clienteId") Long clienteId);
+
         @Query("SELECT COUNT(DISTINCT cp.credito.id) FROM CalendarioPago cp " +
                         "WHERE cp.credito.estado = com.magno.model.EstadoCredito.ACTIVO " +
                         "AND cp.credito.deletedAt IS NULL " +

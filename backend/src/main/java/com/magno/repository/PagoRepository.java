@@ -54,7 +54,7 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                      @Param("asesorId") Long asesorId,
                      @Param("fecha") LocalDate fecha);
 
-       /** Historial filtrable con Pageable. */
+       /** Historial filtrable — lista completa para merge con pendientes. */
        @Query("SELECT p FROM Pago p " +
                      "WHERE (:asesorId IS NULL OR p.asesor.id = :asesorId) " +
                      "AND (:clienteId IS NULL OR p.cliente.id = :clienteId) " +
@@ -62,11 +62,10 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                      "AND p.fechaPago <= COALESCE(:fechaHasta, p.fechaPago) " +
                      "AND p.deletedAt IS NULL " +
                      "ORDER BY p.fechaPago DESC, p.id DESC")
-       Page<Pago> findHistorial(@Param("asesorId") Long asesorId,
+       List<Pago> findHistorialList(@Param("asesorId") Long asesorId,
                      @Param("clienteId") Long clienteId,
                      @Param("fechaDesde") LocalDate fechaDesde,
-                     @Param("fechaHasta") LocalDate fechaHasta,
-                     Pageable pageable);
+                     @Param("fechaHasta") LocalDate fechaHasta);
 
        @Query("SELECT COALESCE(SUM(p.montoRecibido), 0) FROM Pago p " +
                      "WHERE p.credito.sucursal.id = :sucursalId " +

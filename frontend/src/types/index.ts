@@ -501,7 +501,8 @@ export interface PagoCobroDTO {
   registradoPor: { id: number; nombreCompleto: string } | null
   modificadoPor: { id: number; nombreCompleto: string } | null
   fechaModificacion: string | null
-  createdAt: string
+  createdAt: string | null
+  esPendiente?: boolean
 }
 
 export interface MultaCobroDTO {

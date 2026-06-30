@@ -348,15 +348,35 @@ public class CobrosService {
             Pageable pageable,
             String rolSolicitante, Long usuarioIdSolicitante,
             Long sucursalIdSolicitante) {
-        // ASESOR_COBRADOR y SUPERVISOR_CAMPO solo pueden ver sus propios pagos
         if ("ASESOR_COBRADOR".equals(rolSolicitante)
                 || "SUPERVISOR_CAMPO".equals(rolSolicitante)) {
             asesorId = usuarioIdSolicitante;
         }
-        // ADMINISTRADOR y SUPERVISOR mantienen alcance completo
 
-        return pagoRepo.findHistorial(asesorId, clienteId, fechaDesde, fechaHasta, pageable)
-                .map(PagoDTO::from);
+        List<PagoDTO> registrados = pagoRepo
+                .findHistorialList(asesorId, clienteId, fechaDesde, fechaHasta)
+                .stream()
+                .map(PagoDTO::from)
+                .toList();
+
+        List<PagoDTO> pendientes = calendarioPagoRepo
+                .findPendientesByFechaRange(fechaDesde, fechaHasta, asesorId, clienteId)
+                .stream()
+                .map(PagoDTO::fromCalendario)
+                .toList();
+
+        List<PagoDTO> todos = new ArrayList<>(registrados);
+        todos.addAll(pendientes);
+        todos.sort(Comparator
+                .comparing(PagoDTO::fechaPago, Comparator.reverseOrder())
+                .thenComparingLong(p -> p.id() != null ? -p.id() : Long.MAX_VALUE));
+
+        int total = todos.size();
+        int from = (int) pageable.getOffset();
+        int to = Math.min(from + pageable.getPageSize(), total);
+        List<PagoDTO> pagina = from >= total ? List.of() : todos.subList(from, to);
+
+        return new org.springframework.data.domain.PageImpl<>(pagina, pageable, total);
     }
 
     public List<PagoDTO> getPagosPorCliente(Long clienteId) {
