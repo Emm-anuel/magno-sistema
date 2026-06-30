@@ -32,5 +32,7 @@ public record CajaCierrePreviewDTO(
 
         // Multas
         List<MultaAsesorItemDTO> multasPorAsesor,
-        BigDecimal totalMultasCobradas
+        BigDecimal totalMultasCobradas,
+        BigDecimal multasCobrasRenovaciones,
+        BigDecimal totalMultasCondonadas
 ) {}
