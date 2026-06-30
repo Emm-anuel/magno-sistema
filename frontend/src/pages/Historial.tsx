@@ -80,21 +80,26 @@ const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) 
       cls = isPast ? 'bg-red-50 text-red-400' : 'bg-gray-50 text-gray-400'
   }
 
-  const hasTooltip = pago.estado === 'NO_PAGADO'
+  const fechaFmt = fmtDateShort(pago.fechaProgramada)
+  const tooltipLines = [fechaFmt]
+  if (pago.estado === 'NO_PAGADO') tooltipLines.push('No pagó')
+  if (pago.estado === 'ADELANTADO') tooltipLines.push('Pago adelantado')
 
   return (
     <td className={`text-center p-0.5 ${borderCls}`}>
       <div className="relative">
         <span
           className={`block w-7 h-7 mx-auto rounded flex items-center justify-center text-[11px] cursor-default select-none ${cls}`}
-          onMouseEnter={() => hasTooltip && setShowTooltip(true)}
+          onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
           {symbol}
         </span>
         {showTooltip && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 bg-gray-900 text-white text-[11px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
-            No pagó
+            {tooltipLines.map((line, i) => (
+              <div key={i}>{line}</div>
+            ))}
           </div>
         )}
       </div>
