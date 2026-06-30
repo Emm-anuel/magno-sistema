@@ -566,6 +566,33 @@ export interface CreditoResumen {
 // Renovaciones
 // ------------------------------------------------------------------
 
+export interface MultaItem {
+  id: number
+  creditoId: number
+  clienteId: number
+  pagoId: number | null
+  tipo: 'NO_PAGO' | 'INCOMPLETO'
+  monto: number
+  fecha: string
+  cobrada: boolean
+  cobradaEnPagoId: number | null
+  condonada: boolean
+  condonadaEnRenovacionId: number | null
+  condonadaPorNombre: string | null
+  fechaCondonacion: string | null
+  motivoCondonacion: string | null
+}
+
+export interface MultaCondonada {
+  id: number
+  monto: number
+  tipo: 'NO_PAGO' | 'INCOMPLETO'
+  fecha: string
+  motivoCondonacion: string | null
+  condonadaPorNombre: string | null
+  fechaCondonacion: string | null
+}
+
 export interface RenovacionCalculo {
   creditoAnteriorId: number
   montoAnterior: number
@@ -605,6 +632,9 @@ export interface RenovacionDetalle {
   pagosRestantes: number
   montoPagosRestantes: number
   multasPendientes: number
+  multasCondonadas: number
+  motivoCondonacion: string | null
+  multasCondonadasDetalle: MultaCondonada[]
   pagoAdelantado: number
   montoDesembolso: number
   garantiaDescripcion: string | null
