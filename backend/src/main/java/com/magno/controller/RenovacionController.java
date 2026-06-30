@@ -81,8 +81,22 @@ public class RenovacionController {
             Authentication auth) {
 
         JwtPrincipal p = principal(auth);
-        java.math.BigDecimal montoAprobado = (req != null) ? req.montoAprobado() : null;
-        return ResponseEntity.ok(renovacionService.aprobarRenovacion(id, montoAprobado, p.userId()));
+        BigDecimal montoAprobado = req != null ? req.montoAprobado() : null;
+        List<Long> multasCondonadas = req != null ? req.multasCondonadasIds() : null;
+        String motivo = req != null ? req.motivoCondonacion() : null;
+        return ResponseEntity.ok(
+                renovacionService.aprobarRenovacion(id, montoAprobado, multasCondonadas, motivo, p.userId()));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // GET /api/renovaciones/{id}/multas-pendientes
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/{id}/multas-pendientes")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<List<com.magno.dto.cobros.MultaDTO>> multasPendientes(
+            @PathVariable Long id) {
+        return ResponseEntity.ok(renovacionService.getMultasPendientesByRenovacion(id));
     }
 
     // ────────────────────────────────────────────────────────────────────
