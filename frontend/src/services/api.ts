@@ -274,33 +274,29 @@ api.interceptors.request.use((config) => {
 })
 
 // ── Interceptor de response: manejo de errores ───────────────────
-let redirectingToLogin = false
+// Guard para evitar llamar logout() múltiples veces cuando varias peticiones
+// paralelas devuelven 401 antes de que React desmonte las páginas protegidas.
+// Se resetea cuando el usuario vuelve a autenticarse (ver subscriber abajo).
+let sessionExpired = false
+
+useAuthStore.subscribe((state) => {
+  if (state.isAuthenticated) {
+    sessionExpired = false
+  }
+})
 
 api.interceptors.response.use(
   (res) => res,
   (error) => {
     const isLoginEndpoint = error.config?.url?.includes('/auth/login')
 
-    // Solo redirigir a /login en 401 si NO es la propia petición de login.
-    // Guard con `redirectingToLogin`: varias peticiones en paralelo (o sus
-    // retries de React Query) pueden llegar con 401 antes de que el
-    // navegador termine de navegar a /login, y sin esta guarda cada una
-    // reinicia la navegación (window.location.href), dejando la app en un
-    // loop entre /dashboard y /login que nunca termina de cargar el login.
-    if (error.response?.status === 401) {
-      console.warn(
-        `DEBUG-AUTH [${new Date().toISOString()}] 401 en ${error.config?.url} (isLoginEndpoint=${isLoginEndpoint}, redirectingToLogin=${redirectingToLogin})`,
-      )
-    }
-
-    if (error.response?.status === 401 && !isLoginEndpoint && !redirectingToLogin) {
-      redirectingToLogin = true
-      console.warn(`DEBUG-AUTH [${new Date().toISOString()}] redirigiendo a /login por 401 en ${error.config?.url}`)
-      // Limpiar AMBAS keys: magno_token (legacy) y magno-auth (Zustand persist).
-      // Si solo se borra magno_token, Zustand rehidrata con el token expirado en
-      // magno-auth → isAuthenticated=true → AuthLayout redirige a /dashboard → loop.
+    if (error.response?.status === 401 && !isLoginEndpoint && !sessionExpired) {
+      sessionExpired = true
+      // Limpiar sesión en Zustand (actualiza magno-auth en localStorage y
+      // setea isAuthenticated=false). ProtectedRoute detecta el cambio y
+      // navega a /login via React Router sin recargar la página, evitando
+      // el loop que causaba window.location.href = '/login'.
       useAuthStore.getState().logout()
-      window.location.href = '/login'
     }
 
     // Spring Boot puede devolver el error en varios formatos

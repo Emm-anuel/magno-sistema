@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Toaster } from 'react-hot-toast'
+import { useAuthStore } from '@/hooks/useAuthStore'
 import App from './App'
 import './index.css'
 
@@ -17,6 +18,14 @@ const queryClient = new QueryClient({
       retry: 0,
     },
   },
+})
+
+// Cuando la sesión expira automáticamente (interceptor llama logout()),
+// limpiar el cache de React Query para que no queden datos del usuario anterior.
+useAuthStore.subscribe((state, prev) => {
+  if (prev.isAuthenticated && !state.isAuthenticated) {
+    queryClient.clear()
+  }
 })
 
 createRoot(document.getElementById('root')!).render(
