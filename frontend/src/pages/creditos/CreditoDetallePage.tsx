@@ -539,10 +539,9 @@ export default function CreditoDetallePage() {
                     p.fechaProgramada != null &&
                     p.fechaProgramada.slice(0, 10) >= hoyIso
                 ).length
-                const totalCobradoCalendario = pagosHistorial.reduce(
-                  (sum, p) => sum + Number(p.montoRecibido ?? 0),
-                  0
-                )
+                const totalCobradoCalendario = pagosHistorial
+                  .filter((p) => p.creditoId === numId)
+                  .reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
                 const multasPend = stats.multasPendientes
 
                 return (

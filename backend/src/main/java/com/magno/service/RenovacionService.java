@@ -304,11 +304,24 @@ public class RenovacionService {
                                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 }
 
+                // Recalcular desembolso con el monto aprobado real y descontando sólo las multas no condonadas
+                Long sucursalId = renovacion.getCreditoAnterior().getSucursal().getId();
+                ResumenCalculo calculoAprobado = renovacion.getTipoPago() == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(montoAprobado, sucursalId)
+                                : calculoService.calcularCredito(montoAprobado, sucursalId);
+                BigDecimal multasADescontar = renovacion.getMultasPendientes().subtract(totalCondonado);
+                BigDecimal desembolsoAprobado = montoAprobado
+                                .subtract(renovacion.getMontoPagosRestantes())
+                                .subtract(multasADescontar)
+                                .subtract(calculoAprobado.pagoAdelantado());
+
                 renovacion.setEstado(EstadoRenovacion.APROBADO);
                 renovacion.setMontoAprobado(montoAprobado);
                 renovacion.setAprobadoPor(aprobador);
                 renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
                 renovacion.setMultasCondonadas(totalCondonado);
+                renovacion.setMontoDesembolso(desembolsoAprobado);
+                renovacion.setPagoAdelantado(calculoAprobado.pagoAdelantado());
                 renovacionRepo.save(renovacion);
 
                 log.info("Renovación APROBADA (pendiente desembolso) — renovacion.id=" + renovacion.getId()
