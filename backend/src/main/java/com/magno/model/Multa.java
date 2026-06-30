@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"pago", "cliente", "credito", "cobradaEnPago"})
+@ToString(exclude = {"pago", "cliente", "credito", "cobradaEnPago", "condonadaEnRenovacion", "condonadaPor"})
 public class Multa {
 
     @Id
@@ -55,6 +55,24 @@ public class Multa {
     @JoinColumn(name = "cobrada_en_pago_id")
     private Pago cobradaEnPago;
 
+    // Condonación — una multa no puede ser cobrada Y condonada al mismo tiempo (validado en servicio)
+    @Column(name = "condonada", nullable = false)
+    private Boolean condonada;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "condonada_en_renovacion_id")
+    private Renovacion condonadaEnRenovacion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "condonada_por_id")
+    private Usuario condonadaPor;
+
+    @Column(name = "fecha_condonacion")
+    private OffsetDateTime fechaCondonacion;
+
+    @Column(name = "motivo_condonacion", columnDefinition = "TEXT")
+    private String motivoCondonacion;
+
     @Column(name = "deleted_at")
     private OffsetDateTime deletedAt;
 
@@ -70,6 +88,7 @@ public class Multa {
         createdAt = now;
         updatedAt = now;
         if (cobrada == null) cobrada = false;
+        if (condonada == null) condonada = false;
     }
 
     @PreUpdate

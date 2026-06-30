@@ -81,6 +81,9 @@ public class Renovacion {
     @Column(name = "multas_pendientes", nullable = false, precision = 12, scale = 2)
     private BigDecimal multasPendientes;
 
+    @Column(name = "multas_condonadas", nullable = false, precision = 12, scale = 2)
+    private BigDecimal multasCondonadas;
+
     @Column(name = "pago_adelantado", nullable = false, precision = 12, scale = 2)
     private BigDecimal pagoAdelantado;
 
@@ -116,6 +119,7 @@ public class Renovacion {
         updatedAt = now;
         if (estado == null)
             estado = EstadoRenovacion.SOLICITADO;
+        if (multasCondonadas == null) multasCondonadas = BigDecimal.ZERO;
     }
 
     @PreUpdate
