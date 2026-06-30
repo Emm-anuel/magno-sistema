@@ -1,5 +1,6 @@
 import axios from 'axios'
 import type { AuthResponse, ApiError, ClienteDocumentoDTO } from '@/types'
+import { useAuthStore } from '@/hooks/useAuthStore'
 
 function normalizeUsuario(raw: any): AuthResponse['usuario'] {
   const sucursal = raw?.sucursal ?? {}
@@ -295,7 +296,10 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !isLoginEndpoint && !redirectingToLogin) {
       redirectingToLogin = true
       console.warn(`DEBUG-AUTH [${new Date().toISOString()}] redirigiendo a /login por 401 en ${error.config?.url}`)
-      localStorage.removeItem('magno_token')
+      // Limpiar AMBAS keys: magno_token (legacy) y magno-auth (Zustand persist).
+      // Si solo se borra magno_token, Zustand rehidrata con el token expirado en
+      // magno-auth → isAuthenticated=true → AuthLayout redirige a /dashboard → loop.
+      useAuthStore.getState().logout()
       window.location.href = '/login'
     }
 
