@@ -12,7 +12,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
-import type { RenovacionDetalle } from '@/types'
+import type { RenovacionDetalle, MultaItem } from '@/types'
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -120,6 +120,11 @@ interface TarjetaProps {
   onRechazar: () => void
   loadingAprobar: boolean
   loadingRechazar: boolean
+  multasList: MultaItem[]
+  multasSeleccionadas: Set<number>
+  onToggleMulta: (multaId: number) => void
+  motivoCondonacion: string
+  onMotivoChange: (val: string) => void
 }
 
 function TarjetaPendiente({
@@ -133,10 +138,21 @@ function TarjetaPendiente({
   onRechazar,
   loadingAprobar,
   loadingRechazar,
+  multasList,
+  multasSeleccionadas,
+  onToggleMulta,
+  motivoCondonacion,
+  onMotivoChange,
 }: TarjetaProps) {
   const totalPagos = r.creditoAnterior.plazoDias
   const pagosCumplidos = totalPagos - r.pagosRestantes
   const tieneMultas = Number(r.multasPendientes) > 0
+
+  // Calcular monto a condonar y a descontar
+  const aCondonar = multasList
+    .filter(m => multasSeleccionadas.has(m.id))
+    .reduce((s, m) => s + Number(m.monto), 0)
+  const aDescontar = Number(r.multasPendientes) - aCondonar
 
   return (
     <div
@@ -178,12 +194,56 @@ function TarjetaPendiente({
           <BarraProgreso cumplidos={pagosCumplidos} total={totalPagos} />
 
           {tieneMultas ? (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-red-700">Multas pendientes</p>
-                <p className="text-sm font-bold text-red-600">{fmt(r.multasPendientes)}</p>
+            <div className="space-y-2">
+              {/* Header alert */}
+              <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
+                <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                <div>
+                  <p className="text-xs font-semibold text-red-700">Multas pendientes</p>
+                  <p className="text-sm font-bold text-red-600">{fmt(r.multasPendientes)}</p>
+                </div>
               </div>
+
+              {/* Individual multa checkboxes */}
+              {multasList.length > 0 && (
+                <div className="rounded-lg border border-gray-200 divide-y divide-gray-100 overflow-hidden">
+                  {multasList.map(m => (
+                    <label key={m.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        className="w-4 h-4 rounded accent-[#3d6b35]"
+                        checked={multasSeleccionadas.has(m.id)}
+                        onChange={() => onToggleMulta(m.id)}
+                      />
+                      <span className="text-xs text-gray-500 flex-1">
+                        {m.tipo === 'NO_PAGO' ? 'No pagó' : 'Pago incompleto'} · {m.fecha}
+                      </span>
+                      <span className={`text-xs font-semibold tabular-nums ${
+                        multasSeleccionadas.has(m.id)
+                          ? 'line-through text-gray-400' : 'text-red-600'
+                      }`}>
+                        {fmt(m.monto)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {/* Motivo field — only shows when ≥1 multa selected */}
+              {multasSeleccionadas.size > 0 && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Motivo de condonación <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={motivoCondonacion}
+                    onChange={e => onMotivoChange(e.target.value)}
+                    rows={2}
+                    placeholder="Ej: Cliente con historial limpio…"
+                    className="input w-full resize-none text-xs"
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
@@ -243,13 +303,32 @@ function TarjetaPendiente({
             </span>
           </div>
 
-          {/* Multas */}
-          <div className="flex items-center justify-between text-sm border-t border-gray-100 pt-2">
-            <span className="text-gray-500">Multas a descontar</span>
-            <span className={tieneMultas ? 'font-semibold text-red-600' : 'text-gray-400'}>
-              {tieneMultas ? fmt(r.multasPendientes) : '$0'}
-            </span>
-          </div>
+          {/* Multas — desglose dinámico */}
+          {tieneMultas && (
+            <div className="space-y-1 border-t border-gray-100 pt-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-500">Multas pendientes</span>
+                <span className="font-medium text-red-500">{fmt(r.multasPendientes)}</span>
+              </div>
+              {multasSeleccionadas.size > 0 ? (
+                <>
+                  <div className="flex items-center justify-between text-xs pl-3">
+                    <span className="text-green-600">└ A condonar</span>
+                    <span className="text-green-600 font-medium">−{fmt(aCondonar)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs pl-3">
+                    <span className="text-gray-500">└ A descontar</span>
+                    <span className="font-medium text-gray-700">{fmt(aDescontar)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-between text-xs pl-3">
+                  <span className="text-gray-400">└ A descontar</span>
+                  <span className="font-semibold text-red-500">{fmt(r.multasPendientes)}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Monto a desembolsar — recalculado en tiempo real */}
           <div className="rounded-xl bg-white border-2 border-[#3d6b35]/30 px-4 py-3 flex items-center justify-between">
@@ -313,6 +392,10 @@ export default function TabPendientesRenovacion() {
   const [calculos, setCalculos] = useState<Record<number, { desembolso: number; loading: boolean }>>({})
   const calcTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
+  // ── Estado de condonación por renovación ──────────────────────────────────
+  const [multasSeleccionadas, setMultasSeleccionadas] = useState<Map<number, Set<number>>>(new Map())
+  const [motivoCondonacion, setMotivoCondonacion] = useState<Map<number, string>>(new Map())
+
   function handleMontoChange(renovacionId: number, creditoAnteriorId: number, val: string) {
     setMontosAprobados((prev) => ({ ...prev, [renovacionId]: val }))
     if (calcTimers.current[renovacionId]) clearTimeout(calcTimers.current[renovacionId])
@@ -343,6 +426,39 @@ export default function TabPendientesRenovacion() {
     ),
   })
 
+  // ── Multas pendientes para todas las renovaciones en cola ─────────────────
+  const { data: multasMap = {} } = useQuery({
+    queryKey: ['multas-pendientes-renovaciones', pendientes.map(r => r.id)],
+    queryFn: async () => {
+      if (!pendientes.length) return {}
+      const entries = await Promise.all(
+        pendientes.map(r =>
+          renovacionService.getMultasPendientes(r.id).then(m => [r.id, m] as const)
+        )
+      )
+      return Object.fromEntries(entries) as Record<number, MultaItem[]>
+    },
+    enabled: pendientes.length > 0,
+  })
+
+  function handleToggleMulta(renovacionId: number, multaId: number) {
+    setMultasSeleccionadas(prev => {
+      const next = new Map(prev)
+      const s = new Set(next.get(renovacionId) ?? [])
+      if (s.has(multaId)) s.delete(multaId); else s.add(multaId)
+      next.set(renovacionId, s)
+      return next
+    })
+  }
+
+  function handleMotivoChange(renovacionId: number, val: string) {
+    setMotivoCondonacion(prev => {
+      const next = new Map(prev)
+      next.set(renovacionId, val)
+      return next
+    })
+  }
+
   function dismissAndRefresh(id: number, callback?: () => void) {
     setDismissingIds((prev) => new Set([...prev, id]))
     setTimeout(() => {
@@ -354,10 +470,16 @@ export default function TabPendientesRenovacion() {
   }
 
   const aprobarMutation = useMutation({
-    mutationFn: (id: number) => {
-      const montoStr = montosAprobados[id]
+    mutationFn: (renovacionId: number) => {
+      const montoStr = montosAprobados[renovacionId]
       const monto = montoStr ? parseFloat(montoStr) : undefined
-      return renovacionService.aprobar(id, Number.isFinite(monto) ? monto : undefined)
+      const seleccionadas = multasSeleccionadas.get(renovacionId)
+      const motivo = motivoCondonacion.get(renovacionId)
+      return renovacionService.aprobar(renovacionId, {
+        montoAprobado: Number.isFinite(monto) ? monto : undefined,
+        multasCondonadasIds: seleccionadas && seleccionadas.size > 0 ? Array.from(seleccionadas) : undefined,
+        motivoCondonacion: motivo?.trim() || undefined,
+      })
     },
     onSuccess: (_data, id) => {
       toast.success('Solicitud aprobada — pendiente de confirmación del desembolso')
@@ -427,6 +549,11 @@ export default function TabPendientesRenovacion() {
             onRechazar={() => setRechazandoId(r.id)}
             loadingAprobar={aprobarMutation.isPending}
             loadingRechazar={rechazarMutation.isPending}
+            multasList={multasMap[r.id] ?? []}
+            multasSeleccionadas={multasSeleccionadas.get(r.id) ?? new Set()}
+            onToggleMulta={(multaId) => handleToggleMulta(r.id, multaId)}
+            motivoCondonacion={motivoCondonacion.get(r.id) ?? ''}
+            onMotivoChange={(val) => handleMotivoChange(r.id, val)}
           />
         ))}
       </div>
