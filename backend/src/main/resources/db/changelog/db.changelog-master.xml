@@ -223,4 +223,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V28-sync-sequences" author="magno">
+        <sqlFile
+            path="db/changelog/V28__sync_sequences.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
