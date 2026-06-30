@@ -12,6 +12,7 @@ import com.itextpdf.layout.properties.UnitValue;
 import com.magno.dto.caja.*;
 import com.magno.model.*;
 import com.magno.repository.*;
+import com.magno.repository.MultaRepository;
 import com.magno.repository.NominaPagoRepository;
 import com.magno.security.JwtPrincipal;
 import com.magno.util.DateTimeUtils;
@@ -43,6 +44,7 @@ public class CajaService {
         private final SucursalRepository sucursalRepo;
         private final GastoRepository gastoRepo;
         private final NominaPagoRepository nominaPagoRepo;
+        private final MultaRepository multaRepo;
 
         public CajaService(CajaDiaRepository cajaDiaRepo,
                         CajaMovimientoInversionRepository movimientoRepo,
@@ -53,7 +55,8 @@ public class CajaService {
                         UsuarioRepository usuarioRepo,
                         SucursalRepository sucursalRepo,
                         GastoRepository gastoRepo,
-                        NominaPagoRepository nominaPagoRepo) {
+                        NominaPagoRepository nominaPagoRepo,
+                        MultaRepository multaRepo) {
                 this.cajaDiaRepo = cajaDiaRepo;
                 this.movimientoRepo = movimientoRepo;
                 this.configSucursalRepo = configSucursalRepo;
@@ -64,6 +67,7 @@ public class CajaService {
                 this.sucursalRepo = sucursalRepo;
                 this.gastoRepo = gastoRepo;
                 this.nominaPagoRepo = nominaPagoRepo;
+                this.multaRepo = multaRepo;
         }
 
         // ── Abrir ─────────────────────────────────────────────────────────────
@@ -342,6 +346,10 @@ public class CajaService {
                 BigDecimal totalMultas = multasPorAsesor.stream()
                                 .map(MultaAsesorItemDTO::totalMultas)
                                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+                BigDecimal multasCobrasRenovaciones = multaRepo
+                                .sumMultasCobrasViaRenovacionBySucursalAndFecha(effectiveId, hoy);
+                BigDecimal totalMultasCondonadas = multaRepo
+                                .sumMultasCondonadasBySucursalAndFecha(effectiveId, hoy);
 
                 return new CajaCierrePreviewDTO(
                                 caja.getId(),
@@ -360,7 +368,9 @@ public class CajaService {
                                 totalNomina,
                                 totalRealLibres,
                                 multasPorAsesor,
-                                totalMultas);
+                                totalMultas,
+                                multasCobrasRenovaciones,
+                                totalMultasCondonadas);
         }
 
         // ── PDF de cierre ─────────────────────────────────────────────────────
