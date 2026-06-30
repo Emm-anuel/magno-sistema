@@ -417,33 +417,57 @@ export default function CajaCierrePage() {
           </Section>
 
           {/* ── Multas ───────────────────────────────────────────────── */}
-          <Section title="Multas Cobradas" defaultOpen={preview.totalMultasCobradas > 0}>
-            {preview.multasPorAsesor.length === 0 ? (
+          <Section title="Multas Cobradas" defaultOpen={(preview.totalMultasCobradas ?? 0) > 0 || (preview.totalMultasCondonadas ?? 0) > 0}>
+            {/* Multas daily by asesor */}
+            {preview.multasPorAsesor.length === 0 && (preview.multasCobrasRenovaciones ?? 0) === 0 ? (
               <p className="text-[13px] text-[#adb5bd] text-center py-3">Sin multas cobradas hoy</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="tabla">
                   <thead>
                     <tr>
-                      <th>Asesor</th>
-                      <th className="text-right">Total multas</th>
+                      <th>Concepto</th>
+                      <th className="text-right">Monto</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.multasPorAsesor.map(row => (
                       <tr key={row.asesorNombre}>
-                        <td>{row.asesorNombre}</td>
+                        <td className="text-[13px]">Cobros diarios — {row.asesorNombre}</td>
                         <td className="text-right font-mono">{fmtMoney(row.totalMultas)}</td>
                       </tr>
                     ))}
+                    {(preview.multasCobrasRenovaciones ?? 0) > 0 && (
+                      <tr>
+                        <td className="text-[13px]">Cobradas en renovaciones</td>
+                        <td className="text-right font-mono">{fmtMoney(preview.multasCobrasRenovaciones)}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             )}
-            {preview.totalMultasCobradas > 0 && (
+
+            {/* Total cobrado */}
+            {(preview.totalMultasCobradas + (preview.multasCobrasRenovaciones ?? 0)) > 0 && (
               <div className="mt-2 text-right text-[13px]">
-                <span className="text-[#6c757d]">Total multas: </span>
-                <span className="font-semibold font-mono">{fmtMoney(preview.totalMultasCobradas)}</span>
+                <span className="text-[#6c757d]">Total cobrado: </span>
+                <span className="font-semibold font-mono">
+                  {fmtMoney(preview.totalMultasCobradas + (preview.multasCobrasRenovaciones ?? 0))}
+                </span>
+              </div>
+            )}
+
+            {/* Condonadas — informational, not in subtotal */}
+            {(preview.totalMultasCondonadas ?? 0) > 0 && (
+              <div className="mt-3 pt-3 border-t border-dashed border-gray-200 flex items-center justify-between text-[13px]">
+                <span className="text-red-500 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
+                  Condonadas en renovaciones <span className="text-gray-400 font-normal ml-1">(informativo)</span>
+                </span>
+                <span className="font-semibold font-mono text-red-500">
+                  −{fmtMoney(preview.totalMultasCondonadas)}
+                </span>
               </div>
             )}
           </Section>
