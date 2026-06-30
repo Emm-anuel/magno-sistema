@@ -51,6 +51,17 @@ function normalizeDetalle(raw: any): RenovacionDetalle {
     pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
     montoPagosRestantes: raw.montoPagosRestantes ?? raw.monto_pagos_restantes,
     multasPendientes: raw.multasPendientes ?? raw.multas_pendientes,
+    multasCondonadas: Number(raw.multasCondonadas ?? raw.multas_condonadas ?? 0),
+    motivoCondonacion: raw.motivoCondonacion ?? raw.motivo_condonacion ?? null,
+    multasCondonadasDetalle: (raw.multasCondonadasDetalle ?? raw.multas_condonadas_detalle ?? []).map((c: any) => ({
+      id: c.id,
+      monto: Number(c.monto),
+      tipo: c.tipo,
+      fecha: c.fecha,
+      motivoCondonacion: c.motivoCondonacion ?? c.motivo_condonacion ?? null,
+      condonadaPorNombre: c.condonadaPorNombre ?? c.condonada_por_nombre ?? null,
+      fechaCondonacion: c.fechaCondonacion ?? c.fecha_condonacion ?? null,
+    })),
     pagoAdelantado: raw.pagoAdelantado ?? raw.pago_adelantado,
     montoDesembolso: raw.montoDesembolso ?? raw.monto_desembolso,
     garantiaDescripcion: raw.garantiaDescripcion ?? raw.garantia_descripcion ?? null,
@@ -121,9 +132,32 @@ export const renovacionService = {
       videoEntregaUrl: data.videoEntregaUrl,
     }).then((r) => normalizeDetalle(r.data)),
 
-  aprobar: (renovacionId: number, montoAprobado?: number): Promise<RenovacionDetalle> =>
-    api.patch(`/renovaciones/${renovacionId}/aprobar`, { montoAprobado: montoAprobado ?? null })
+  aprobar: (id: number, payload: {
+    montoAprobado?: number | null,
+    multasCondonadasIds?: number[],
+    motivoCondonacion?: string,
+  }): Promise<RenovacionDetalle> =>
+    api.patch(`/renovaciones/${id}/aprobar`, payload)
       .then((r) => normalizeDetalle(r.data)),
+
+  getMultasPendientes: (renovacionId: number): Promise<import('@/types').MultaItem[]> =>
+    api.get(`/renovaciones/${renovacionId}/multas-pendientes`)
+      .then(r => (r.data ?? []).map((m: any) => ({
+        id: m.id,
+        creditoId: m.creditoId ?? m.credito_id,
+        clienteId: m.clienteId ?? m.cliente_id,
+        pagoId: m.pagoId ?? m.pago_id ?? null,
+        tipo: m.tipo,
+        monto: Number(m.monto),
+        fecha: m.fecha,
+        cobrada: Boolean(m.cobrada),
+        cobradaEnPagoId: m.cobradaEnPagoId ?? m.cobrada_en_pago_id ?? null,
+        condonada: Boolean(m.condonada),
+        condonadaEnRenovacionId: m.condonadaEnRenovacionId ?? m.condonada_en_renovacion_id ?? null,
+        condonadaPorNombre: m.condonadaPorNombre ?? m.condonada_por_nombre ?? null,
+        fechaCondonacion: m.fechaCondonacion ?? m.fecha_condonacion ?? null,
+        motivoCondonacion: m.motivoCondonacion ?? m.motivo_condonacion ?? null,
+      }))),
 
   confirmarDesembolso: (renovacionId: number, videoEntregaUrl?: string): Promise<RenovacionDetalle> =>
     api.patch(`/renovaciones/${renovacionId}/confirmar-desembolso`, {
