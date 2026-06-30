@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -13,6 +13,19 @@ import {
 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
 import type { RenovacionDetalle, MultaItem } from '@/types'
+
+// ── Cálculo local del pago adelantado del nuevo crédito ──────────────────────
+// Replica la lógica del backend (CreditoCalculoService) para evitar API calls
+// intermedios y hacer el recálculo instantáneo en el frontend.
+function calcularPagoNuevo(monto: number, tipoPago: string): number {
+  if (tipoPago === 'SEMANAL') {
+    const plazo = monto < 10000 ? 8 : 12
+    return Math.round((monto * 1.40) / plazo)
+  }
+  if (monto < 15000) return Math.round((monto * 1.30) / 25)
+  if (monto < 20000) return Math.round((monto * 1.24) / 25)
+  return Math.round((monto * 1.24) / 30)
+}
 
 // ── Formatters ────────────────────────────────────────────────────────────────
 
@@ -114,8 +127,6 @@ interface TarjetaProps {
   dismissing: boolean
   montoAprobadoStr: string
   onMontoAprobadoChange: (val: string) => void
-  montoDesembolsoCalculado: number | null
-  calculandoMonto: boolean
   onAprobar: () => void
   onRechazar: () => void
   loadingAprobar: boolean
@@ -132,8 +143,6 @@ function TarjetaPendiente({
   dismissing,
   montoAprobadoStr,
   onMontoAprobadoChange,
-  montoDesembolsoCalculado,
-  calculandoMonto,
   onAprobar,
   onRechazar,
   loadingAprobar,
@@ -148,11 +157,16 @@ function TarjetaPendiente({
   const pagosCumplidos = totalPagos - r.pagosRestantes
   const tieneMultas = Number(r.multasPendientes) > 0
 
-  // Calcular monto a condonar y a descontar
   const aCondonar = multasList
     .filter(m => multasSeleccionadas.has(m.id))
     .reduce((s, m) => s + Number(m.monto), 0)
   const aDescontar = Number(r.multasPendientes) - aCondonar
+
+  // Cálculo local del desembolso — se recalcula en cada render sin API call
+  const montoAprobadoNum = parseFloat(montoAprobadoStr)
+  const desembolsoMostrado = Number.isFinite(montoAprobadoNum) && montoAprobadoNum >= 1000
+    ? montoAprobadoNum - Number(r.montoPagosRestantes) - aDescontar - calcularPagoNuevo(montoAprobadoNum, r.tipoPago)
+    : Number(r.montoDesembolso) + aCondonar
 
   return (
     <div
@@ -330,20 +344,14 @@ function TarjetaPendiente({
             </div>
           )}
 
-          {/* Monto a desembolsar — recalculado en tiempo real */}
+          {/* Monto a desembolsar — recalculado localmente en cada render */}
           <div className="rounded-xl bg-white border-2 border-[#3d6b35]/30 px-4 py-3 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-600">Monto a desembolsar</span>
-            {calculandoMonto ? (
-              <span className="w-5 h-5 border-2 border-[#3d6b35] border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <span className={`text-xl font-extrabold tabular-nums ${
-                ((montoDesembolsoCalculado ?? Number(r.montoDesembolso)) + aCondonar) >= 0
-                  ? 'text-[#3d6b35]'
-                  : 'text-red-600'
-              }`}>
-                {fmt((montoDesembolsoCalculado ?? Number(r.montoDesembolso)) + aCondonar)}
-              </span>
-            )}
+            <span className={`text-xl font-extrabold tabular-nums ${
+              desembolsoMostrado >= 0 ? 'text-[#3d6b35]' : 'text-red-600'
+            }`}>
+              {fmt(desembolsoMostrado)}
+            </span>
           </div>
         </div>
       </div>
@@ -389,37 +397,12 @@ export default function TabPendientesRenovacion() {
   const [rechazandoId, setRechazandoId] = useState<number | null>(null)
   const [dismissingIds, setDismissingIds] = useState<Set<number>>(new Set())
   const [montosAprobados, setMontosAprobados] = useState<Record<number, string>>({})
-  const [calculos, setCalculos] = useState<Record<number, { desembolso: number; loading: boolean }>>({})
-  const calcTimers = useRef<Record<number, ReturnType<typeof setTimeout>>>({})
 
-  // ── Estado de condonación por renovación ──────────────────────────────────
   const [multasSeleccionadas, setMultasSeleccionadas] = useState<Map<number, Set<number>>>(new Map())
   const [motivoCondonacion, setMotivoCondonacion] = useState<Map<number, string>>(new Map())
 
-  function handleMontoChange(renovacionId: number, creditoAnteriorId: number, val: string) {
+  function handleMontoChange(renovacionId: number, val: string) {
     setMontosAprobados((prev) => ({ ...prev, [renovacionId]: val }))
-    if (calcTimers.current[renovacionId]) clearTimeout(calcTimers.current[renovacionId])
-    const num = parseFloat(val)
-    if (!Number.isFinite(num) || num < 1000) {
-      setCalculos((prev) => {
-        const next = { ...prev }
-        delete next[renovacionId]
-        return next
-      })
-      return
-    }
-    setCalculos((prev) => ({ ...prev, [renovacionId]: { ...prev[renovacionId], loading: true } }))
-    calcTimers.current[renovacionId] = setTimeout(async () => {
-      try {
-        const result = await renovacionService.calcular(creditoAnteriorId, num)
-        setCalculos((prev) => ({
-          ...prev,
-          [renovacionId]: { desembolso: result.montoDesembolso, loading: false },
-        }))
-      } catch {
-        setCalculos((prev) => ({ ...prev, [renovacionId]: { ...prev[renovacionId], loading: false } }))
-      }
-    }, 400)
   }
 
   const { data: pendientes = [], isLoading, isError } = useQuery({
@@ -546,9 +529,7 @@ export default function TabPendientesRenovacion() {
             renovacion={r}
             dismissing={dismissingIds.has(r.id)}
             montoAprobadoStr={montosAprobados[r.id] ?? String(r.montoNuevo)}
-            onMontoAprobadoChange={(val) => handleMontoChange(r.id, r.creditoAnterior.id, val)}
-            montoDesembolsoCalculado={calculos[r.id]?.desembolso ?? null}
-            calculandoMonto={calculos[r.id]?.loading ?? false}
+            onMontoAprobadoChange={(val) => handleMontoChange(r.id, val)}
             onAprobar={() => aprobarMutation.mutate(r.id)}
             onRechazar={() => setRechazandoId(r.id)}
             loadingAprobar={aprobarMutation.isPending}
