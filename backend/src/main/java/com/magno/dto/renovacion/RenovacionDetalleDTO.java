@@ -27,6 +27,9 @@ public record RenovacionDetalleDTO(
                 int pagosRestantes,
                 BigDecimal montoPagosRestantes,
                 BigDecimal multasPendientes,
+                BigDecimal multasCondonadas,
+                String motivoCondonacion,
+                List<MultaCondonadaDTO> multasCondonadasDetalle,
                 BigDecimal pagoAdelantado,
                 BigDecimal montoDesembolso,
                 String garantiaDescripcion,
@@ -40,6 +43,10 @@ public record RenovacionDetalleDTO(
                         BigDecimal pagoPeriodico, String estado) {}
 
         public static RenovacionDetalleDTO from(Renovacion r) {
+                return from(r, List.of());
+        }
+
+        public static RenovacionDetalleDTO from(Renovacion r, List<MultaCondonadaDTO> condonadasDetalle) {
                 CreditoInfo creditoNuevoInfo = null;
                 if (r.getCreditoNuevo() != null) {
                         creditoNuevoInfo = new CreditoInfo(
@@ -65,6 +72,8 @@ public record RenovacionDetalleDTO(
                                         r.getConfirmadoPor().getNombreCompleto(),
                                         r.getConfirmadoPor().getSucursal().getNombre());
                 }
+
+                String motivoCond = condonadasDetalle.isEmpty() ? null : condonadasDetalle.get(0).motivoCondonacion();
 
                 return new RenovacionDetalleDTO(
                                 r.getId(),
@@ -94,6 +103,9 @@ public record RenovacionDetalleDTO(
                                 r.getPagosRestantes(),
                                 r.getMontoPagosRestantes(),
                                 r.getMultasPendientes(),
+                                r.getMultasCondonadas(),
+                                motivoCond,
+                                condonadasDetalle,
                                 r.getPagoAdelantado(),
                                 r.getMontoDesembolso(),
                                 r.getGarantiaDescripcion(),
