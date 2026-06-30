@@ -9,6 +9,7 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
+import com.magno.dto.cobros.MultaDTO;
 import com.magno.dto.renovacion.*;
 import com.magno.model.*;
 import com.magno.repository.*;
@@ -24,6 +25,7 @@ import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -229,7 +231,7 @@ public class RenovacionService {
                                 + " monto_nuevo=" + req.montoNuevo()
                                 + " asesor=" + asesor.getNombreCompleto());
 
-                return RenovacionDetalleDTO.from(solicitud);
+                return RenovacionDetalleDTO.from(solicitud, List.of());
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -239,7 +241,7 @@ public class RenovacionService {
 
         @Transactional
         public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, BigDecimal montoAprobadoParam,
-                        Long aprobadorId) {
+                        List<Long> multasCondonadasIds, String motivoCondonacion, Long aprobadorId) {
                 Renovacion renovacion = findRenovacion(renovacionId);
 
                 if (renovacion.getEstado() != EstadoRenovacion.SOLICITADO) {
@@ -257,17 +259,66 @@ public class RenovacionService {
                                                 ? montoAprobadoParam
                                                 : renovacion.getMontoNuevo();
 
+                // ── Procesar condonaciones ───────────────────────────────────────
+                List<Multa> multasCondonadasList = new java.util.ArrayList<>();
+                BigDecimal totalCondonado = BigDecimal.ZERO;
+
+                if (multasCondonadasIds != null && !multasCondonadasIds.isEmpty()) {
+                        if (motivoCondonacion == null || motivoCondonacion.isBlank()) {
+                                throw new IllegalArgumentException(
+                                                "El motivo de condonación es obligatorio cuando se condonan multas.");
+                        }
+
+                        Long creditoAnteriorId = renovacion.getCreditoAnterior().getId();
+                        OffsetDateTime ahora = OffsetDateTime.now();
+
+                        for (Long multaId : multasCondonadasIds) {
+                                Multa multa = multaRepo.findById(multaId)
+                                                .orElseThrow(() -> new EntityNotFoundException(
+                                                                "Multa no encontrada: " + multaId));
+
+                                if (!multa.getCredito().getId().equals(creditoAnteriorId)) {
+                                        throw new IllegalArgumentException(
+                                                        "La multa " + multaId
+                                                                        + " no pertenece al crédito anterior de esta renovación.");
+                                }
+                                if (Boolean.TRUE.equals(multa.getCobrada())) {
+                                        throw new IllegalArgumentException(
+                                                        "La multa " + multaId + " ya fue cobrada.");
+                                }
+                                if (Boolean.TRUE.equals(multa.getCondonada())) {
+                                        throw new IllegalArgumentException(
+                                                        "La multa " + multaId + " ya fue condonada.");
+                                }
+
+                                multa.setCondonada(true);
+                                multa.setCondonadaEnRenovacion(renovacion);
+                                multa.setCondonadaPor(aprobador);
+                                multa.setFechaCondonacion(ahora);
+                                multa.setMotivoCondonacion(motivoCondonacion.trim());
+                                multasCondonadasList.add(multaRepo.save(multa));
+                        }
+
+                        totalCondonado = multasCondonadasList.stream()
+                                        .map(Multa::getMonto)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                }
+
                 renovacion.setEstado(EstadoRenovacion.APROBADO);
                 renovacion.setMontoAprobado(montoAprobado);
                 renovacion.setAprobadoPor(aprobador);
                 renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
+                renovacion.setMultasCondonadas(totalCondonado);
                 renovacionRepo.save(renovacion);
 
                 log.info("Renovación APROBADA (pendiente desembolso) — renovacion.id=" + renovacion.getId()
                                 + " monto_aprobado=" + montoAprobado
                                 + " aprobado_por=" + aprobador.getNombreCompleto());
 
-                return RenovacionDetalleDTO.from(renovacion);
+                List<MultaCondonadaDTO> condonadasDTO = multasCondonadasList.stream()
+                                .map(MultaCondonadaDTO::from)
+                                .toList();
+                return RenovacionDetalleDTO.from(renovacion, condonadasDTO);
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -321,8 +372,8 @@ public class RenovacionService {
                         calendarioPagoRepo.save(pago);
                 }
 
-                // 2. Marcar multas como cobradas (descontadas del desembolso)
-                multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(creditoAnterior.getId())
+                // 2. Marcar multas como cobradas (descontadas del desembolso) — excluye condonadas
+                multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(creditoAnterior.getId())
                                 .forEach(m -> {
                                         m.setCobrada(true);
                                         multaRepo.save(m);
@@ -390,7 +441,7 @@ public class RenovacionService {
                                 + " credito_nuevo=" + creditoNuevo.getId()
                                 + " confirmado_por=" + confirmador.getNombreCompleto());
 
-                return RenovacionDetalleDTO.from(renovacion);
+                return RenovacionDetalleDTO.from(renovacion, cargarCondonadasDetalle(renovacion));
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -402,7 +453,7 @@ public class RenovacionService {
                 return renovacionRepo
                                 .findPendientesDesembolso(sucursalId)
                                 .stream()
-                                .map(RenovacionDetalleDTO::from)
+                                .map(r -> RenovacionDetalleDTO.from(r, cargarCondonadasDetalle(r)))
                                 .toList();
         }
 
@@ -435,7 +486,7 @@ public class RenovacionService {
                                 + " motivo=" + motivo
                                 + " rechazado_por=" + rechazador.getNombreCompleto());
 
-                return RenovacionDetalleDTO.from(renovacion);
+                return RenovacionDetalleDTO.from(renovacion, List.of());
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -447,7 +498,7 @@ public class RenovacionService {
                 return renovacionRepo
                                 .findPendientes(asesorId, sucursalId)
                                 .stream()
-                                .map(RenovacionDetalleDTO::from)
+                                .map(r -> RenovacionDetalleDTO.from(r, cargarCondonadasDetalle(r)))
                                 .toList();
         }
 
@@ -460,7 +511,7 @@ public class RenovacionService {
                 return renovacionRepo
                                 .findMisSolicitudes(asesorId)
                                 .stream()
-                                .map(RenovacionDetalleDTO::from)
+                                .map(r -> RenovacionDetalleDTO.from(r, cargarCondonadasDetalle(r)))
                                 .toList();
         }
 
@@ -607,8 +658,35 @@ public class RenovacionService {
         }
 
         // ────────────────────────────────────────────────────────────────────
+        // Multas pendientes de una renovación (para la pantalla de aprobación)
+        // ────────────────────────────────────────────────────────────────────
+
+        public List<MultaDTO> getMultasPendientesByRenovacion(Long renovacionId) {
+                Renovacion renovacion = findRenovacion(renovacionId);
+                Long creditoAnteriorId = renovacion.getCreditoAnterior().getId();
+                return multaRepo.findPendientesByCreditoId(creditoAnteriorId)
+                                .stream()
+                                .map(MultaDTO::from)
+                                .toList();
+        }
+
+        // ────────────────────────────────────────────────────────────────────
         // Helpers
         // ────────────────────────────────────────────────────────────────────
+
+        private List<MultaCondonadaDTO> cargarCondonadasDetalle(Renovacion r) {
+                if (r.getMultasCondonadas() == null
+                                || r.getMultasCondonadas().compareTo(BigDecimal.ZERO) == 0) {
+                        return List.of();
+                }
+                return multaRepo.findByCreditoIdAndDeletedAtIsNullOrderByFechaDesc(r.getCreditoAnterior().getId())
+                                .stream()
+                                .filter(m -> Boolean.TRUE.equals(m.getCondonada())
+                                                && m.getCondonadaEnRenovacion() != null
+                                                && m.getCondonadaEnRenovacion().getId().equals(r.getId()))
+                                .map(MultaCondonadaDTO::from)
+                                .toList();
+        }
 
         private Credito findCredito(Long id) {
                 Credito c = creditoRepo.findById(id)
