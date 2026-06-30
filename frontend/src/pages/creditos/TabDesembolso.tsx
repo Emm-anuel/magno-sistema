@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -192,6 +192,13 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado }: Calenda
     month: 'long',
     year: 'numeric',
   })
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [n])
 
   return (
     <div className="card p-5 space-y-3">
@@ -205,8 +212,8 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado }: Calenda
         domingos y días festivos se omiten automáticamente.
       </p>
 
-      {/* Scrollable table */}
-      <div className="overflow-auto max-h-52 rounded-lg border border-gray-200">
+      {/* Scrollable table — muestra el último pago (adelantado) por defecto */}
+      <div ref={scrollRef} className="overflow-auto max-h-52 rounded-lg border border-gray-200">
         <table className="min-w-full text-xs">
           <thead className="bg-gray-50 sticky top-0">
             <tr>

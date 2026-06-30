@@ -558,7 +558,8 @@ export default function ClienteDetallePage() {
                   <table className="tabla">
                     <thead>
                       <tr>
-                        <th>Fecha</th>
+                        <th>Fecha inicio</th>
+                        <th>Fecha de pago</th>
                         <th>Monto</th>
                         <th>Estado</th>
                         <th>Pagos cumplidos</th>
@@ -571,6 +572,15 @@ export default function ClienteDetallePage() {
                           <td>
                             {c.fechaInicio
                               ? new Date(c.fechaInicio).toLocaleDateString('es-MX', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })
+                              : '—'}
+                          </td>
+                          <td>
+                            {c.fechaVencimiento
+                              ? new Date(c.fechaVencimiento).toLocaleDateString('es-MX', {
                                   day: '2-digit',
                                   month: 'short',
                                   year: 'numeric',

@@ -149,7 +149,7 @@ public class CreditoCalculoService {
      * la sucursal indicada (Opción C, confirmada con el cliente).
      *
      * <ul>
-     * <li>Pago #1: estado=ADELANTADO (ya se cobró al desembolsar)</li>
+     * <li>Pago #N (último): estado=ADELANTADO (ya se cobró al desembolsar)</li>
      * <li>Pago #N: monto ajustado para que la suma exacta = totalAPagar</li>
      * </ul>
      *
@@ -280,7 +280,7 @@ public class CreditoCalculoService {
      * a partir de {@code fechaInicio}, saltando sábados, domingos y días festivos.
      *
      * <ul>
-     * <li>Pago #1: estado=ADELANTADO (ya se cobró al desembolsar)</li>
+     * <li>Pago #N (último): estado=ADELANTADO (ya se cobró al desembolsar)</li>
      * <li>Pago #N: monto ajustado para que la suma exacta = totalAPagar</li>
      * <li>Cada pago se separa del anterior por 7 días hábiles (no 1 día)</li>
      * </ul>
