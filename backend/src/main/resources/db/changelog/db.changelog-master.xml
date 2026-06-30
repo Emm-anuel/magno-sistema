@@ -215,4 +215,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V27-multas-condonacion" author="magno">
+        <sqlFile
+            path="db/changelog/V27__multas_condonacion.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
