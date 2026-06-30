@@ -1,3 +1,3 @@
 package com.magno.dto.caja;
 
-public record CerrarCajaRequest(Long sucursalId) {}
+public record CerrarCajaRequest(Long sucursalId, Long cajaId) {}

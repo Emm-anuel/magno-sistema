@@ -30,7 +30,8 @@ const baseSchema = {
   estado:          z.string().min(1, 'Requerido'),
   codigo_postal:   z.string().min(4, 'Requerido'),
   ine_numero:      z.string().min(1, 'Requerido'),
-  ine_imagen_url:  z.string().optional(),
+  ine_imagen_url:  z.string().min(1, 'Requerido'),
+  ine_imagen_reverso_url: z.string().min(1, 'Requerido'),
   ref1_nombre:     z.string().min(1, 'Requerido'),
   ref1_telefono:   z.string().min(10, 'Mínimo 10 dígitos'),
   ref1_parentesco: z.string().min(1, 'Requerido'),
@@ -345,10 +346,15 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
   const [ineFile, setIneFile] = useState<File | null>(null)
   const [inePreview, setInePreview] = useState<string>(usuario?.ine_imagen_url ?? '')
   const [ineImgSrc, setIneImgSrc] = useState<string>(usuario?.ine_imagen_url ?? '')
+  const [ineReversoFile, setIneReversoFile] = useState<File | null>(null)
+  const [ineReversoPreview, setIneReversoPreview] = useState<string>(usuario?.ine_imagen_reverso_url ?? '')
+  const [ineReversoImgSrc, setIneReversoImgSrc] = useState<string>(usuario?.ine_imagen_reverso_url ?? '')
   const [ineFullPreview, setIneFullPreview] = useState(false)
+  const [ineReversoFullPreview, setIneReversoFullPreview] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [passwordModified, setPasswordModified] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputReversoRef = useRef<HTMLInputElement>(null)
 
   const schema = isEdit ? editSchema : createSchema
 
@@ -376,6 +382,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
           codigo_postal:   usuario.codigo_postal ?? '',
           ine_numero:      usuario.ine_numero ?? '',
           ine_imagen_url:  usuario.ine_imagen_url ?? '',
+          ine_imagen_reverso_url: usuario.ine_imagen_reverso_url ?? '',
           ref1_nombre:     usuario.ref1_nombre ?? '',
           ref1_telefono:   usuario.ref1_telefono ?? '',
           ref1_parentesco: usuario.ref1_parentesco ?? '',
@@ -417,20 +424,35 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
     const objectUrl = URL.createObjectURL(file)
     setInePreview(objectUrl)
     setIneImgSrc(objectUrl)
+    setValue('ine_imagen_url', objectUrl, { shouldDirty: true, shouldValidate: true })
   }
 
-  const handleIneImgError = async () => {
-    if (ineImgSrc !== inePreview || inePreview.startsWith('blob:')) return
+  const handleReversoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIneReversoFile(file)
+    const objectUrl = URL.createObjectURL(file)
+    setIneReversoPreview(objectUrl)
+    setIneReversoImgSrc(objectUrl)
+    setValue('ine_imagen_reverso_url', objectUrl, { shouldDirty: true, shouldValidate: true })
+  }
+
+  const handleIneImgError = async (
+    currentSrc: string,
+    previewUrl: string,
+    setImgSrc: (src: string) => void,
+  ) => {
+    if (currentSrc !== previewUrl || previewUrl.startsWith('blob:')) return
     const token = localStorage.getItem('magno_token')
     try {
-      const res = await fetch(`/api/files/download?url=${encodeURIComponent(inePreview)}`, {
+      const res = await fetch(`/api/files/download?url=${encodeURIComponent(previewUrl)}`, {
         headers: { Authorization: `Bearer ${token ?? ''}` },
       })
       if (!res.ok) throw new Error()
       const blob = await res.blob()
-      setIneImgSrc(URL.createObjectURL(blob))
+      setImgSrc(URL.createObjectURL(blob))
     } catch {
-      setIneImgSrc('')   // oculta el img y muestra la zona de upload
+      setImgSrc('')   // oculta el img y muestra la zona de upload
     }
   }
 
@@ -439,6 +461,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
 
     try {
       let ineUrl = formData.ine_imagen_url ?? ''
+      let ineReversoUrl = formData.ine_imagen_reverso_url ?? ''
 
       // 1. Subir imagen si hay una nueva seleccionada
       if (ineFile) {
@@ -451,7 +474,17 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
         setValue('ine_imagen_url', ineUrl)
       }
 
-      const payload = { ...formData, ine_imagen_url: ineUrl }
+      if (ineReversoFile) {
+        try {
+          ineReversoUrl = await fileService.upload(ineReversoFile, 'usuarios-ine-reverso')
+        } catch {
+          toast.error('Error al subir reverso de INE')
+          return
+        }
+        setValue('ine_imagen_reverso_url', ineReversoUrl)
+      }
+
+      const payload = { ...formData, ine_imagen_url: ineUrl, ine_imagen_reverso_url: ineReversoUrl }
 
       if (isEdit) {
         if (!passwordModified || !payload.password) {
@@ -590,9 +623,12 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                   <input {...register('ine_numero')} className={`input ${errors.ine_numero ? 'input-error' : ''}`} placeholder="Número de INE" />
                 </Field>
 
+                <input type="hidden" {...register('ine_imagen_url')} />
+                <input type="hidden" {...register('ine_imagen_reverso_url')} />
+
                 <div>
                   <label className="block text-[12px] font-medium text-[#495057] mb-1.5">
-                    Imagen INE *
+                    Imagen INE - Frente *
                   </label>
                   <input
                     ref={fileInputRef}
@@ -607,7 +643,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                         src={ineImgSrc}
                         alt="INE"
                         className="w-full h-24 object-cover rounded-lg border border-[#dee2e6]"
-                        onError={handleIneImgError}
+                        onError={() => handleIneImgError(ineImgSrc, inePreview, setIneImgSrc)}
                       />
                       <div className="absolute bottom-1.5 right-1.5 flex gap-1">
                         <button
@@ -640,6 +676,64 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                       <span className="text-[11px]">JPG, PNG, PDF</span>
                     </div>
                   )}
+                  {errors.ine_imagen_url?.message && (
+                    <p className="text-[#dc2626] text-[11px] mt-0.5">{errors.ine_imagen_url.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-[12px] font-medium text-[#495057] mb-1.5">
+                    Imagen INE - Reverso *
+                  </label>
+                  <input
+                    ref={fileInputReversoRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    className="hidden"
+                    onChange={handleReversoFileChange}
+                  />
+                  {ineReversoImgSrc ? (
+                    <div className="relative">
+                      <img
+                        src={ineReversoImgSrc}
+                        alt="INE reverso"
+                        className="w-full h-24 object-cover rounded-lg border border-[#dee2e6]"
+                        onError={() => handleIneImgError(ineReversoImgSrc, ineReversoPreview, setIneReversoImgSrc)}
+                      />
+                      <div className="absolute bottom-1.5 right-1.5 flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setIneReversoFullPreview(true)}
+                          className="btn btn-sm text-[11px] bg-white/90"
+                          title="Ver tamaño completo"
+                        >
+                          <Maximize2 className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fileInputReversoRef.current?.click()}
+                          className="btn btn-sm text-[11px] bg-white/90"
+                        >
+                          Cambiar
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-[#adb5bd] mt-1">
+                        INE cargado — clic en "Cambiar" para reemplazar
+                      </p>
+                    </div>
+                  ) : (
+                    <div
+                      className="upload-zone flex flex-col items-center gap-1.5"
+                      onClick={() => fileInputReversoRef.current?.click()}
+                    >
+                      <Upload className="w-5 h-5" />
+                      <span>Foto/escaneo del reverso</span>
+                      <span className="text-[11px]">JPG, PNG, PDF</span>
+                    </div>
+                  )}
+                  {errors.ine_imagen_reverso_url?.message && (
+                    <p className="text-[#dc2626] text-[11px] mt-0.5">{errors.ine_imagen_reverso_url.message}</p>
+                  )}
                 </div>
 
                 {/* Preview a tamaño completo */}
@@ -649,6 +743,13 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                   imageUrl={ineImgSrc || inePreview}
                   title={`INE — ${usuario?.nombre_completo ?? 'Usuario'}`}
                   downloadFileName="ine.jpg"
+                />
+                <ImagePreviewModal
+                  isOpen={ineReversoFullPreview}
+                  onClose={() => setIneReversoFullPreview(false)}
+                  imageUrl={ineReversoImgSrc || ineReversoPreview}
+                  title={`INE reverso — ${usuario?.nombre_completo ?? 'Usuario'}`}
+                  downloadFileName="ine-reverso.jpg"
                 />
               </div>
             </section>

@@ -73,7 +73,8 @@ public class CajaService {
                 Long sucursalId = effectiveSucursalId(req.sucursalId(), principal);
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 
-                cajaDiaRepo.findBySucursalIdAndEstadoAndFechaBefore(sucursalId, EstadoCaja.ABIERTA, hoy)
+                cajaDiaRepo.findFirstBySucursalIdAndEstadoAndFechaBeforeOrderByFechaAsc(
+                                sucursalId, EstadoCaja.ABIERTA, hoy)
                                 .ifPresent(c -> {
                                         throw new IllegalArgumentException(
                                                         "Hay una caja sin cerrar del " + c.getFecha()
@@ -106,21 +107,38 @@ public class CajaService {
         @Transactional
         public CajaDiaDetalleDTO cerrar(CerrarCajaRequest req, JwtPrincipal principal) {
                 Long sucursalId = effectiveSucursalId(req.sucursalId(), principal);
-                LocalDate hoy = DateTimeUtils.hoyEnMagno();
+                LocalDate fechaCaja;
 
-                CajaDia caja = cajaDiaRepo.findBySucursalIdAndFechaAndEstado(sucursalId, hoy, EstadoCaja.ABIERTA)
-                                .orElseThrow(() -> new IllegalArgumentException(
-                                                "No hay una caja abierta para esta sucursal hoy"));
+                CajaDia caja = req.cajaId() != null
+                                ? cajaDiaRepo.findById(req.cajaId())
+                                                .orElseThrow(() -> new EntityNotFoundException(
+                                                                "Caja no encontrada: " + req.cajaId()))
+                                : cajaDiaRepo.findBySucursalIdAndFechaAndEstado(
+                                                sucursalId, DateTimeUtils.hoyEnMagno(), EstadoCaja.ABIERTA)
+                                                .orElseThrow(() -> new IllegalArgumentException(
+                                                                "No hay una caja abierta para esta sucursal hoy"));
 
-                OffsetDateTime inicioTs = hoy.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
-                OffsetDateTime finTs = hoy.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
+                if (!caja.getSucursal().getId().equals(sucursalId)) {
+                        throw new IllegalArgumentException("La caja no pertenece a la sucursal seleccionada");
+                }
+                if (caja.getEstado() != EstadoCaja.ABIERTA) {
+                        throw new IllegalArgumentException("Solo se puede cerrar una caja abierta");
+                }
 
-                BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, hoy);
+                fechaCaja = caja.getFecha();
+                OffsetDateTime inicioTs = fechaCaja.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
+                OffsetDateTime finTs = fechaCaja.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
+
+                BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fechaCaja);
                 BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosBySucursalAndFecha(sucursalId, inicioTs, finTs);
-                BigDecimal desembolsosRenov = renovacionRepo.sumDesembolsosByScopeAndFecha(sucursalId, null, hoy, hoy);
+                BigDecimal desembolsosRenov = renovacionRepo.sumDesembolsosByScopeAndFecha(
+                                sucursalId, null, fechaCaja, fechaCaja);
                 BigDecimal desembolsos = desembolsosNuevos.add(desembolsosRenov);
                 BigDecimal sumInversiones = movimientoRepo.sumMontoByCajaDiaId(caja.getId());
-                BigDecimal subtotalCaja = ingresoCarteras.subtract(desembolsos).add(sumInversiones);
+                BigDecimal subtotalCaja = caja.getMontoApertura()
+                                .add(ingresoCarteras)
+                                .subtract(desembolsos)
+                                .add(sumInversiones);
 
                 ConfigSucursal config = configSucursalRepo.findBySucursalId(sucursalId)
                                 .orElseThrow(() -> new IllegalArgumentException(

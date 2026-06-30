@@ -6,6 +6,7 @@ import { z } from 'zod'
 import toast from 'react-hot-toast'
 import {
   AlertTriangle,
+  ArrowLeft,
   CheckCircle,
   CheckCircle2,
   ChevronDown,
@@ -34,6 +35,10 @@ function fmtTime(iso: string) {
 
 function fmtPct(n: number) {
   return (n * 100).toFixed(1) + '%'
+}
+
+function extractIsoDate(message: string | undefined) {
+  return message?.match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? null
 }
 
 // ── Schemas ────────────────────────────────────────────────────────────
@@ -214,10 +219,12 @@ function ConfirmCancelCorteModal({
 function CajaCerradaView({
   caja,
   onExportPdf,
+  onBack,
   exporting,
 }: {
   caja: CajaDiaDetalle
   onExportPdf: () => void
+  onBack: () => void
   exporting: boolean
 }) {
   const items: [string, number | null, boolean?][] = [
@@ -246,6 +253,14 @@ function CajaCerradaView({
             {caja.cerradaPorNombre ? ` · Cerrada por ${caja.cerradaPorNombre}` : ''}
           </p>
         </div>
+        <button
+          type="button"
+          className="btn btn-sm flex items-center gap-1.5"
+          onClick={onBack}
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          Volver
+        </button>
         <button
           type="button"
           className="btn btn-sm btn-primary flex items-center gap-1.5"
@@ -460,6 +475,7 @@ export default function CajaPage() {
   // ── UI state ──────────────────────────────────────────────────────────
 
   const [showCierreModal,    setShowCierreModal]    = useState(false)
+  const [cajaIdParaCerrar,   setCajaIdParaCerrar]   = useState<number | null>(null)
   const [showCancelCorteId,  setShowCancelCorteId]  = useState<number | null>(null)
   const [closedCaja,         setClosedCaja]         = useState<CajaDiaDetalle | null>(null)
   const [exportingPdf,       setExportingPdf]       = useState(false)
@@ -516,21 +532,39 @@ export default function CajaPage() {
       queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
       queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
     },
-    onError: (err: any) => toast.error(err.message ?? 'Error al abrir la caja'),
+    onError: (err: any) => {
+      const message = err.message ?? 'Error al abrir la caja'
+      const pendingDate = extractIsoDate(message)
+      if (pendingDate) {
+        setHistDesde(pendingDate)
+        setHistHasta(todayLocalStr())
+        setSelectedCajaId(null)
+        setActiveTab('historial')
+      }
+      toast.error(message)
+    },
   })
 
   const cerrarMut = useMutation({
-    mutationFn: () =>
-      cajaService.cerrar(efectivaSucursalId ? { sucursalId: efectivaSucursalId } : undefined),
+    mutationFn: (targetCajaId?: number) =>
+      cajaService.cerrar({
+        ...(efectivaSucursalId ? { sucursalId: efectivaSucursalId } : {}),
+        ...(targetCajaId ? { cajaId: targetCajaId } : {}),
+      }),
     onSuccess: (data) => {
       setShowCierreModal(false)
+      setCajaIdParaCerrar(null)
+      if (selectedCajaId === data.id) setSelectedCajaId(null)
       setClosedCaja(data)
       queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
       queryClient.invalidateQueries({ queryKey: ['caja-estado-operativa'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-historial-lista'] })
+      queryClient.invalidateQueries({ queryKey: ['caja-historial-detalle'] })
       toast.success('Caja cerrada correctamente')
     },
     onError: (err: any) => {
       setShowCierreModal(false)
+      setCajaIdParaCerrar(null)
       toast.error(err.message ?? 'Error al cerrar la caja')
     },
   })
@@ -569,6 +603,16 @@ export default function CajaPage() {
     }
   }
 
+  function handleBackFromClosedCaja(caja: CajaDiaDetalle) {
+    setClosedCaja(null)
+    setActiveTab('historial')
+    setHistDesde(caja.fecha)
+    setHistHasta(todayLocalStr())
+    setSelectedCajaId(caja.id)
+    queryClient.invalidateQueries({ queryKey: ['caja-historial-lista'] })
+    queryClient.invalidateQueries({ queryKey: ['caja-historial-detalle'] })
+  }
+
   function fmtDate(iso: string) {
     return new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', {
       weekday: 'short', day: '2-digit', month: 'short', year: 'numeric',
@@ -589,6 +633,7 @@ export default function CajaPage() {
         <CajaCerradaView
           caja={closedCaja}
           onExportPdf={() => handleExportPdf(closedCaja.id, closedCaja.fecha)}
+          onBack={() => handleBackFromClosedCaja(closedCaja)}
           exporting={exportingPdf}
         />
       </div>
@@ -603,9 +648,12 @@ export default function CajaPage() {
       {/* Modals */}
       {showCierreModal && (
         <ConfirmCierreModal
-          preview={preview}
-          onConfirm={() => cerrarMut.mutate()}
-          onCancel={() => setShowCierreModal(false)}
+          preview={cajaIdParaCerrar === null ? preview : undefined}
+          onConfirm={() => cerrarMut.mutate(cajaIdParaCerrar ?? undefined)}
+          onCancel={() => {
+            setShowCierreModal(false)
+            setCajaIdParaCerrar(null)
+          }}
           isPending={cerrarMut.isPending}
         />
       )}
@@ -700,12 +748,13 @@ export default function CajaPage() {
                         <th>Estado</th>
                         <th>Cerrada por</th>
                         <th className="text-right">Subtotal</th>
-                        <th className="w-8"></th>
+                        <th className="w-28"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {historialLista.map(h => {
                         const puedeCancelarCorte = isAdmin && h.estado === 'CERRADA' && h.fecha === hoy
+                        const puedeCerrarCaja = h.estado === 'ABIERTA'
                         return (
                           <Fragment key={h.id}>
                             <tr
@@ -737,6 +786,22 @@ export default function CajaPage() {
                                       disabled={exportingPdf}
                                     >
                                       <Download className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  {puedeCerrarCaja && (
+                                    <button
+                                      type="button"
+                                      title="Cerrar caja"
+                                      className="btn btn-sm btn-danger flex items-center gap-1.5"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setCajaIdParaCerrar(h.id)
+                                        setShowCierreModal(true)
+                                      }}
+                                      disabled={cerrarMut.isPending}
+                                    >
+                                      <CheckCircle2 className="w-3.5 h-3.5" />
+                                      Cerrar
                                     </button>
                                   )}
                                   {puedeCancelarCorte && (
@@ -947,7 +1012,10 @@ export default function CajaPage() {
                 <button
                   type="button"
                   className="btn btn-sm btn-danger"
-                  onClick={() => setShowCierreModal(true)}
+                  onClick={() => {
+                    setCajaIdParaCerrar(null)
+                    setShowCierreModal(true)
+                  }}
                 >
                   Cerrar Caja
                 </button>

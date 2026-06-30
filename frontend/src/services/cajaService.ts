@@ -183,7 +183,7 @@ export const cajaService = {
   }): Promise<CajaDiaDetalle> =>
     api.post('/caja/abrir', payload).then(r => normalizeDetalle(r.data)),
 
-  cerrar: (payload?: { sucursalId?: number }): Promise<CajaDiaDetalle> =>
+  cerrar: (payload?: { sucursalId?: number; cajaId?: number }): Promise<CajaDiaDetalle> =>
     api.post('/caja/cerrar', payload ?? {}).then(r => normalizeDetalle(r.data)),
 
   cancelarCorte: (cajaId: number): Promise<CajaDiaDetalle> =>

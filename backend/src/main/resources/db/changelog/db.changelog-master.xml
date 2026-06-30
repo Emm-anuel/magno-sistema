@@ -198,4 +198,21 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V25-sync-caja-dia-sequence" author="magno">
+        <sqlFile
+            path="db/changelog/V25__sync_caja_dia_sequence.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
+    <changeSet id="V26-usuarios-ine-reverso" author="magno">
+        <validCheckSum>9:b0775373cfcfe2adc36457f2d4b488ed</validCheckSum>
+        <sqlFile
+            path="db/changelog/V26__usuarios_ine_reverso.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

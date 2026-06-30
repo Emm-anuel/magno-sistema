@@ -69,6 +69,7 @@ export interface Usuario {
   // Campos adicionales (presentes en detalle)
   ine_numero?: string
   ine_imagen_url?: string
+  ine_imagen_reverso_url?: string
   calle?: string
   no_exterior?: string
   no_interior?: string
@@ -103,6 +104,7 @@ export interface UsuarioCreateRequest {
   codigo_postal: string
   ine_numero: string
   ine_imagen_url?: string
+  ine_imagen_reverso_url?: string
   ref1_nombre: string
   ref1_telefono: string
   ref1_parentesco: string
@@ -125,6 +127,7 @@ export interface UsuarioUpdateRequest {
   codigo_postal: string
   ine_numero: string
   ine_imagen_url?: string
+  ine_imagen_reverso_url?: string
   ref1_nombre: string
   ref1_telefono: string
   ref1_parentesco: string

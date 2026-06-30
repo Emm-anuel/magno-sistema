@@ -71,6 +71,9 @@ public class Usuario {
     @Column(length = 500)
     private String ineImagenUrl;
 
+    @Column(length = 500)
+    private String ineImagenReversoUrl;
+
     // ── Referencias personales ────────────────────────────────────
     @Column(name = "ref1_nombre", nullable = false, length = 150)
     private String ref1Nombre;

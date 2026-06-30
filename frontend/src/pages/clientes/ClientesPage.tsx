@@ -526,6 +526,9 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   const [docIneFrente, setDocIneFrente] = useState<string | null>(null)
   const [docIneReverso, setDocIneReverso] = useState<string | null>(null)
   const [docComprobante, setDocComprobante] = useState<string | null>(null)
+  const [docIneFrenteBusy, setDocIneFrenteBusy] = useState(false)
+  const [docIneReversoBusy, setDocIneReversoBusy] = useState(false)
+  const [docComprobanteBusy, setDocComprobanteBusy] = useState(false)
   const [formSubmitted, setFormSubmitted] = useState(false)
 
   const {
@@ -607,6 +610,11 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   })
 
   const isPending = createMutation.isPending || editMutation.isPending
+  const hasPendingDocumentUpload = !isEdit && (
+    docIneFrenteBusy ||
+    docIneReversoBusy ||
+    docComprobanteBusy
+  )
 
   const checkCurp = useCallback((curp: string) => {
     clearTimeout(curpTimeout.current)
@@ -637,6 +645,11 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
     if (!isEdit && (mapLat === null || mapLng === null)) {
       toast.error('La ubicación del negocio es obligatoria')
+      return
+    }
+
+    if (hasPendingDocumentUpload) {
+      toast.error('Espera a que terminen de subir los documentos')
       return
     }
 
@@ -925,6 +938,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                       compress
                       label="Foto del frente del INE"
                       onUploadComplete={(url) => setDocIneFrente(url)}
+                      onBusyChange={setDocIneFrenteBusy}
                     />
                     {formSubmitted && !docIneFrente && (
                       <p className="text-[#dc2626] text-[11px] mt-0.5">Requerido</p>
@@ -938,6 +952,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                       compress
                       label="Foto del reverso del INE"
                       onUploadComplete={(url) => setDocIneReverso(url)}
+                      onBusyChange={setDocIneReversoBusy}
                     />
                     {formSubmitted && !docIneReverso && (
                       <p className="text-[#dc2626] text-[11px] mt-0.5">Requerido</p>
@@ -951,6 +966,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                       compress
                       label="Foto o PDF del comprobante de domicilio"
                       onUploadComplete={(url) => setDocComprobante(url)}
+                      onBusyChange={setDocComprobanteBusy}
                     />
                     {formSubmitted && !docComprobante && (
                       <p className="text-[#dc2626] text-[11px] mt-0.5">Requerido</p>
@@ -1050,8 +1066,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
           {/* Footer */}
           <div className="modal-footer">
             <button type="button" onClick={onClose} className="btn">Cancelar</button>
-            <button type="submit" disabled={isPending || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
-              {isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
+            <button type="submit" disabled={isPending || hasPendingDocumentUpload || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
+              {hasPendingDocumentUpload ? 'Subiendo documentos...' : isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
             </button>
           </div>
         </form>

@@ -273,14 +273,30 @@ export default function UsuarioDetallePage() {
         </div>
 
         {/* Columna derecha — INE */}
-        <div>
+        <div className="space-y-4">
           <div className="card">
             <div className="card-header">
-              <span className="card-title">Imagen INE</span>
+              <span className="card-title">INE - Frente</span>
             </div>
             <div className="px-5 py-4">
               {u.ine_imagen_url ? (
                 <IneViewer url={u.ine_imagen_url} nombre={u.nombre_completo} />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-44 bg-[#f8f9fa] rounded-xl border border-dashed border-[#dee2e6] gap-2">
+                  <User className="w-10 h-10 text-[#adb5bd]" />
+                  <p className="text-[13px] text-[#adb5bd]">Sin imagen INE</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header">
+              <span className="card-title">INE - Reverso</span>
+            </div>
+            <div className="px-5 py-4">
+              {u.ine_imagen_reverso_url ? (
+                <IneViewer url={u.ine_imagen_reverso_url} nombre={u.nombre_completo} />
               ) : (
                 <div className="flex flex-col items-center justify-center h-44 bg-[#f8f9fa] rounded-xl border border-dashed border-[#dee2e6] gap-2">
                   <User className="w-10 h-10 text-[#adb5bd]" />

@@ -29,7 +29,8 @@ public record UsuarioUpdateRequest(
 
         // Identificación
         @NotBlank(message = "ineNumero no debe estar vacío") String ineNumero,
-        String ineImagenUrl,
+        @NotBlank(message = "ineImagenUrl no debe estar vacÃ­o") String ineImagenUrl,
+        @NotBlank(message = "ineImagenReversoUrl no debe estar vacÃ­o") String ineImagenReversoUrl,
 
         // Referencias
         @NotBlank(message = "ref1Nombre no debe estar vacío") String ref1Nombre,

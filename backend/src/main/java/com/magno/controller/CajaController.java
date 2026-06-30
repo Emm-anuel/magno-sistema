@@ -45,7 +45,7 @@ public class CajaController {
     public ResponseEntity<CajaDiaDetalleDTO> cerrar(
             @RequestBody(required = false) CerrarCajaRequest req,
             Authentication auth) {
-        CerrarCajaRequest effectiveReq = req != null ? req : new CerrarCajaRequest(null);
+        CerrarCajaRequest effectiveReq = req != null ? req : new CerrarCajaRequest(null, null);
         return ResponseEntity.ok(cajaService.cerrar(effectiveReq, principal(auth)));
     }
 

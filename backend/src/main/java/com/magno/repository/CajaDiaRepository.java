@@ -18,7 +18,10 @@ public interface CajaDiaRepository extends JpaRepository<CajaDia, Long> {
 
        Optional<CajaDia> findBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
 
-       Optional<CajaDia> findBySucursalIdAndEstadoAndFechaBefore(Long sucursalId, EstadoCaja estado, LocalDate fecha);
+       Optional<CajaDia> findFirstBySucursalIdAndEstadoAndFechaBeforeOrderByFechaAsc(
+                     Long sucursalId,
+                     EstadoCaja estado,
+                     LocalDate fecha);
 
        boolean existsBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
 

@@ -11,6 +11,7 @@ import SecurePreviewImage from './SecurePreviewImage'
 
 export interface FileUploadProps {
   onUploadComplete: (url: string) => void
+  onBusyChange?: (busy: boolean) => void
   accept?: string
   folder?: string
   compress?: boolean
@@ -78,6 +79,7 @@ function ProgressBar({ percent }: ProgressBarProps) {
 
 export default function FileUpload({
   onUploadComplete,
+  onBusyChange,
   accept = 'image/*,video/*',
   folder,
   compress = true,
@@ -92,6 +94,7 @@ export default function FileUpload({
     async (rawFile: File) => {
       if (disabled) return
 
+      onBusyChange?.(true)
       try {
         let file = rawFile
         const isVideo = isVideoFile(file)
@@ -144,9 +147,11 @@ export default function FileUpload({
             ? String((err as { message: unknown }).message)
             : 'Error al procesar el archivo'
         setState({ kind: 'error', message })
+      } finally {
+        onBusyChange?.(false)
       }
     },
-    [compress, disabled, folder, onUploadComplete],
+    [compress, disabled, folder, onBusyChange, onUploadComplete],
   )
 
   // ── Event handlers ────────────────────────────────────────────────

@@ -97,6 +97,7 @@ public class UsuarioService {
                 .codigoPostal(req.codigoPostal())
                 .ineNumero(req.ineNumero())
                 .ineImagenUrl(req.ineImagenUrl())
+                .ineImagenReversoUrl(req.ineImagenReversoUrl())
                 .ref1Nombre(req.ref1Nombre())
                 .ref1Telefono(req.ref1Telefono())
                 .ref1Parentesco(req.ref1Parentesco())
@@ -130,6 +131,13 @@ public class UsuarioService {
             fileService.deleteFile(oldIneUrl);
         }
 
+        String oldIneReversoUrl = u.getIneImagenReversoUrl();
+        String newIneReversoUrl = req.ineImagenReversoUrl();
+        if (newIneReversoUrl != null && !newIneReversoUrl.isBlank()
+                && !newIneReversoUrl.equals(oldIneReversoUrl)) {
+            fileService.deleteFile(oldIneReversoUrl);
+        }
+
         u.setNombreCompleto(req.nombreCompleto());
         u.setTelefono(req.telefono());
         u.setRol(rol);
@@ -143,6 +151,7 @@ public class UsuarioService {
         u.setCodigoPostal(req.codigoPostal());
         u.setIneNumero(req.ineNumero());
         u.setIneImagenUrl(req.ineImagenUrl());
+        u.setIneImagenReversoUrl(req.ineImagenReversoUrl());
         u.setRef1Nombre(req.ref1Nombre());
         u.setRef1Telefono(req.ref1Telefono());
         u.setRef1Parentesco(req.ref1Parentesco());

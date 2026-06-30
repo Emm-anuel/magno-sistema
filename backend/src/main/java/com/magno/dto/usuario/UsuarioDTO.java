@@ -17,6 +17,7 @@ public record UsuarioDTO(
                 Boolean activo,
                 String ineNumero,
                 String ineImagenUrl,
+                String ineImagenReversoUrl,
                 // Domicilio
                 String calle,
                 String noExterior,
@@ -59,6 +60,7 @@ public record UsuarioDTO(
                                 u.getActivo(),
                                 u.getIneNumero(),
                                 u.getIneImagenUrl(),
+                                u.getIneImagenReversoUrl(),
                                 u.getCalle(),
                                 u.getNoExterior(),
                                 u.getNoInterior(),
