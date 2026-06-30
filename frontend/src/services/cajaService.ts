@@ -31,6 +31,8 @@ export interface CajaCierrePreview {
   totalRealLibres: number
   multasPorAsesor: MultaAsesorItem[]
   totalMultasCobradas: number
+  multasCobrasRenovaciones: number
+  totalMultasCondonadas: number
 }
 
 export interface CajaDiaResumen {
@@ -239,6 +241,8 @@ export const cajaService = {
              totalMultas:  Number(x.totalMultas ?? 0),
            })),
            totalMultasCobradas:       Number(d.totalMultasCobradas ?? 0),
+           multasCobrasRenovaciones:  Number(d.multasCobrasRenovaciones ?? d.multas_cobras_renovaciones ?? 0),
+           totalMultasCondonadas:     Number(d.totalMultasCondonadas ?? d.total_multas_condonadas ?? 0),
          }
        }),
 
