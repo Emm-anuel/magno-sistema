@@ -36,7 +36,6 @@ interface TarjetaDesembolsoProps {
 
 function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: TarjetaDesembolsoProps) {
   const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined)
-  const tieneMultas = Number(r.multasPendientes) > 0
   const montoAprobado = r.montoAprobado ?? r.montoNuevo
   const montoModificado = r.montoAprobado != null && Number(r.montoAprobado) !== Number(r.montoNuevo)
 
@@ -75,20 +74,48 @@ function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: 
       <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Izquierda: multas y video */}
         <div className="space-y-4">
-          {tieneMultas ? (
-            <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
-              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-red-700">Multas a descontar</p>
-                <p className="text-sm font-bold text-red-600">{fmt(r.multasPendientes)}</p>
+          {(() => {
+            const pendientes = Number(r.multasPendientes)
+            const condonadas = Number(r.multasCondonadas ?? 0)
+            const aDescontar = pendientes - condonadas
+
+            if (pendientes === 0) {
+              return (
+                <div className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <p className="text-xs text-gray-500">Sin multas pendientes</p>
+                </div>
+              )
+            }
+
+            return (
+              <div className="space-y-1.5">
+                {condonadas > 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2.5">
+                    <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-green-700">Multas condonadas</p>
+                      <p className="text-sm font-bold text-green-600">{fmt(condonadas)}</p>
+                    </div>
+                  </div>
+                )}
+                {aDescontar > 0 && (
+                  <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
+                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-red-700">Multas a descontar</p>
+                      <p className="text-sm font-bold text-red-600">{fmt(aDescontar)}</p>
+                    </div>
+                  </div>
+                )}
+                {condonadas > 0 && r.motivoCondonacion && r.aprobadoPor && (
+                  <p className="text-xs text-gray-400 pl-1 italic">
+                    Condonadas por {r.aprobadoPor.nombreCompleto} — "{r.motivoCondonacion}"
+                  </p>
+                )}
               </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
-              <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-              <p className="text-xs text-gray-500">Sin multas pendientes</p>
-            </div>
-          )}
+            )
+          })()}
 
           <div>
             <p className="text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
