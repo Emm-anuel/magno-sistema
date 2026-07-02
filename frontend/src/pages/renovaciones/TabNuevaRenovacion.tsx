@@ -333,10 +333,10 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
           {creditoActivo && elegible && (creditoActivo.estadisticas?.pagosVencidos ?? 0) >= 2 && (
             <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
               <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm">
-                <p className="font-semibold text-amber-800 mb-0.5">Cliente con pagos atrasados</p>
+              <div className="text-sm text-amber-800">
+                <p className="font-semibold mb-0.5">Cliente con pagos atrasados</p>
                 <p className="text-amber-700">
-                  Este cliente registra {creditoActivo.estadisticas.pagosVencidos} pagos vencidos.
+                  Este cliente registra {creditoActivo.estadisticas?.pagosVencidos} pagos vencidos.
                   Solicitudes con historial de atrasos podrían no ser aprobadas por el sistema.
                   La solicitud se enviará a revisión para su validación.
                 </p>
