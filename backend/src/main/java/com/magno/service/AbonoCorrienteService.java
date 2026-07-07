@@ -101,7 +101,7 @@ public class AbonoCorrienteService {
             saldo = saldo.subtract(aplicar);
             boolean esCompleto = aplicar.compareTo(costoRestante) >= 0;
 
-            BigDecimal multaRestante = totalMultasDia.subtract(multaYaAbonada);
+            BigDecimal multaRestante = totalMultasDia.subtract(multaYaAbonada).max(BigDecimal.ZERO);
             BigDecimal montoMultaAplicado = aplicar.min(multaRestante);
             BigDecimal montoCuotaAplicado = aplicar.subtract(montoMultaAplicado);
 
@@ -154,10 +154,7 @@ public class AbonoCorrienteService {
         List<AbonoCorriente> abonos = abonoCorrienteRepo.findByCreditoIdOrderByFechaDesc(creditoId);
         return abonos.stream().map(a -> {
             List<AbonoCoberturaDetalle> coberturas =
-                    abonoCoberturaRepo.findByAbono_CreditoIdOrderByNumeroPagoAsc(creditoId)
-                            .stream()
-                            .filter(c -> c.getAbono().getId().equals(a.getId()))
-                            .toList();
+                    abonoCoberturaRepo.findByAbonoIdOrderByNumeroPagoAsc(a.getId());
             return AbonoCorrienteDTO.from(a, coberturas);
         }).toList();
     }
