@@ -14,7 +14,7 @@ import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
-import type { PagoCobroDTO, TipoPago } from '@/types'
+import type { PagoCobroDTO, TipoPago, AbonoCorrienteDTO } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -104,6 +104,7 @@ export default function CreditoDetallePage() {
   const [pagoModal, setPagoModal] = useState<PagoCobroDTO | null>(null)
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
+  const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
 
   const hoyIso = useMemo(() => todayLocalIso(), [])
 
@@ -118,6 +119,13 @@ export default function CreditoDetallePage() {
   const { data: pagosHistorial = [] } = useQuery({
     queryKey: ['pagos-cliente-credito', numId],
     queryFn: () => cobrosService.getPagosPorCliente(credito!.cliente.id),
+    enabled: !!credito,
+    staleTime: 30_000,
+  })
+
+  const { data: abonosCredito = [] } = useQuery({
+    queryKey: ['abonos-credito', numId],
+    queryFn: () => cobrosService.getAbonosPorCredito(numId),
     enabled: !!credito,
     staleTime: 30_000,
   })
@@ -398,6 +406,40 @@ export default function CreditoDetallePage() {
                 </div>
               </section>
 
+              {/* Abonos extraordinarios */}
+              {abonosCredito.length > 0 && (
+                <section>
+                  <h2 className="text-sm font-semibold text-[#3d6b35] uppercase tracking-wide mb-3">
+                    Abonos extraordinarios
+                  </h2>
+                  <div className="space-y-2">
+                    {abonosCredito.map((abono) => (
+                      <button
+                        key={abono.abonoId}
+                        type="button"
+                        onClick={() => setAbonoDetalleModal(abono)}
+                        className="w-full flex items-center justify-between p-3 bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-100 transition-colors text-left"
+                      >
+                        <div>
+                          <span className="text-[13px] font-semibold text-blue-800">
+                            Abono #{abono.abonoId}
+                          </span>
+                          <span className="text-[12px] text-blue-600 ml-2">
+                            {new Date(abono.fecha + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          </span>
+                          <span className="text-[12px] text-blue-600 ml-2">
+                            — {abono.diasCubiertos} días cubiertos{abono.diasParciales > 0 ? ` + ${abono.diasParciales} parcial` : ''}
+                          </span>
+                        </div>
+                        <div className="text-[13px] font-bold text-blue-800 shrink-0">
+                          {fmtMoney(abono.montoTotal)}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* Cliente card */}
               <section>
                 <h2 className="text-sm font-semibold text-[#3d6b35] uppercase tracking-wide mb-3">
@@ -440,15 +482,23 @@ export default function CreditoDetallePage() {
                       )
 
                       let rowClass = ''
-                      if (pago.estado === 'ADELANTADO')     rowClass = 'bg-green-50'
-                      else if (pago.estado === 'PAGADO')    rowClass = 'bg-green-50/60'
-                      else if (pago.estado === 'PARCIAL')   rowClass = 'bg-amber-50'
-                      else if (pago.estado === 'NO_PAGADO') rowClass = 'bg-red-50'
-                      else if (vencido)                     rowClass = 'bg-red-50'
+                      if (pago.estado === 'RECUPERADO')        rowClass = 'bg-blue-50/60'
+                      else if (pago.estado === 'RECUPERADO_PARCIAL') rowClass = 'bg-amber-50'
+                      else if (pago.estado === 'ADELANTADO')   rowClass = 'bg-green-50'
+                      else if (pago.estado === 'PAGADO')       rowClass = 'bg-green-50/60'
+                      else if (pago.estado === 'PARCIAL')      rowClass = 'bg-amber-50'
+                      else if (pago.estado === 'NO_PAGADO')    rowClass = 'bg-red-50'
+                      else if (vencido)                        rowClass = 'bg-red-50'
 
                       let badgeCls = ''
                       let badgeLabel = ''
-                      if (pago.estado === 'ADELANTADO') {
+                      if (pago.estado === 'RECUPERADO') {
+                        badgeCls = 'bg-blue-100 text-blue-700'
+                        badgeLabel = 'Abono ✓'
+                      } else if (pago.estado === 'RECUPERADO_PARCIAL') {
+                        badgeCls = 'bg-amber-100 text-amber-800'
+                        badgeLabel = 'Abono parcial'
+                      } else if (pago.estado === 'ADELANTADO') {
                         badgeCls = 'bg-green-100 text-green-800'
                         badgeLabel = 'Adelantado ✓'
                       } else if (pago.estado === 'PAGADO') {
@@ -472,6 +522,10 @@ export default function CreditoDetallePage() {
                       }
 
                       const tieneRegistro = ['PAGADO', 'PARCIAL', 'NO_PAGADO', 'ADELANTADO'].includes(pago.estado)
+                      const esAbono = pago.estado === 'RECUPERADO' || pago.estado === 'RECUPERADO_PARCIAL'
+                      const abonoDeEstaFila = esAbono
+                        ? abonosCredito.find((a) => a.coberturas.some((c) => c.numeroPago === pago.numeroPago))
+                        : null
 
                       return (
                         <tr key={pago.id} className={rowClass}>
@@ -483,7 +537,17 @@ export default function CreditoDetallePage() {
                               ? pagoRegistrado.razonNoPago
                                 ? <span className="text-[#dc2626] italic text-xs">No pagó</span>
                                 : fmtMoney(pagoRegistrado.montoRecibido)
-                              : <span className="text-gray-400">—</span>
+                              : (() => {
+                                  if (esAbono) {
+                                    const cobertura = abonosCredito
+                                      .flatMap((a) => a.coberturas)
+                                      .find((c) => c.numeroPago === pago.numeroPago)
+                                    return cobertura
+                                      ? <span className="text-blue-700 font-mono">{fmtMoney(cobertura.totalAplicado)}</span>
+                                      : <span className="text-gray-400">—</span>
+                                  }
+                                  return <span className="text-gray-400">—</span>
+                                })()
                             }
                           </td>
                           <td className="text-center px-2 py-3 whitespace-nowrap">
@@ -509,6 +573,15 @@ export default function CreditoDetallePage() {
                                   onClick={() => setPagoEditar(pagoRegistrado)}
                                 >
                                   Modificar
+                                </button>
+                              )}
+                              {esAbono && abonoDeEstaFila && (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm text-xs py-0.5 px-2 text-blue-700 border-blue-200 hover:bg-blue-50"
+                                  onClick={() => setAbonoDetalleModal(abonoDeEstaFila)}
+                                >
+                                  Ver abono
                                 </button>
                               )}
                             </div>
@@ -862,6 +935,72 @@ export default function CreditoDetallePage() {
         imageUrl={previewUrl ?? ''}
         title={previewTitle}
       />
+
+      {/* Modal Ver abono */}
+      {abonoDetalleModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-[2000] flex items-end sm:items-center justify-center"
+          onClick={(e) => { if (e.target === e.currentTarget) setAbonoDetalleModal(null) }}
+        >
+          <div className="bg-white w-full sm:w-[480px] rounded-t-2xl sm:rounded-xl max-h-[80dvh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef] sticky top-0 bg-white">
+              <div>
+                <h2 className="text-[15px] font-semibold">Abono extraordinario #{abonoDetalleModal.abonoId}</h2>
+                <p className="text-[12px] text-[#6c757d] mt-0.5">{fmtDate(abonoDetalleModal.fecha)}</p>
+              </div>
+              <button type="button" onClick={() => setAbonoDetalleModal(null)} className="btn btn-sm p-1.5">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-4">
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-[#f8f9fa] rounded-lg p-3">
+                  <p className="text-[11px] text-[#6c757d]">Total recibido</p>
+                  <p className="text-[16px] font-bold text-[#212529]">{fmtMoney(abonoDetalleModal.montoTotal)}</p>
+                </div>
+                <div className="bg-[#f8f9fa] rounded-lg p-3">
+                  <p className="text-[11px] text-[#6c757d]">Días cubiertos</p>
+                  <p className="text-[16px] font-bold text-[#16a34a]">{abonoDetalleModal.diasCubiertos}</p>
+                </div>
+                <div className="bg-[#f8f9fa] rounded-lg p-3">
+                  <p className="text-[11px] text-[#6c757d]">Parciales</p>
+                  <p className="text-[16px] font-bold text-amber-600">{abonoDetalleModal.diasParciales}</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-[#e9ecef] overflow-hidden">
+                <table className="w-full text-[12px]">
+                  <thead className="bg-[#f8f9fa]">
+                    <tr>
+                      <th className="text-left px-3 py-2 text-[#6c757d] font-medium"># / Fecha</th>
+                      <th className="text-right px-3 py-2 text-[#6c757d] font-medium">Cuota</th>
+                      <th className="text-right px-3 py-2 text-[#6c757d] font-medium">Multa</th>
+                      <th className="text-right px-3 py-2 text-[#6c757d] font-medium">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {abonoDetalleModal.coberturas.map((c) => (
+                      <tr key={c.numeroPago} className="border-t border-[#f1f3f5]">
+                        <td className="px-3 py-2">
+                          <span className="font-medium">#{c.numeroPago}</span>
+                          <span className="text-[#adb5bd] ml-1">
+                            — {new Date(c.fechaProgramada + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}
+                          </span>
+                          {c.esParcial && (
+                            <span className="ml-1 text-amber-600 text-[10px]">(parcial)</span>
+                          )}
+                        </td>
+                        <td className="text-right px-3 py-2 font-mono">{fmtMoney(c.montoCuota)}</td>
+                        <td className="text-right px-3 py-2 font-mono">{fmtMoney(c.montoMulta)}</td>
+                        <td className="text-right px-3 py-2 font-mono font-semibold">{fmtMoney(c.totalAplicado)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
