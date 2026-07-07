@@ -82,4 +82,13 @@ public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, 
                         @Param("hoy") LocalDate hoy,
                         @Param("sucursalId") Long sucursalId,
                         @Param("asesorId") Long asesorId);
+
+        @Query("SELECT cp FROM CalendarioPago cp WHERE cp.credito.id = :creditoId " +
+                        "AND (cp.estado = com.magno.model.EstadoCalendarioPago.NO_PAGADO " +
+                        "OR cp.estado = com.magno.model.EstadoCalendarioPago.RECUPERADO_PARCIAL " +
+                        "OR (cp.estado = com.magno.model.EstadoCalendarioPago.PENDIENTE AND cp.fechaProgramada <= :hoy)) " +
+                        "ORDER BY cp.numeroPago ASC")
+        List<CalendarioPago> findSlotsCubrir(
+                        @Param("creditoId") Long creditoId,
+                        @Param("hoy") LocalDate hoy);
 }

@@ -75,4 +75,11 @@ public interface MultaRepository extends JpaRepository<Multa, Long> {
        BigDecimal sumMultasCobrasViaRenovacionBySucursalAndFecha(
                      @Param("sucursalId") Long sucursalId,
                      @Param("fecha") LocalDate fecha);
+
+       @Query("SELECT m FROM Multa m WHERE m.credito.id = :creditoId " +
+                     "AND m.cobrada = false AND m.condonada = false AND m.deletedAt IS NULL " +
+                     "AND m.fecha = :fecha ORDER BY m.id ASC")
+       List<Multa> findPendientesByCreditoIdAndFecha(
+                     @Param("creditoId") Long creditoId,
+                     @Param("fecha") LocalDate fecha);
 }
