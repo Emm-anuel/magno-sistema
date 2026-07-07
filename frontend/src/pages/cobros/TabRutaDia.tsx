@@ -9,6 +9,7 @@ import MultaBadge from '@/components/cobros/MultaBadge'
 import TipoPagoBadge from '@/components/TipoPagoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
+import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
 import type { ClienteRuta, PagoCobroDTO, TipoPago } from '@/types'
 import { todayLocalStr } from '@/utils/date'
 
@@ -30,6 +31,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
   const [buscar, setBuscar] = useState('')
   const [pagoModal, setPagoModal] = useState<ClienteRuta | null>(null)
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
+  const [abonoModal, setAbonoModal] = useState<ClienteRuta | null>(null)
   const esFechaHistorica = fecha !== todayStr()
   const puedeRegistrarHistorico = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const esAdminSupervisor = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
@@ -180,6 +182,8 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
             cliente={c}
             puedeRegistrar={puedeCobrar(c) || puedeModificar(c)}
             onCobrar={() => void abrirAccionCobro(c)}
+            onPagarAdeudo={() => setAbonoModal(c)}
+            esFechaHistorica={esFechaHistorica}
           />
         ))}
       </div>
@@ -208,6 +212,8 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
                   cliente={c}
                   puedeRegistrar={puedeCobrar(c) || puedeModificar(c)}
                   onCobrar={() => void abrirAccionCobro(c)}
+                  onPagarAdeudo={() => setAbonoModal(c)}
+                  esFechaHistorica={esFechaHistorica}
                 />
               ))}
             </tbody>
@@ -235,6 +241,15 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
           onSuccess={() => setPagoEditar(null)}
         />
       )}
+
+      {abonoModal && (
+        <ModalPagarAdeudo
+          creditoId={abonoModal.creditoId}
+          nombreCliente={abonoModal.nombreCompleto}
+          onClose={() => setAbonoModal(null)}
+          onSuccess={() => setAbonoModal(null)}
+        />
+      )}
     </>
   )
 }
@@ -245,10 +260,14 @@ function ClienteCard({
   cliente: c,
   puedeRegistrar,
   onCobrar,
+  onPagarAdeudo,
+  esFechaHistorica,
 }: {
   cliente: ClienteRuta
   puedeRegistrar: boolean
   onCobrar: () => void
+  onPagarAdeudo: () => void
+  esFechaHistorica: boolean
 }) {
   return (
     <div className="card p-4">
@@ -286,15 +305,26 @@ function ClienteCard({
           )}
         </div>
 
-        {puedeRegistrar && (
-          <button
-            type="button"
-            onClick={onCobrar}
-            className="btn-primary py-3 px-4 text-[13px] shrink-0 min-w-[80px]"
-          >
-            {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
-          </button>
-        )}
+        <div className="flex flex-col gap-2 shrink-0">
+          {puedeRegistrar && (
+            <button
+              type="button"
+              onClick={onCobrar}
+              className="btn-primary py-3 px-4 text-[13px] min-w-[80px]"
+            >
+              {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
+            </button>
+          )}
+          {c.multasPendientes > 0 && !esFechaHistorica && (
+            <button
+              type="button"
+              onClick={onPagarAdeudo}
+              className="py-2.5 px-4 rounded-lg border-2 border-[#d97706] bg-[#d97706] text-white text-[13px] font-semibold hover:bg-[#b45309] min-w-[80px]"
+            >
+              Pagar adeudo
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -304,10 +334,14 @@ function ClienteRow({
   cliente: c,
   puedeRegistrar,
   onCobrar,
+  onPagarAdeudo,
+  esFechaHistorica,
 }: {
   cliente: ClienteRuta
   puedeRegistrar: boolean
   onCobrar: () => void
+  onPagarAdeudo: () => void
+  esFechaHistorica: boolean
 }) {
   return (
     <tr>
@@ -334,11 +368,22 @@ function ClienteRow({
         {c.razonNoPago ?? ''}
       </td>
       <td>
-        {puedeRegistrar && (
-          <button type="button" onClick={onCobrar} className="btn btn-sm">
-            {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
-          </button>
-        )}
+        <div className="flex gap-2">
+          {puedeRegistrar && (
+            <button type="button" onClick={onCobrar} className="btn btn-sm">
+              {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
+            </button>
+          )}
+          {c.multasPendientes > 0 && !esFechaHistorica && (
+            <button
+              type="button"
+              onClick={onPagarAdeudo}
+              className="btn btn-sm border-[#d97706] text-[#d97706] hover:bg-[#fef3c7]"
+            >
+              Pagar adeudo
+            </button>
+          )}
+        </div>
       </td>
     </tr>
   )
