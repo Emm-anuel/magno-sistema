@@ -550,7 +550,8 @@ public class CobrosService {
 
         boolean todosTerminados = todos.stream().allMatch(cp -> cp.getEstado() == EstadoCalendarioPago.PAGADO
                 || cp.getEstado() == EstadoCalendarioPago.PARCIAL
-                || cp.getEstado() == EstadoCalendarioPago.ADELANTADO);
+                || cp.getEstado() == EstadoCalendarioPago.ADELANTADO
+                || cp.getEstado() == EstadoCalendarioPago.RECUPERADO);
 
         if (todosTerminados) {
             credito.setEstado(EstadoCredito.PAGADO);

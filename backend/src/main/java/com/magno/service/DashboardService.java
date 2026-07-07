@@ -38,7 +38,7 @@ import java.util.Map;
 public class DashboardService {
 
     private static final List<EstadoCalendarioPago> ESTADOS_PENDIENTE = List.of(EstadoCalendarioPago.PENDIENTE,
-            EstadoCalendarioPago.NO_PAGADO, EstadoCalendarioPago.PARCIAL);
+            EstadoCalendarioPago.NO_PAGADO, EstadoCalendarioPago.PARCIAL, EstadoCalendarioPago.RECUPERADO_PARCIAL);
 
     private final PagoRepository pagoRepo;
     private final CreditoRepository creditoRepo;

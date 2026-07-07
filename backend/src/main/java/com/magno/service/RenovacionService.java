@@ -41,12 +41,14 @@ public class RenovacionService {
         private static final List<EstadoCalendarioPago> ESTADOS_PENDIENTES = List.of(
                         EstadoCalendarioPago.PENDIENTE,
                         EstadoCalendarioPago.NO_PAGADO,
-                        EstadoCalendarioPago.PARCIAL);
+                        EstadoCalendarioPago.PARCIAL,
+                        EstadoCalendarioPago.RECUPERADO_PARCIAL);
 
         private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS = List.of(
                         EstadoCalendarioPago.PAGADO,
                         EstadoCalendarioPago.PARCIAL,
-                        EstadoCalendarioPago.ADELANTADO);
+                        EstadoCalendarioPago.ADELANTADO,
+                        EstadoCalendarioPago.RECUPERADO);
 
         private final RenovacionRepository renovacionRepo;
         private final CreditoRepository creditoRepo;

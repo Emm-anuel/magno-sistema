@@ -34,7 +34,8 @@ public class CreditoService {
         private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS = List.of(
                         EstadoCalendarioPago.PAGADO,
                         EstadoCalendarioPago.PARCIAL,
-                        EstadoCalendarioPago.ADELANTADO);
+                        EstadoCalendarioPago.ADELANTADO,
+                        EstadoCalendarioPago.RECUPERADO);
 
         private final CreditoRepository creditoRepo;
         private final CalendarioPagoRepository calendarioPagoRepo;
