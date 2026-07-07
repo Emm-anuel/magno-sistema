@@ -1,6 +1,6 @@
 # Créditos vencidos deben poder pagar adeudo — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Un crédito `ACTIVO` cuya `fechaVencimiento` ya pasó, pero que todavía tiene adeudo pendiente (multas sin cobrar), debe volver a aparecer en Ruta del día con el botón "Pagar adeudo" visible, y ese mismo botón debe estar disponible también desde el detalle del crédito.
 
@@ -23,7 +23,7 @@
 **Files:**
 - Create: `backend/src/test/java/com/magno/service/CobrosServiceTest.java`
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Crea el archivo con el siguiente contenido completo:
 
@@ -148,13 +148,13 @@ class CobrosServiceTest {
 }
 ```
 
-- [ ] **Step 2: Verificar que compila pero falla**
+- [x] **Step 2: Verificar que compila pero falla**
 
 Run: `cd backend && mvn test -Dtest=CobrosServiceTest`
 
 Expected: el primer test (`creditoVencidoConAdeudo_apareceEnRutaDiaComoVencido`) falla porque `result.clientes()` está vacío (el código actual hace `continue` sin agregar nada). El segundo test pasa porque ya no se agrega nada (comportamiento actual coincide por accidente).
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add backend/src/test/java/com/magno/service/CobrosServiceTest.java
@@ -171,7 +171,7 @@ git commit -m "test: crédito vencido con adeudo debe aparecer en ruta del día"
 - Modify: `backend/src/main/java/com/magno/service/CobrosService.java:618-636` (nuevo helper `buildClienteRutaVencido`)
 - Modify: `backend/src/main/java/com/magno/service/CobrosService.java:666-675` (`ordenEstado`)
 
-- [ ] **Step 1: Quitar el filtro de vencimiento en el repositorio**
+- [x] **Step 1: Quitar el filtro de vencimiento en el repositorio**
 
 En `CreditoRepository.java`, reemplaza:
 
@@ -201,7 +201,7 @@ por:
                         @Param("estado") EstadoCredito estado);
 ```
 
-- [ ] **Step 2: Actualizar el call site en `getRutaDia`**
+- [x] **Step 2: Actualizar el call site en `getRutaDia`**
 
 En `CobrosService.java`, reemplaza:
 
@@ -222,7 +222,7 @@ por:
                 EstadoCredito.ACTIVO);
 ```
 
-- [ ] **Step 3: Agregar la rama de crédito vencido con adeudo**
+- [x] **Step 3: Agregar la rama de crédito vencido con adeudo**
 
 En `CobrosService.java`, dentro del loop de `getRutaDia`, reemplaza:
 
@@ -264,7 +264,7 @@ por:
             }
 ```
 
-- [ ] **Step 4: Agregar el helper `buildClienteRutaVencido`**
+- [x] **Step 4: Agregar el helper `buildClienteRutaVencido`**
 
 Justo después del método `buildClienteRutaInhabil` (que termina en la línea con el `);` de su `return`), agrega:
 
@@ -290,7 +290,7 @@ Justo después del método `buildClienteRutaInhabil` (que termina en la línea c
     }
 ```
 
-- [ ] **Step 5: Actualizar `ordenEstado` para priorizar VENCIDO**
+- [x] **Step 5: Actualizar `ordenEstado` para priorizar VENCIDO**
 
 Reemplaza:
 
@@ -322,17 +322,17 @@ por:
     }
 ```
 
-- [ ] **Step 6: Verificar que los tests pasan**
+- [x] **Step 6: Verificar que los tests pasan**
 
 Run: `cd backend && mvn test -Dtest=CobrosServiceTest`
 Expected: `Tests run: 2, Failures: 0, Errors: 0`
 
-- [ ] **Step 7: Correr toda la suite de backend para descartar regresiones**
+- [x] **Step 7: Correr toda la suite de backend para descartar regresiones**
 
 Run: `cd backend && mvn test`
 Expected: `BUILD SUCCESS`, sin fallos nuevos (en particular `AbonoCorrienteServiceTest` y cualquier test que use `findRutaDiaCreditosActivos` o `CobrosService`).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add backend/src/main/java/com/magno/repository/CreditoRepository.java backend/src/main/java/com/magno/service/CobrosService.java
@@ -347,7 +347,7 @@ git commit -m "fix: créditos vencidos con adeudo pendiente vuelven a aparecer e
 - Modify: `frontend/src/types/index.ts:441`
 - Modify: `frontend/src/components/cobros/EstadoCobroBadge.tsx:3-10`
 
-- [ ] **Step 1: Agregar `'VENCIDO'` al tipo `EstadoCobro`**
+- [x] **Step 1: Agregar `'VENCIDO'` al tipo `EstadoCobro`**
 
 En `types/index.ts`, reemplaza:
 
@@ -361,7 +361,7 @@ por:
 export type EstadoCobro = 'SIN_REGISTRO' | 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' | 'INHABIL' | 'INHABILL' | 'VENCIDO'
 ```
 
-- [ ] **Step 2: Agregar el badge para VENCIDO**
+- [x] **Step 2: Agregar el badge para VENCIDO**
 
 En `EstadoCobroBadge.tsx`, reemplaza:
 
@@ -390,12 +390,12 @@ const CONFIG: Record<EstadoCobro, { label: string; cls: string }> = {
 }
 ```
 
-- [ ] **Step 3: Verificar tipos**
+- [x] **Step 3: Verificar tipos**
 
 Run: `cd frontend && npm run type-check`
 Expected: sin errores.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add frontend/src/types/index.ts frontend/src/components/cobros/EstadoCobroBadge.tsx
@@ -409,7 +409,7 @@ git commit -m "feat: badge y tipo VENCIDO para créditos vencidos con adeudo en 
 **Files:**
 - Modify: `frontend/src/pages/creditos/CreditoDetallePage.tsx`
 
-- [ ] **Step 1: Importar `ModalPagarAdeudo`**
+- [x] **Step 1: Importar `ModalPagarAdeudo`**
 
 En el bloque de imports (línea 15-16), agrega después de `ModalModificarPago`:
 
@@ -418,7 +418,7 @@ import ModalModificarPago from '@/components/cobros/ModalModificarPago'
 import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
 ```
 
-- [ ] **Step 2: Agregar el estado local del modal**
+- [x] **Step 2: Agregar el estado local del modal**
 
 Junto a los demás `useState` de modales (línea 106-107), agrega:
 
@@ -428,7 +428,7 @@ Junto a los demás `useState` de modales (línea 106-107), agrega:
   const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
 ```
 
-- [ ] **Step 3: Agregar el botón junto a "Registrar Pago"**
+- [x] **Step 3: Agregar el botón junto a "Registrar Pago"**
 
 Reemplaza:
 
@@ -464,7 +464,7 @@ por:
           )}
 ```
 
-- [ ] **Step 4: Renderizar el modal**
+- [x] **Step 4: Renderizar el modal**
 
 Justo después del bloque `{/* Modal Modificar pago */}` (línea 918-929, termina con `)}`), agrega:
 
@@ -485,12 +485,12 @@ Justo después del bloque `{/* Modal Modificar pago */}` (línea 918-929, termin
       )}
 ```
 
-- [ ] **Step 5: Verificar tipos**
+- [x] **Step 5: Verificar tipos**
 
 Run: `cd frontend && npm run type-check`
 Expected: sin errores.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add frontend/src/pages/creditos/CreditoDetallePage.tsx
@@ -503,29 +503,29 @@ git commit -m "feat: botón 'Pagar adeudo' en el detalle del crédito"
 
 **Files:** ninguno (solo verificación, sin cambios de código)
 
-- [ ] **Step 1: Levantar backend y frontend**
+- [x] **Step 1: Levantar backend y frontend**
 
 Run backend: `cd backend && mvn spring-boot:run`
 Run frontend (otra terminal): `cd frontend && npm run dev`
 
-- [ ] **Step 2: Preparar un crédito vencido con adeudo de prueba**
+- [x] **Step 2: Preparar un crédito vencido con adeudo de prueba**
 
 En la base de datos de desarrollo, localiza o crea un crédito `ACTIVO` cuya `fecha_vencimiento` sea anterior a hoy y que tenga al menos una multa con `cobrada = false`. Si no existe uno, la forma más simple es tomar un crédito activo existente y, vía SQL directo en la BD de desarrollo, actualizar `creditos.fecha_vencimiento` a una fecha pasada (ej. hace 10 días) dejando intactos sus `calendario_pagos` y `multas` pendientes.
 
-- [ ] **Step 3: Verificar en Ruta del día**
+- [x] **Step 3: Verificar en Ruta del día**
 
 Inicia sesión como Asesor (o el rol correspondiente al crédito de prueba), entra a Ruta del día en la fecha de hoy, y confirma:
 - El cliente aparece en la lista con el badge "Vencido" (rojo).
 - El botón naranja "Pagar adeudo" está visible.
 - Al hacer clic, se abre el modal con la distribución calculada correctamente.
 
-- [ ] **Step 4: Verificar en el detalle del crédito**
+- [x] **Step 4: Verificar en el detalle del crédito**
 
 Navega al detalle de ese mismo crédito (`/creditos-nuevos/:id` o la ruta correspondiente) y confirma:
 - El botón "Pagar adeudo" aparece junto a "Registrar Pago" (o solo él, si el rol no puede registrar pago normal).
 - Al confirmar un abono desde ahí, el calendario y "Abonos extraordinarios" se actualizan sin recargar la página.
 
-- [ ] **Step 5: Verificar que un crédito vencido SIN adeudo no aparece**
+- [x] **Step 5: Verificar que un crédito vencido SIN adeudo no aparece**
 
 Con otro crédito vencido cuyas multas ya estén todas `cobrada = true` (o sin multas), confirma que NO aparece en Ruta del día.
 
