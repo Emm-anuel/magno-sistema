@@ -80,8 +80,7 @@ public class CobrosService {
         List<Credito> creditosActivos = creditoRepo.findRutaDiaCreditosActivos(
                 sucursalIdEfectiva,
                 asesorIdEfectivo,
-                EstadoCredito.ACTIVO,
-                hoyNegocio());
+                EstadoCredito.ACTIVO);
 
         // Obtener días festivos de la sucursal para la fecha consultada
         List<LocalDate> diasFestivos = diaFestivoRepo.findFechasBySucursalId(sucursalIdEfectiva);
@@ -117,7 +116,17 @@ public class CobrosService {
                     clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
                     continue;
                 }
-                // No tiene pago programado ese día (ya completó todos)
+                // Puede ser que (a) ya completó todos los pagos, o (b) el crédito
+                // está vencido y todavía tiene adeudo pendiente (multas sin cobrar)
+                if (credito.getFechaVencimiento() != null
+                        && credito.getFechaVencimiento().isBefore(fecha)) {
+                    BigDecimal multasPendientesVencido = Optional.ofNullable(
+                            multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
+                            .orElse(BigDecimal.ZERO);
+                    if (multasPendientesVencido.compareTo(BigDecimal.ZERO) > 0) {
+                        clientesRuta.add(buildClienteRutaVencido(cliente, credito, multasPendientesVencido));
+                    }
+                }
                 continue;
             }
 
@@ -635,6 +644,26 @@ public class CobrosService {
                 null);
     }
 
+    private ClienteRutaDTO buildClienteRutaVencido(Cliente cliente, Credito credito, BigDecimal multasPendientes) {
+        return new ClienteRutaDTO(
+                cliente.getId(),
+                cliente.getNombreCompleto(),
+                cliente.getCelular(),
+                cliente.getNegocioNombre(),
+                credito.getAsesor().getNombreCompleto(),
+                credito.getId(),
+                credito.getMontoCapital(),
+                credito.getPagoPeriodico(),
+                credito.getTipoPago().toString(),
+                null,
+                credito.getPlazoDias(),
+                "VENCIDO",
+                null,
+                multasPendientes,
+                null,
+                null);
+    }
+
     private Long resolverAsesorIdEfectivo(Long asesorId, String rolSolicitante, Long usuarioIdSolicitante) {
         if (asesorId != null) {
             if ("ASESOR_COBRADOR".equals(rolSolicitante)
@@ -666,7 +695,7 @@ public class CobrosService {
     private int ordenEstado(String estado) {
         return switch (estado) {
             case "SIN_REGISTRO" -> 0;
-            case "NO_PAGADO" -> 1;
+            case "NO_PAGADO", "VENCIDO" -> 1;
             case "PARCIAL" -> 2;
             case "INHABIL" -> 3;
             case "PAGADO" -> 4;
@@ -684,7 +713,7 @@ public class CobrosService {
         for (ClienteRutaDTO c : clientes) {
             switch (c.estadoHoy()) {
                 case "PAGADO", "PARCIAL" -> cobrados++;
-                case "NO_PAGADO" -> noPagaron++;
+                case "NO_PAGADO", "VENCIDO" -> noPagaron++;
                 case "SIN_REGISTRO" -> sinRegistrar++;
                 case "INHABIL" -> inhabiles++;
             }

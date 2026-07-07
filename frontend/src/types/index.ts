@@ -438,7 +438,7 @@ export interface ClienteDocumentoDTO {
 // Cobros
 // ------------------------------------------------------------------
 
-export type EstadoCobro = 'SIN_REGISTRO' | 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' | 'INHABIL' | 'INHABILL'
+export type EstadoCobro = 'SIN_REGISTRO' | 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' | 'INHABIL' | 'INHABILL' | 'VENCIDO'
 
 export interface ClienteRuta {
   clienteId: number
