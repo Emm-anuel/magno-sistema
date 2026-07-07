@@ -7,6 +7,7 @@ const CONFIG: Record<EstadoCobro, { label: string; cls: string }> = {
   INHABIL:       { label: 'Inhábil',       cls: 'badge-gris' },
   INHABILL:      { label: 'Inhábil',       cls: 'badge-gris' },
   SIN_REGISTRO:  { label: 'Sin registrar', cls: 'badge-azul' },
+  VENCIDO:       { label: 'Vencido',       cls: 'badge-rojo' },
 }
 
 interface Props {
