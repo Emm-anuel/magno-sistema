@@ -14,6 +14,7 @@ import SecurePreviewImage from '@/components/SecurePreviewImage'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
+import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
 import type { PagoCobroDTO, TipoPago, AbonoCorrienteDTO } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,6 +105,7 @@ export default function CreditoDetallePage() {
   const [pagoModal, setPagoModal] = useState<PagoCobroDTO | null>(null)
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
+  const [adeudoOpen, setAdeudoOpen] = useState(false)
   const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
 
   const hoyIso = useMemo(() => todayLocalIso(), [])
@@ -261,6 +263,14 @@ export default function CreditoDetallePage() {
               onClick={() => setRegistrarPagoOpen(true)}
             >
               Registrar Pago
+            </button>
+          )}
+          {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) && stats.multasPendientes > 0 && (
+            <button
+              className="btn btn-sm border-[#d97706] text-[#d97706] hover:bg-[#fef3c7]"
+              onClick={() => setAdeudoOpen(true)}
+            >
+              Pagar adeudo
             </button>
           )}
         </div>
@@ -924,6 +934,21 @@ export default function CreditoDetallePage() {
             setPagoEditar(null)
             qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
             qc.invalidateQueries({ queryKey: ['credito', numId] })
+          }}
+        />
+      )}
+
+      {/* Modal Pagar adeudo */}
+      {adeudoOpen && (
+        <ModalPagarAdeudo
+          creditoId={numId}
+          nombreCliente={credito.cliente.nombreCompleto}
+          onClose={() => setAdeudoOpen(false)}
+          onSuccess={() => {
+            setAdeudoOpen(false)
+            qc.invalidateQueries({ queryKey: ['credito', numId] })
+            qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
+            qc.invalidateQueries({ queryKey: ['abonos-credito', numId] })
           }}
         />
       )}
