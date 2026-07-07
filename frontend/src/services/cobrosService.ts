@@ -6,6 +6,8 @@ import type {
   PagoModificarRequest,
   PagoCobroDTO,
   MultaCobroDTO,
+  AbonoCorrienteDTO,
+  AbonoCorrienteRequest,
   Page,
 } from '@/types'
 
@@ -159,4 +161,20 @@ export const cobrosService = {
     api
       .get<any[]>(`/cobros/multas/${creditoId}`)
       .then((r) => (r.data ?? []).map(normalizeMulta)),
+
+  registrarAbonoCorrente: (req: AbonoCorrienteRequest): Promise<AbonoCorrienteDTO> =>
+    api
+      .post<AbonoCorrienteDTO>('/cobros/abono-corriente', {
+        credito_id: req.creditoId,
+        monto_recibido: req.montoRecibido,
+        fecha_pago: req.fechaPago,
+      })
+      .then((r) => r.data),
+
+  getAbonosPorCredito: (creditoId: number): Promise<AbonoCorrienteDTO[]> =>
+    api
+      .get<AbonoCorrienteDTO[]>('/cobros/abono-corriente', {
+        params: { credito_id: creditoId },
+      })
+      .then((r) => r.data ?? []),
 }

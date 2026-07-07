@@ -20,7 +20,14 @@ export type EstadoCredito =
   | 'CANCELADO'
 export type TipoCredito      = 'NUEVO' | 'RENOVACION'
 export type EstadoRenovacion = 'SOLICITADO' | 'APROBADO' | 'RECHAZADO' | 'ACTIVO'
-export type EstadoPago    = 'PENDIENTE' | 'PAGADO' | 'NO_PAGADO' | 'PARCIAL' | 'ADELANTADO'
+export type EstadoPago =
+  | 'PENDIENTE'
+  | 'PAGADO'
+  | 'NO_PAGADO'
+  | 'PARCIAL'
+  | 'ADELANTADO'
+  | 'RECUPERADO'
+  | 'RECUPERADO_PARCIAL'
 export type TipoPago      = 'DIARIO' | 'SEMANAL'
 export type TipoMulta     = 'NO_PAGO' | 'INCOMPLETO'
 export type TipoColocacion= 'NUEVO' | 'RENOVACION'
@@ -515,6 +522,33 @@ export interface MultaCobroDTO {
   fecha: string
   cobrada: boolean
   cobradaEnPagoId: number | null
+}
+
+export interface AbonoCoberturaDTO {
+  numeroPago: number
+  fechaProgramada: string
+  montoCuota: number
+  montoMulta: number
+  totalAplicado: number
+  esParcial: boolean
+}
+
+export interface AbonoCorrienteDTO {
+  abonoId: number
+  creditoId: number
+  fecha: string
+  montoTotal: number
+  montoDistribuido: number
+  montoSobrante: number
+  diasCubiertos: number
+  diasParciales: number
+  coberturas: AbonoCoberturaDTO[]
+}
+
+export interface AbonoCorrienteRequest {
+  creditoId: number
+  montoRecibido: number
+  fechaPago?: string
 }
 
 // ------------------------------------------------------------------
