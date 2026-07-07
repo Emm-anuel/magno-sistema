@@ -118,7 +118,7 @@ public class AbonoCorrienteService {
             slot.setEstado(esCompleto ? EstadoCalendarioPago.RECUPERADO : EstadoCalendarioPago.RECUPERADO_PARCIAL);
             calendarioPagoRepo.save(slot);
 
-            if (montoMultaAplicado.compareTo(totalMultasDia) >= 0) {
+            if (multaYaAbonada.add(montoMultaAplicado).compareTo(totalMultasDia) >= 0) {
                 multasCubiertas.addAll(multasDia);
             }
         }
