@@ -26,7 +26,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -69,7 +72,8 @@ public class ReporteService {
     public ReporteIngresosEgresosDTO getIngresosEgresos(Long sucursalId,
             LocalDate desde,
             LocalDate hasta) {
-        List<CajaDia> dias = cajaDiaRepo.findCerradasBySucursalAndFechaRange(sucursalId, desde, hasta);
+        Map<LocalDate, CajaDia> dias = cajaDiaRepo.findBySucursalAndFechaRange(sucursalId, desde, hasta).stream()
+                .collect(Collectors.toMap(CajaDia::getFecha, Function.identity(), (a, b) -> a));
 
         BigDecimal totalIngresos = BigDecimal.ZERO;
         BigDecimal totalDesembolsos = BigDecimal.ZERO;
@@ -77,15 +81,22 @@ public class ReporteService {
         BigDecimal totalNomina = BigDecimal.ZERO;
 
         List<FilaDiariaDTO> filas = new ArrayList<>();
-        for (CajaDia dia : dias) {
-            BigDecimal inversiones = coalesce(movimientoRepo.sumMontoByCajaDiaId(dia.getId()));
-            BigDecimal ingresos = coalesce(dia.getIngresoCarteras());
-            BigDecimal desembolsos = coalesce(dia.getDesembolsos());
-            BigDecimal gastos = coalesce(dia.getTotalGastos());
-            BigDecimal nomina = coalesce(dia.getTotalNomina());
-            BigDecimal subtotal = coalesce(dia.getSubtotalCaja());
+        for (LocalDate fecha = desde; !fecha.isAfter(hasta); fecha = fecha.plusDays(1)) {
+            CajaDia dia = dias.get(fecha);
+            BigDecimal ingresos = coalesce(pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fecha));
+            BigDecimal inversiones = dia != null ? coalesce(movimientoRepo.sumMontoByCajaDiaId(dia.getId())) : BigDecimal.ZERO;
+            BigDecimal desembolsos = dia != null ? coalesce(dia.getDesembolsos()) : BigDecimal.ZERO;
+            BigDecimal gastos = dia != null ? coalesce(dia.getTotalGastos()) : BigDecimal.ZERO;
+            BigDecimal nomina = dia != null ? coalesce(dia.getTotalNomina()) : BigDecimal.ZERO;
+            BigDecimal subtotal = dia != null && dia.getSubtotalCaja() != null
+                    ? dia.getSubtotalCaja()
+                    : ingresos.subtract(desembolsos).subtract(gastos).subtract(nomina).add(inversiones);
 
-            filas.add(new FilaDiariaDTO(dia.getFecha(), ingresos, desembolsos, gastos, nomina, inversiones, subtotal));
+            if (dia == null && ingresos.compareTo(BigDecimal.ZERO) == 0) {
+                continue;
+            }
+
+            filas.add(new FilaDiariaDTO(fecha, ingresos, desembolsos, gastos, nomina, inversiones, subtotal));
 
             totalIngresos = totalIngresos.add(ingresos);
             totalDesembolsos = totalDesembolsos.add(desembolsos);

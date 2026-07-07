@@ -49,9 +49,13 @@ class ReporteServiceTest {
 
         @Test
         void getIngresosEgresos_sinDias_retornaDTO_conCeros() {
-                when(cajaDiaRepo.findCerradasBySucursalAndFechaRange(1L,
+                when(cajaDiaRepo.findBySucursalAndFechaRange(1L,
                                 LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30)))
                                 .thenReturn(List.of());
+                for (int day = 1; day <= 30; day++) {
+                        when(pagoRepo.sumIngresoBySucursalAndFecha(1L, LocalDate.of(2026, 4, day)))
+                                        .thenReturn(BigDecimal.ZERO);
+                }
 
                 ReporteIngresosEgresosDTO result = service.getIngresosEgresos(1L,
                                 LocalDate.of(2026, 4, 1),
@@ -73,9 +77,13 @@ class ReporteServiceTest {
                                 new BigDecimal("2000.00"), new BigDecimal("800.00"),
                                 new BigDecimal("150.00"), new BigDecimal("1100.00"));
 
-                when(cajaDiaRepo.findCerradasBySucursalAndFechaRange(1L,
+                when(cajaDiaRepo.findBySucursalAndFechaRange(1L,
                                 LocalDate.of(2026, 4, 7), LocalDate.of(2026, 4, 8)))
                                 .thenReturn(List.of(dia1, dia2));
+                when(pagoRepo.sumIngresoBySucursalAndFecha(1L, LocalDate.of(2026, 4, 7)))
+                                .thenReturn(new BigDecimal("1000.00"));
+                when(pagoRepo.sumIngresoBySucursalAndFecha(1L, LocalDate.of(2026, 4, 8)))
+                                .thenReturn(new BigDecimal("2000.00"));
                 when(movimientoRepo.sumMontoByCajaDiaId(1L)).thenReturn(BigDecimal.ZERO);
                 when(movimientoRepo.sumMontoByCajaDiaId(2L)).thenReturn(BigDecimal.ZERO);
 
@@ -88,6 +96,23 @@ class ReporteServiceTest {
                 assertThat(result.totalDesembolsos()).isEqualByComparingTo("1300.00");
                 assertThat(result.totalGastos()).isEqualByComparingTo("250.00");
                 assertThat(result.subtotalNeto()).isEqualByComparingTo("1450.00");
+        }
+
+        @Test
+        void getIngresosEgresos_conCobrosSinCaja_incluyeIngresoDelDia() {
+                LocalDate fecha = LocalDate.of(2026, 4, 9);
+                when(cajaDiaRepo.findBySucursalAndFechaRange(1L, fecha, fecha))
+                                .thenReturn(List.of());
+                when(pagoRepo.sumIngresoBySucursalAndFecha(1L, fecha))
+                                .thenReturn(new BigDecimal("750.00"));
+
+                ReporteIngresosEgresosDTO result = service.getIngresosEgresos(1L, fecha, fecha);
+
+                assertThat(result.filas()).hasSize(1);
+                assertThat(result.filas().get(0).fecha()).isEqualTo(fecha);
+                assertThat(result.filas().get(0).ingresoCarteras()).isEqualByComparingTo("750.00");
+                assertThat(result.totalIngresoCarteras()).isEqualByComparingTo("750.00");
+                assertThat(result.subtotalNeto()).isEqualByComparingTo("750.00");
         }
 
         @Test
