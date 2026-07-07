@@ -544,7 +544,7 @@ public class CobrosService {
      * Si todos los pagos del crédito ya están en estado terminal, marca el crédito
      * como PAGADO.
      */
-    private void verificarCreditoCompletado(Credito credito) {
+    void verificarCreditoCompletado(Credito credito) {
         List<CalendarioPago> todos = calendarioPagoRepo
                 .findByCreditoIdOrderByNumeroPago(credito.getId());
 

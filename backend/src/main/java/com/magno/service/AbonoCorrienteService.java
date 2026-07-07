@@ -28,6 +28,7 @@ public class AbonoCorrienteService {
     private final UsuarioRepository usuarioRepo;
     private final CalendarioPagoRepository calendarioPagoRepo;
     private final MultaRepository multaRepo;
+    private final CobrosService cobrosService;
 
     public AbonoCorrienteService(
             AbonoCorrienteRepository abonoCorrienteRepo,
@@ -35,13 +36,15 @@ public class AbonoCorrienteService {
             CreditoRepository creditoRepo,
             UsuarioRepository usuarioRepo,
             CalendarioPagoRepository calendarioPagoRepo,
-            MultaRepository multaRepo) {
+            MultaRepository multaRepo,
+            CobrosService cobrosService) {
         this.abonoCorrienteRepo = abonoCorrienteRepo;
         this.abonoCoberturaRepo = abonoCoberturaRepo;
         this.creditoRepo = creditoRepo;
         this.usuarioRepo = usuarioRepo;
         this.calendarioPagoRepo = calendarioPagoRepo;
         this.multaRepo = multaRepo;
+        this.cobrosService = cobrosService;
     }
 
     @Transactional
@@ -146,6 +149,8 @@ public class AbonoCorrienteService {
             m.setCobradaEnAbono(abonoFinal);
             multaRepo.save(m);
         }
+
+        cobrosService.verificarCreditoCompletado(credito);
 
         return AbonoCorrienteDTO.from(abono, coberturas);
     }

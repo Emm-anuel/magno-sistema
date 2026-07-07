@@ -29,6 +29,7 @@ class AbonoCorrienteServiceTest {
     private UsuarioRepository usuarioRepo;
     private CalendarioPagoRepository calendarioPagoRepo;
     private MultaRepository multaRepo;
+    private CobrosService cobrosService;
 
     private AbonoCorrienteService service;
 
@@ -46,6 +47,7 @@ class AbonoCorrienteServiceTest {
         usuarioRepo        = mock(UsuarioRepository.class);
         calendarioPagoRepo = mock(CalendarioPagoRepository.class);
         multaRepo          = mock(MultaRepository.class);
+        cobrosService      = mock(CobrosService.class);
 
         service = new AbonoCorrienteService(
                 abonoCorrienteRepo,
@@ -53,7 +55,8 @@ class AbonoCorrienteServiceTest {
                 creditoRepo,
                 usuarioRepo,
                 calendarioPagoRepo,
-                multaRepo);
+                multaRepo,
+                cobrosService);
 
         sucursal = new Sucursal();
         sucursal.setId(1L);
