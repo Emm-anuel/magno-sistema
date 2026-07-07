@@ -17,7 +17,7 @@ import java.time.OffsetDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@ToString(exclude = {"pago", "cliente", "credito", "cobradaEnPago", "condonadaEnRenovacion", "condonadaPor"})
+@ToString(exclude = {"pago", "cliente", "credito", "cobradaEnPago", "cobradaEnAbono", "condonadaEnRenovacion", "condonadaPor"})
 public class Multa {
 
     @Id
@@ -54,6 +54,11 @@ public class Multa {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cobrada_en_pago_id")
     private Pago cobradaEnPago;
+
+    /** Abono ponerse al corriente en el que se cobró esta multa */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cobrada_en_abono_id")
+    private AbonoCorriente cobradaEnAbono;
 
     // Condonación — una multa no puede ser cobrada Y condonada al mismo tiempo (validado en servicio)
     @Column(name = "condonada", nullable = false)
