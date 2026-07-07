@@ -5,5 +5,7 @@ public enum EstadoCalendarioPago {
     PAGADO,
     NO_PAGADO,
     PARCIAL,
-    ADELANTADO
+    ADELANTADO,
+    RECUPERADO,
+    RECUPERADO_PARCIAL
 }

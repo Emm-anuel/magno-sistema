@@ -231,4 +231,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V29-abono-corriente" author="magno">
+        <sqlFile
+            path="db/changelog/V29__abono_corriente.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
