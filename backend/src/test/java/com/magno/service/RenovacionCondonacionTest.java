@@ -111,6 +111,18 @@ class RenovacionCondonacionTest {
         renovacion.setPagoAdelantado(new BigDecimal("700.00"));
         renovacion.setMontoDesembolso(new BigDecimal("15600.00"));
 
+        // aprobarRenovacion() recalcula el desembolso llamando a calculoService.calcularCredito();
+        // sin este stub, el mock devuelve null y provoca NPE en calculoAprobado.pagoAdelantado().
+        when(calculoService.calcularCredito(any(), any())).thenReturn(new CreditoCalculoService.ResumenCalculo(
+                new BigDecimal("20000.00"),
+                30,
+                new BigDecimal("0.24"),
+                new BigDecimal("4800.00"),
+                new BigDecimal("24800.00"),
+                new BigDecimal("826.6666666667"),
+                new BigDecimal("827.00"),
+                new BigDecimal("817.00")));
+
         // Multa 1 — pertenece al crédito anterior, no cobrada, no condonada
         multa1 = new Multa();
         multa1.setId(301L);
