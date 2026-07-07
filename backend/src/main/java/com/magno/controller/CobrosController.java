@@ -3,6 +3,7 @@ package com.magno.controller;
 import com.magno.dto.cobros.*;
 import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
+import com.magno.service.AbonoCorrienteService;
 import com.magno.service.CobrosService;
 import com.magno.util.DateTimeUtils;
 import jakarta.validation.Valid;
@@ -26,10 +27,13 @@ public class CobrosController {
 
     private final CobrosService cobrosService;
     private final CajaGuard cajaGuard;
+    private final AbonoCorrienteService abonoCorrienteService;
 
-    public CobrosController(CobrosService cobrosService, CajaGuard cajaGuard) {
+    public CobrosController(CobrosService cobrosService, CajaGuard cajaGuard,
+                             AbonoCorrienteService abonoCorrienteService) {
         this.cobrosService = cobrosService;
         this.cajaGuard = cajaGuard;
+        this.abonoCorrienteService = abonoCorrienteService;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -176,5 +180,33 @@ public class CobrosController {
             @PathVariable Long creditoId) {
 
         return ResponseEntity.ok(cobrosService.getMultasPorCredito(creditoId));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // POST /api/cobros/abono-corriente
+    // ────────────────────────────────────────────────────────────────────
+
+    @PostMapping("/abono-corriente")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<AbonoCorrienteDTO> registrarAbono(
+            @Valid @RequestBody AbonoCorrienteRequest req,
+            Authentication auth) {
+
+        JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
+        cajaGuard.validarCajaAbierta(principal);
+        AbonoCorrienteDTO abono = abonoCorrienteService.registrarAbono(req, principal.userId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(abono);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
+    // GET /api/cobros/abono-corriente?credito_id={id}
+    // ────────────────────────────────────────────────────────────────────
+
+    @GetMapping("/abono-corriente")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<AbonoCorrienteDTO>> getAbonosPorCredito(
+            @RequestParam(name = "credito_id") Long creditoId) {
+
+        return ResponseEntity.ok(abonoCorrienteService.getAbonosPorCredito(creditoId));
     }
 }
