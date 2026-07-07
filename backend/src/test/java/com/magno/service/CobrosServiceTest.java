@@ -12,7 +12,6 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
@@ -83,11 +82,7 @@ class CobrosServiceTest {
     }
 
     private void mockRutaDiaComun(List<Credito> creditosActivos) {
-        // Nota: findRutaDiaCreditosActivos toma 4 parámetros (sucursalId, asesorId,
-        // estado, fechaMin) — el 4to (fechaMin) se compara internamente con
-        // cr.fechaVencimiento >= :fechaMin en el repositorio real. Usamos any()
-        // para el matcher porque hoyNegocio() usa LocalDate.now(zona), no HOY fijo.
-        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO), any()))
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
                 .thenReturn(creditosActivos);
         when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of());
         when(pagoRepo.findBySucursalAndAsesorIdAndFecha(eq(1L), isNull(), eq(HOY)))

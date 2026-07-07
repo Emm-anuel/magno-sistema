@@ -35,12 +35,10 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "WHERE cr.estado = :estado " +
                         "AND cr.deletedAt IS NULL " +
                         "AND cr.sucursal.id = :sucursalId " +
-                        "AND (:asesorId IS NULL OR cr.asesor.id = :asesorId) " +
-                        "AND cr.fechaVencimiento >= :fechaMin")
+                        "AND (:asesorId IS NULL OR cr.asesor.id = :asesorId)")
         List<Credito> findRutaDiaCreditosActivos(@Param("sucursalId") Long sucursalId,
                         @Param("asesorId") Long asesorId,
-                        @Param("estado") EstadoCredito estado,
-                        @Param("fechaMin") java.time.LocalDate fechaMin);
+                        @Param("estado") EstadoCredito estado);
 
         List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
 
