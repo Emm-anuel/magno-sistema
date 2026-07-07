@@ -148,13 +148,18 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
       if (p.estado === 'PENDIENTE' && p.fechaProgramada <= hoy) return true
       return false
     })
-    return eligibles.reduce((sum, slot) => {
+    return eligibles.reduce((sum: number, slot: any) => {
       const multasDia = multas
         .filter((m) => m.fecha === slot.fechaProgramada && !m.cobrada)
         .reduce((s, m) => s + Number(m.monto), 0)
-      return sum + Number(slot.montoEsperado) + multasDia
+      const yaAbonadoSlot = abonosExistentes.reduce((acc, ab) => {
+        const cob = ab.coberturas.find((c) => c.numeroPago === slot.numeroPago)
+        return acc + (cob ? Number(cob.totalAplicado) : 0)
+      }, 0)
+      const restante = Number(slot.montoEsperado) + multasDia - yaAbonadoSlot
+      return sum + Math.max(0, restante)
     }, 0)
-  }, [calendario, multas, hoy])
+  }, [calendario, multas, hoy, abonosExistentes])
 
   const diasAtrasados = useMemo(() =>
     calendario.filter((p) => {
