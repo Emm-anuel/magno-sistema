@@ -103,6 +103,11 @@ class CobrosServiceTest {
         assertThat(c.multasPendientes()).isEqualByComparingTo(new BigDecimal("100.00"));
         assertThat(c.numeroPagoHoy()).isNull();
         assertThat(c.pagoIdHoy()).isNull();
+
+        RutaDiaDTO.Resumen resumen = result.resumen();
+        assertThat(resumen.noPagaron()).isEqualTo(1);
+        assertThat(resumen.cobrados() + resumen.noPagaron() + resumen.sinRegistrar() + resumen.inhabiles())
+                .isEqualTo(resumen.totalClientes());
     }
 
     @Test

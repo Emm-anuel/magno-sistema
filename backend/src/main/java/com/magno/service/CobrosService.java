@@ -713,7 +713,7 @@ public class CobrosService {
         for (ClienteRutaDTO c : clientes) {
             switch (c.estadoHoy()) {
                 case "PAGADO", "PARCIAL" -> cobrados++;
-                case "NO_PAGADO" -> noPagaron++;
+                case "NO_PAGADO", "VENCIDO" -> noPagaron++;
                 case "SIN_REGISTRO" -> sinRegistrar++;
                 case "INHABIL" -> inhabiles++;
             }
