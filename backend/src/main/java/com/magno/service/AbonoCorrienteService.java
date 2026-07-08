@@ -1,7 +1,9 @@
 package com.magno.service;
 
 import com.magno.dto.cobros.AbonoCorrienteDTO;
+import com.magno.dto.cobros.AbonoCorrienteHistorialDTO;
 import com.magno.dto.cobros.AbonoCorrienteRequest;
+import com.magno.dto.cobros.MultaDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
 import jakarta.persistence.EntityNotFoundException;
@@ -28,6 +30,7 @@ public class AbonoCorrienteService {
     private final UsuarioRepository usuarioRepo;
     private final CalendarioPagoRepository calendarioPagoRepo;
     private final MultaRepository multaRepo;
+    private final ConfigMultaRepository configMultaRepo;
     private final CobrosService cobrosService;
 
     public AbonoCorrienteService(
@@ -37,6 +40,7 @@ public class AbonoCorrienteService {
             UsuarioRepository usuarioRepo,
             CalendarioPagoRepository calendarioPagoRepo,
             MultaRepository multaRepo,
+            ConfigMultaRepository configMultaRepo,
             CobrosService cobrosService) {
         this.abonoCorrienteRepo = abonoCorrienteRepo;
         this.abonoCoberturaRepo = abonoCoberturaRepo;
@@ -44,6 +48,7 @@ public class AbonoCorrienteService {
         this.usuarioRepo = usuarioRepo;
         this.calendarioPagoRepo = calendarioPagoRepo;
         this.multaRepo = multaRepo;
+        this.configMultaRepo = configMultaRepo;
         this.cobrosService = cobrosService;
     }
 
@@ -78,6 +83,8 @@ public class AbonoCorrienteService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "No hay días atrasados para cubrir en este crédito");
         }
+
+        generarMultasNoPagoFaltantes(credito, slots, fechaOperacion);
 
         BigDecimal saldo = req.montoRecibido();
         List<AbonoCoberturaDetalle> coberturas = new ArrayList<>();
@@ -164,6 +171,77 @@ public class AbonoCorrienteService {
         }).toList();
     }
 
+    public List<MultaDTO> previewMultasParaAbono(Long creditoId, LocalDate fechaPago, Long usuarioId) {
+        Usuario usuario = usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
+        String rol = usuario.getRol().getNombre();
+        Credito credito = creditoRepo.findById(creditoId)
+                .orElseThrow(() -> new EntityNotFoundException("CrÃ©dito no encontrado: " + creditoId));
+
+        if ("ASESOR_COBRADOR".equals(rol)) {
+            if (credito.getAsesor() == null || !credito.getAsesor().getId().equals(usuarioId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes acceso a este crÃ©dito");
+            }
+        } else if ("SUPERVISOR_CAMPO".equals(rol)) {
+            if (!credito.getCliente().getSucursal().getId().equals(usuario.getSucursal().getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No tienes acceso a este crÃ©dito");
+            }
+        }
+
+        LocalDate fechaOperacion = resolverFecha(fechaPago, rol, LocalDate.now(BUSINESS_ZONE));
+        List<MultaDTO> multas = new ArrayList<>(multaRepo
+                .findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(creditoId)
+                .stream()
+                .map(MultaDTO::from)
+                .toList());
+
+        for (CalendarioPago slot : calendarioPagoRepo.findSlotsCubrir(creditoId, fechaOperacion)) {
+            if (!slot.getFechaProgramada().isBefore(fechaOperacion)) {
+                continue;
+            }
+            if (multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(
+                    creditoId, slot.getFechaProgramada(), "NO_PAGO")) {
+                continue;
+            }
+            multas.add(new MultaDTO(
+                    null,
+                    credito.getId(),
+                    credito.getCliente().getId(),
+                    null,
+                    "NO_PAGO",
+                    obtenerMontoMultaNoPago(credito),
+                    slot.getFechaProgramada(),
+                    false,
+                    null,
+                    null,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null));
+        }
+
+        return multas;
+    }
+
+    public List<AbonoCorrienteHistorialDTO> getHistorial(Long asesorId, Long clienteId,
+            LocalDate fechaDesde, LocalDate fechaHasta,
+            String rolSolicitante, Long usuarioIdSolicitante) {
+        if ("ASESOR_COBRADOR".equals(rolSolicitante)
+                || "SUPERVISOR_CAMPO".equals(rolSolicitante)) {
+            asesorId = usuarioIdSolicitante;
+        }
+
+        return abonoCorrienteRepo.findHistorialList(asesorId, clienteId, fechaDesde, fechaHasta)
+                .stream()
+                .map(a -> {
+                    List<AbonoCoberturaDetalle> coberturas =
+                            abonoCoberturaRepo.findByAbonoIdOrderByNumeroPagoAsc(a.getId());
+                    return AbonoCorrienteHistorialDTO.from(a, coberturas);
+                })
+                .toList();
+    }
+
     private LocalDate resolverFecha(LocalDate fechaSolicitada, String rol, LocalDate hoy) {
         if (fechaSolicitada == null) return hoy;
         boolean esRolCampo = "ASESOR_COBRADOR".equals(rol) || "SUPERVISOR_CAMPO".equals(rol);
@@ -172,5 +250,46 @@ public class AbonoCorrienteService {
                     "Solo Gerente General y Gerente de Sucursal pueden registrar en fechas históricas");
         }
         return fechaSolicitada;
+    }
+
+    private void generarMultasNoPagoFaltantes(Credito credito, List<CalendarioPago> slots, LocalDate fechaOperacion) {
+        for (CalendarioPago slot : slots) {
+            if (!slot.getFechaProgramada().isBefore(fechaOperacion)) {
+                continue;
+            }
+            if (multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(
+                    credito.getId(), slot.getFechaProgramada(), "NO_PAGO")) {
+                continue;
+            }
+
+            Multa multa = Multa.builder()
+                    .cliente(credito.getCliente())
+                    .credito(credito)
+                    .tipo("NO_PAGO")
+                    .monto(obtenerMontoMultaNoPago(credito))
+                    .fecha(slot.getFechaProgramada())
+                    .cobrada(false)
+                    .condonada(false)
+                    .build();
+            multaRepo.save(multa);
+        }
+    }
+
+    private BigDecimal obtenerMontoMultaNoPago(Credito credito) {
+        Long sucursalId = credito.getSucursal() != null
+                ? credito.getSucursal().getId()
+                : credito.getCliente().getSucursal().getId();
+        ConfigMulta config = configMultaRepo
+                .findBySucursalAndMonto(sucursalId, credito.getMontoCapital())
+                .orElse(null);
+
+        if (config == null) {
+            return credito.getTipoPago() == TipoPago.SEMANAL
+                    ? new BigDecimal("300.00")
+                    : new BigDecimal("50.00");
+        }
+        return credito.getTipoPago() == TipoPago.SEMANAL
+                ? config.getMultaSemanalNoPago()
+                : config.getMultaNoPago();
     }
 }

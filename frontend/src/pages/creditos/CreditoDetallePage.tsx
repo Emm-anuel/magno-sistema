@@ -187,6 +187,9 @@ export default function CreditoDetallePage() {
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && p.fechaProgramada.slice(0, 10) < hoyIso,
   ).length
   const pagosVencidosTotales = Math.max(stats.pagosVencidos ?? 0, pagosVencidosVisuales)
+  const tieneRecuperadoParcial = calendario.some((p) => p.estado === 'RECUPERADO_PARCIAL')
+  const tieneAdeudoPendiente =
+    pagosVencidosTotales > 0 || tieneRecuperadoParcial || (stats.multasPendientes ?? 0) > 0
   const pagoPeriodicoCalendario = calendario.length > 0 ? calendario[0].montoEsperado : null
   const pagoPeriodicoVisual = pagoPeriodicoCalendario ?? credito.pagoPeriodico
   const hayDiferenciaPagoHistorico =
@@ -257,7 +260,7 @@ export default function CreditoDetallePage() {
               Desembolsar
             </button>
           )}
-          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && (
+          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && !tieneAdeudoPendiente && (
             <button
               className="btn-primary btn btn-sm"
               onClick={() => setRegistrarPagoOpen(true)}
@@ -266,7 +269,7 @@ export default function CreditoDetallePage() {
             </button>
           )}
           {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) &&
-            (pagosVencidosTotales > 0 || stats.multasPendientes > 0) && (
+            tieneAdeudoPendiente && (
             <button
               className="btn btn-sm border-[#d97706] text-[#d97706] hover:bg-[#fef3c7]"
               onClick={() => setAdeudoOpen(true)}

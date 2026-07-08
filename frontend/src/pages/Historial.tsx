@@ -6,7 +6,7 @@ import { creditoService } from '@/services/creditoService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { api } from '@/services/api'
 import { addDaysLocal, todayLocalStr } from '@/utils/date'
-import type { CalendarioPagoDetalle } from '@/types'
+import type { AbonoCorrienteHistorialDTO, CalendarioPagoDetalle } from '@/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -67,6 +67,10 @@ const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) 
       symbol = '✓'; cls = 'bg-green-100 text-green-700 font-bold'; break
     case 'ADELANTADO':
       symbol = 'A'; cls = 'bg-green-50 text-green-600 font-semibold'; break
+    case 'RECUPERADO':
+      symbol = 'Ab'; cls = 'bg-blue-100 text-blue-700 font-bold'; break
+    case 'RECUPERADO_PARCIAL':
+      symbol = '$'; cls = 'bg-amber-100 text-amber-700 font-semibold'; break
     case 'PARCIAL':
       symbol = '$'; cls = 'bg-amber-100 text-amber-700 font-semibold'; break
     case 'NO_PAGADO':
@@ -84,6 +88,8 @@ const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) 
   const tooltipLines = [fechaFmt]
   if (pago.estado === 'NO_PAGADO') tooltipLines.push('No pagó')
   if (pago.estado === 'ADELANTADO') tooltipLines.push('Pago adelantado')
+  if (pago.estado === 'RECUPERADO') tooltipLines.push('Abono de adeudo')
+  if (pago.estado === 'RECUPERADO_PARCIAL') tooltipLines.push('Abono parcial')
 
   return (
     <td className={`text-center p-0.5 ${borderCls}`}>
@@ -177,6 +183,18 @@ export default function Historial() {
 
   const clientes = rutaDia?.clientes ?? []
 
+  const { data: abonosAdeudo = [], isLoading: isLoadingAbonos } = useQuery({
+    queryKey: ['historial-abonos-pago', asesorId, fecha],
+    queryFn: () =>
+      cobrosService.getHistorialAbonos({
+        asesorId,
+        fechaDesde: fecha,
+        fechaHasta: fecha,
+      }),
+    enabled: !!asesorId,
+    staleTime: 30_000,
+  })
+
   // Fetch full credit detail (with calendar) for each client in parallel
   const creditoQueries = useQueries({
     queries: clientes.map((c) => ({
@@ -202,6 +220,14 @@ export default function Historial() {
   )
 
   const resumen = rutaDia?.resumen
+  const totalAbonosAdeudo = abonosAdeudo.reduce(
+    (sum: number, a: AbonoCorrienteHistorialDTO) => sum + Number(a.montoDistribuido ?? 0),
+    0,
+  )
+  const totalMultasAbonos = abonosAdeudo.reduce(
+    (sum: number, a: AbonoCorrienteHistorialDTO) => sum + Number(a.montoMulta ?? 0),
+    0,
+  )
 
   return (
     <div className="space-y-4">
@@ -319,15 +345,15 @@ export default function Historial() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
                   <div className="text-[13px] font-bold text-[#212529]">
-                    {fmtMoney(resumen.totalCaja)}
-                  </div>
-                  <div className="text-[10px] text-[#6c757d]">Caja</div>
-                </div>
-                <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                  <div className="text-[13px] font-bold text-[#212529]">
                     {fmtMoney(resumen.totalRuta)}
                   </div>
-                  <div className="text-[10px] text-[#6c757d]">Ruta</div>
+                  <div className="text-[10px] text-[#6c757d]">Pagos de ruta</div>
+                </div>
+                <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                  <div className="text-[13px] font-bold text-[#2d6a4f]">
+                    {fmtMoney(totalAbonosAdeudo)}
+                  </div>
+                  <div className="text-[10px] text-[#6c757d]">Abonos de adeudo</div>
                 </div>
                 <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
                   <div
@@ -342,19 +368,78 @@ export default function Historial() {
                 <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
                   <div
                     className={`text-[13px] font-bold ${
-                      resumen.totalMultasCobradas > 0 ? 'text-[#dc2626]' : 'text-[#212529]'
+                      (resumen.totalMultasCobradas + totalMultasAbonos) > 0 ? 'text-[#dc2626]' : 'text-[#212529]'
                     }`}
                   >
-                    {fmtMoney(resumen.totalMultasCobradas)}
+                    {fmtMoney((resumen.totalMultasCobradas ?? 0) + totalMultasAbonos)}
                   </div>
                   <div className="text-[10px] text-[#6c757d]">Multas</div>
                 </div>
                 <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
                   <div className="text-[13px] font-bold text-[#16a34a]">
-                    {fmtMoney((resumen.totalCaja ?? 0) + (resumen.totalRuta ?? 0))}
+                    {fmtMoney((resumen.totalRuta ?? 0) + totalAbonosAdeudo)}
                   </div>
                   <div className="text-[10px] text-[#6c757d]">Total cobrado</div>
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#e9ecef] flex items-center justify-between">
+              <h2 className="text-[13px] font-semibold text-[#212529]">Abonos de adeudo</h2>
+              {abonosAdeudo.length > 0 && (
+                <span className="text-[11px] text-[#6c757d]">
+                  {abonosAdeudo.length} registro{abonosAdeudo.length === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+            {isLoadingAbonos ? (
+              <p className="text-[#adb5bd] text-[13px] text-center py-6">Cargando abonos...</p>
+            ) : abonosAdeudo.length === 0 ? (
+              <p className="text-[#adb5bd] text-[13px] text-center py-6">
+                Sin abonos de adeudo en esta fecha.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Dias</th>
+                      <th className="text-right">Abono</th>
+                      <th className="text-right">Multa</th>
+                      <th>Estado</th>
+                      <th>Registrado por</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {abonosAdeudo.map((a) => {
+                      const esParcial = a.diasParciales > 0
+                      return (
+                        <tr key={a.abonoId}>
+                          <td className="font-medium">{a.cliente.nombreCompleto}</td>
+                          <td className="text-[#6c757d]">
+                            {a.diasCubiertos} cubierto{a.diasCubiertos === 1 ? '' : 's'}
+                            {a.diasParciales > 0 ? `, ${a.diasParciales} parcial` : ''}
+                          </td>
+                          <td className="text-right font-semibold text-[#2d6a4f]">
+                            {fmtMoney(a.montoDistribuido)}
+                          </td>
+                          <td className="text-right text-[#dc2626]">
+                            {Number(a.montoMulta ?? 0) > 0 ? fmtMoney(a.montoMulta) : '—'}
+                          </td>
+                          <td>
+                            <span className={`badge ${esParcial ? 'badge-amarillo' : 'badge-verde'}`}>
+                              {esParcial ? 'Parcial' : 'Cubierto'}
+                            </span>
+                          </td>
+                          <td className="text-[#6c757d]">{a.registradoPor?.nombreCompleto ?? '—'}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

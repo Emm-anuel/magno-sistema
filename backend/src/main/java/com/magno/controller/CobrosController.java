@@ -209,4 +209,38 @@ public class CobrosController {
 
         return ResponseEntity.ok(abonoCorrienteService.getAbonosPorCredito(creditoId));
     }
+
+    @GetMapping("/abono-corriente/preview-multas")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<MultaDTO>> previewMultasAbono(
+            @RequestParam(name = "credito_id") Long creditoId,
+            @RequestParam(name = "fecha_pago", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaPago,
+            Authentication auth) {
+
+        JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
+        return ResponseEntity.ok(abonoCorrienteService.previewMultasParaAbono(
+                creditoId,
+                fechaPago,
+                principal.userId()));
+    }
+
+    @GetMapping("/abono-corriente/historial")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<AbonoCorrienteHistorialDTO>> historialAbonos(
+            @RequestParam(required = false) Long asesorId,
+            @RequestParam(required = false) Long clienteId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaDesde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaHasta,
+            Authentication auth) {
+
+        JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
+        return ResponseEntity.ok(abonoCorrienteService.getHistorial(
+                asesorId,
+                clienteId,
+                fechaDesde,
+                fechaHasta,
+                principal.rol(),
+                principal.userId()));
+    }
 }

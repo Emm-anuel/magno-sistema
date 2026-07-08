@@ -269,6 +269,9 @@ function ClienteCard({
   onPagarAdeudo: () => void
   esFechaHistorica: boolean
 }) {
+  const puedePagarAdeudo = c.tieneAdeudoPendiente && !esFechaHistorica
+  const puedeRegistrarCorriente = puedeRegistrar && !puedePagarAdeudo
+
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between gap-3">
@@ -306,7 +309,7 @@ function ClienteCard({
         </div>
 
         <div className="flex flex-col gap-2 shrink-0">
-          {puedeRegistrar && (
+          {puedeRegistrarCorriente && (
             <button
               type="button"
               onClick={onCobrar}
@@ -315,7 +318,7 @@ function ClienteCard({
               {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
             </button>
           )}
-          {c.tieneAdeudoPendiente && !esFechaHistorica && (
+          {puedePagarAdeudo && (
             <button
               type="button"
               onClick={onPagarAdeudo}
@@ -343,6 +346,9 @@ function ClienteRow({
   onPagarAdeudo: () => void
   esFechaHistorica: boolean
 }) {
+  const puedePagarAdeudo = c.tieneAdeudoPendiente && !esFechaHistorica
+  const puedeRegistrarCorriente = puedeRegistrar && !puedePagarAdeudo
+
   return (
     <tr>
       <td>
@@ -369,12 +375,12 @@ function ClienteRow({
       </td>
       <td>
         <div className="flex gap-2">
-          {puedeRegistrar && (
+          {puedeRegistrarCorriente && (
             <button type="button" onClick={onCobrar} className="btn btn-sm">
               {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
             </button>
           )}
-          {c.tieneAdeudoPendiente && !esFechaHistorica && (
+          {puedePagarAdeudo && (
             <button
               type="button"
               onClick={onPagarAdeudo}

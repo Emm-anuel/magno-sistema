@@ -239,4 +239,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V30-calendario-pagos-estados-recuperado" author="magno">
+        <sqlFile
+            path="db/changelog/V30__calendario_pagos_estados_recuperado.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

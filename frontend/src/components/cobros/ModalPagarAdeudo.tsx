@@ -122,8 +122,8 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
   })
 
   const { data: multas = [] } = useQuery({
-    queryKey: ['multas-credito', creditoId],
-    queryFn: () => cobrosService.getMultasPorCredito(creditoId),
+    queryKey: ['preview-multas-abono', creditoId, hoy],
+    queryFn: () => cobrosService.getPreviewMultasAbono(creditoId, hoy),
     staleTime: 30_000,
   })
 
@@ -161,6 +161,11 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
     }, 0)
   }, [calendario, multas, hoy, abonosExistentes])
 
+  const montoCentavos = montoValido ? Math.round(montoNum * 100) : 0
+  const saldoRequeridoCentavos = Math.round(montoParaCorriente * 100)
+  const excedeSaldoRequerido = montoValido && montoCentavos > saldoRequeridoCentavos
+  const puedeConfirmar = montoValido && !excedeSaldoRequerido && saldoRequeridoCentavos > 0
+
   const diasAtrasados = useMemo(() =>
     calendario.filter((p) => {
       if (p.estado === 'NO_PAGADO' || p.estado === 'RECUPERADO_PARCIAL') return true
@@ -171,16 +176,22 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
   )
 
   const mutation = useMutation({
-    mutationFn: () =>
-      cobrosService.registrarAbonoCorrente({
+    mutationFn: () => {
+      if (excedeSaldoRequerido) {
+        throw new Error(`El monto no puede ser mayor a ${fmtMoney(montoParaCorriente)}`)
+      }
+
+      return cobrosService.registrarAbonoCorrente({
         creditoId,
         montoRecibido: montoNum,
-      }),
+      })
+    },
     onSuccess: () => {
       toast.success('Abono registrado correctamente')
       qc.invalidateQueries({ queryKey: ['ruta-dia'] })
       qc.invalidateQueries({ queryKey: ['credito', creditoId] })
       qc.invalidateQueries({ queryKey: ['multas-credito', creditoId] })
+      qc.invalidateQueries({ queryKey: ['preview-multas-abono', creditoId] })
       qc.invalidateQueries({ queryKey: ['abonos-credito', creditoId] })
       qc.invalidateQueries({ queryKey: ['pagos-cliente-credito'] })
       onSuccess()
@@ -236,14 +247,20 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
                 type="number"
                 inputMode="decimal"
                 min="0.01"
+                max={Math.max(0, montoParaCorriente).toFixed(2)}
                 step="0.01"
-                className="input pl-7"
+                className={`input pl-7 ${excedeSaldoRequerido ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                 placeholder="0.00"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
                 autoFocus
               />
             </div>
+            {excedeSaldoRequerido && (
+              <p className="text-[12px] text-red-600 mt-1">
+                El monto no puede ser mayor al saldo requerido: {fmtMoney(montoParaCorriente)}.
+              </p>
+            )}
           </div>
 
           {/* Tabla de distribución */}
@@ -301,7 +318,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
           </button>
           <button
             type="button"
-            disabled={!montoValido || mutation.isPending}
+            disabled={!puedeConfirmar || mutation.isPending}
             onClick={() => mutation.mutate()}
             className="flex-1 py-3 rounded-lg border-2 border-[#d97706] bg-[#d97706] text-white text-[14px] font-semibold hover:bg-[#b45309] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >

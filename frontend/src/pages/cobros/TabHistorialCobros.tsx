@@ -5,7 +5,7 @@ import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
 import TipoPagoBadge from '@/components/TipoPagoBadge'
-import type { PagoCobroDTO, TipoPago } from '@/types'
+import type { AbonoCorrienteHistorialDTO, PagoCobroDTO, TipoPago } from '@/types'
 import { api } from '@/services/api'
 import { formatLocalDate, todayLocalStr } from '@/utils/date'
 
@@ -86,6 +86,10 @@ function estadoFromPago(p: PagoCobroDTO): 'PAGADO' | 'PARCIAL' | 'NO_PAGADO' | '
   return 'PARCIAL'
 }
 
+function estadoFromAbono(a: AbonoCorrienteHistorialDTO): 'PAGADO' | 'PARCIAL' {
+  return a.diasParciales > 0 ? 'PARCIAL' : 'PAGADO'
+}
+
 export default function TabHistorialCobros() {
   const { usuario } = useAuthStore()
   const navigate = useNavigate()
@@ -133,6 +137,17 @@ export default function TabHistorialCobros() {
     staleTime: 30_000,
   })
 
+  const { data: abonosAdeudo = [], isLoading: isLoadingAbonos } = useQuery({
+    queryKey: ['historial-abonos-corriente', fechaDesde, fechaHasta, asesorFiltro],
+    queryFn: () =>
+      cobrosService.getHistorialAbonos({
+        fechaDesde,
+        fechaHasta,
+        asesorId: asesorFiltro,
+      }),
+    staleTime: 30_000,
+  })
+
   const pagos = data?.content ?? []
   const totalPages = data?.totalPages ?? data?.total_pages ?? 1
 
@@ -147,8 +162,24 @@ export default function TabHistorialCobros() {
     })
   }, [pagos, buscar, estadoFiltro])
 
-  const totalCobrado = filtrados.reduce((sum, p) => sum + (p.esPendiente ? 0 : Number(p.montoRecibido ?? 0)), 0)
-  const totalMultas  = filtrados.reduce((sum, p) => sum + (p.esPendiente ? 0 : Number(p.multaAplicada ?? 0)), 0)
+  const abonosFiltrados = useMemo(() => {
+    return abonosAdeudo.filter((a) => {
+      if (buscar.trim()) {
+        const q = buscar.toLowerCase()
+        if (!a.cliente.nombreCompleto.toLowerCase().includes(q)) return false
+      }
+      if (estadoFiltro === 'NO_PAGADO') return false
+      if (estadoFiltro && estadoFromAbono(a) !== estadoFiltro) return false
+      return true
+    })
+  }, [abonosAdeudo, buscar, estadoFiltro])
+
+  const totalCobradoPagos = filtrados.reduce((sum, p) => sum + (p.esPendiente ? 0 : Number(p.montoRecibido ?? 0)), 0)
+  const totalCobradoAbonos = abonosFiltrados.reduce((sum, a) => sum + Number(a.montoDistribuido ?? 0), 0)
+  const totalCobrado = totalCobradoPagos + totalCobradoAbonos
+  const totalMultasPagos = filtrados.reduce((sum, p) => sum + (p.esPendiente ? 0 : Number(p.multaAplicada ?? 0)), 0)
+  const totalMultasAbonos = abonosFiltrados.reduce((sum, a) => sum + Number(a.montoMulta ?? 0), 0)
+  const totalMultas  = totalMultasPagos + totalMultasAbonos
 
   return (
     <>
@@ -238,7 +269,7 @@ export default function TabHistorialCobros() {
       {/* ── Summary bar ── */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-          <div className="text-lg font-bold text-[#212529]">{filtrados.length}</div>
+          <div className="text-lg font-bold text-[#212529]">{filtrados.length + abonosFiltrados.length}</div>
           <div className="text-[11px] text-[#6c757d]">En esta página</div>
         </div>
         <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
@@ -251,6 +282,132 @@ export default function TabHistorialCobros() {
           </div>
           <div className="text-[11px] text-[#6c757d]">Multas aplicadas</div>
         </div>
+      </div>
+
+      {/* Abonos de adeudo */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold text-[#212529]">Abonos de adeudo</h3>
+          {abonosFiltrados.length > 0 && (
+            <span className="text-[11px] text-[#6c757d]">
+              {abonosFiltrados.length} registro{abonosFiltrados.length === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
+
+        {isLoadingAbonos ? (
+          <p className="text-[#adb5bd] text-[13px] text-center py-6">Cargando abonos...</p>
+        ) : abonosFiltrados.length === 0 ? (
+          <p className="text-[#adb5bd] text-[13px] text-center py-6 bg-[#f8f9fa] rounded-lg">
+            Sin abonos de adeudo en el periodo.
+          </p>
+        ) : (
+          <>
+            <div className="lg:hidden space-y-3">
+              {abonosFiltrados.map((a) => {
+                const estado = estadoFromAbono(a)
+                return (
+                  <div key={a.abonoId} className="card p-4 border-l-4 border-l-[#d97706]">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-semibold text-[#212529] truncate">
+                          {a.cliente.nombreCompleto}
+                        </p>
+                        <p className="text-[12px] text-[#6c757d] mt-0.5">
+                          Abono adeudo - {fmtDate(a.fecha)}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`badge ${estado === 'PAGADO' ? 'badge-verde' : 'badge-amarillo'}`}>
+                            {estado === 'PAGADO' ? 'Cubierto' : 'Parcial'}
+                          </span>
+                          <span className="text-[11px] text-[#6c757d]">
+                            {a.diasCubiertos} cubierto{a.diasCubiertos === 1 ? '' : 's'}
+                            {a.diasParciales > 0 ? `, ${a.diasParciales} parcial` : ''}
+                          </span>
+                        </div>
+                        <p className="text-[13px] font-semibold mt-1 text-[#212529]">
+                          {fmtMoney(a.montoDistribuido)}
+                          {Number(a.montoMulta ?? 0) > 0 && (
+                            <span className="text-[12px] font-normal text-[#dc2626]">
+                              {' '}incl. {fmtMoney(a.montoMulta)} multa
+                            </span>
+                          )}
+                        </p>
+                        {a.registradoPor && (
+                          <p className="text-[11px] text-[#adb5bd] mt-0.5">
+                            Registrado por: {a.registradoPor.nombreCompleto}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm text-xs shrink-0"
+                        onClick={() => navigate(`/creditos/${a.creditoId}`)}
+                      >
+                        Ver credito
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            <div className="hidden lg:block card overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th>Tipo</th>
+                      <th>Dias</th>
+                      <th className="text-right">Recibido</th>
+                      <th className="text-right">Multa</th>
+                      <th>Estado</th>
+                      <th>Fecha cobro</th>
+                      <th>Registrado</th>
+                      <th>Registrado por</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {abonosFiltrados.map((a) => {
+                      const estado = estadoFromAbono(a)
+                      return (
+                        <tr key={a.abonoId}>
+                          <td className="font-medium">{a.cliente.nombreCompleto}</td>
+                          <td className="text-[#6c757d]">Abono adeudo</td>
+                          <td className="text-[#6c757d]">
+                            {a.diasCubiertos} cubierto{a.diasCubiertos === 1 ? '' : 's'}
+                            {a.diasParciales > 0 ? `, ${a.diasParciales} parcial` : ''}
+                          </td>
+                          <td className="text-right font-semibold text-[#2d6a4f]">{fmtMoney(a.montoDistribuido)}</td>
+                          <td className="text-right text-[#dc2626]">{Number(a.montoMulta ?? 0) > 0 ? fmtMoney(a.montoMulta) : '—'}</td>
+                          <td>
+                            <span className={`badge ${estado === 'PAGADO' ? 'badge-verde' : 'badge-amarillo'}`}>
+                              {estado === 'PAGADO' ? 'Cubierto' : 'Parcial'}
+                            </span>
+                          </td>
+                          <td className="text-[#6c757d] whitespace-nowrap">{fmtDate(a.fecha)}</td>
+                          <td className="text-[12px] text-[#adb5bd] whitespace-nowrap">{fmtDateTime(a.createdAt)}</td>
+                          <td className="text-[12px] text-[#adb5bd]">{a.registradoPor?.nombreCompleto ?? '—'}</td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn btn-sm text-xs"
+                              onClick={() => navigate(`/creditos/${a.creditoId}`)}
+                            >
+                              Ver credito
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* ── Mobile: cards ── */}

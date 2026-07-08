@@ -31,11 +31,8 @@ public class CreditoService {
                         EstadoCredito.ACTIVO);
 
         // Estados que cuentan como "pago realizado" para estadísticas
-        private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS = List.of(
-                        EstadoCalendarioPago.PAGADO,
-                        EstadoCalendarioPago.PARCIAL,
-                        EstadoCalendarioPago.ADELANTADO,
-                        EstadoCalendarioPago.RECUPERADO);
+        private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS =
+                        RenovacionElegibilidadService.ESTADOS_REALIZADOS;
 
         private final CreditoRepository creditoRepo;
         private final CalendarioPagoRepository calendarioPagoRepo;
@@ -44,6 +41,7 @@ public class CreditoService {
         private final SucursalRepository sucursalRepo;
         private final CreditoCalculoService calculoService;
         private final RenovacionRepository renovacionRepo;
+        private final RenovacionElegibilidadService renovacionElegibilidadService;
 
         public CreditoService(CreditoRepository creditoRepo,
                         CalendarioPagoRepository calendarioPagoRepo,
@@ -51,7 +49,8 @@ public class CreditoService {
                         UsuarioRepository usuarioRepo,
                         SucursalRepository sucursalRepo,
                         CreditoCalculoService calculoService,
-                        RenovacionRepository renovacionRepo) {
+                        RenovacionRepository renovacionRepo,
+                        RenovacionElegibilidadService renovacionElegibilidadService) {
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
                 this.clienteRepo = clienteRepo;
@@ -59,6 +58,7 @@ public class CreditoService {
                 this.sucursalRepo = sucursalRepo;
                 this.calculoService = calculoService;
                 this.renovacionRepo = renovacionRepo;
+                this.renovacionElegibilidadService = renovacionElegibilidadService;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -462,17 +462,7 @@ public class CreditoService {
 
                 BigDecimal multasPendientes = creditoRepo.sumMultasPendientes(c.getId());
 
-                // Calcular umbral de renovación según tipo y plazo de crédito
-                int umbralRenovacion;
-                if (c.getTipoPago() == TipoPago.SEMANAL) {
-                        // Semanales: plazo en semanas (8 o 12)
-                        umbralRenovacion = c.getPlazoDias() == 12 ? 9 : 5; // pago #9 para 12 sem, pago #5 para 8 sem
-                } else {
-                        // Diarios: plazo en días (25 o 30)
-                        umbralRenovacion = c.getPlazoDias() == 30 ? 19 : 16;
-                }
-                boolean elegibleRenovacion = c.getEstado() == EstadoCredito.ACTIVO
-                                && pagosRealizados >= umbralRenovacion;
+                boolean elegibleRenovacion = renovacionElegibilidadService.esElegible(c, pagosRealizados);
 
                 CreditoDetalleDTO.Estadisticas stats = new CreditoDetalleDTO.Estadisticas(
                                 pagosRealizados,

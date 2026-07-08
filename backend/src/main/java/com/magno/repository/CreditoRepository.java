@@ -123,12 +123,8 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         "AND c.deletedAt IS NULL " +
                         "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
                         "AND (:sucursalId IS NULL OR c.sucursal.id = :sucursalId) " +
-                        "AND (SELECT COUNT(cp) FROM CalendarioPago cp WHERE cp.credito = c " +
-                        "     AND cp.estado IN :realizados) >= " +
-                        "    CASE WHEN c.plazoDias = 30 THEN 19L ELSE 16L END " +
                         "ORDER BY c.cliente.apellidoPaterno ASC, c.cliente.nombre ASC")
-        List<Credito> findListosParaRenovar(
+        List<Credito> findActivosParaEvaluarRenovacion(
                         @Param("asesorId") Long asesorId,
-                        @Param("sucursalId") Long sucursalId,
-                        @Param("realizados") List<EstadoCalendarioPago> realizados);
+                        @Param("sucursalId") Long sucursalId);
 }

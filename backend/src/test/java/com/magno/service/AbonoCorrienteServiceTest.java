@@ -29,6 +29,7 @@ class AbonoCorrienteServiceTest {
     private UsuarioRepository usuarioRepo;
     private CalendarioPagoRepository calendarioPagoRepo;
     private MultaRepository multaRepo;
+    private ConfigMultaRepository configMultaRepo;
     private CobrosService cobrosService;
 
     private AbonoCorrienteService service;
@@ -47,6 +48,7 @@ class AbonoCorrienteServiceTest {
         usuarioRepo        = mock(UsuarioRepository.class);
         calendarioPagoRepo = mock(CalendarioPagoRepository.class);
         multaRepo          = mock(MultaRepository.class);
+        configMultaRepo    = mock(ConfigMultaRepository.class);
         cobrosService      = mock(CobrosService.class);
 
         service = new AbonoCorrienteService(
@@ -56,6 +58,7 @@ class AbonoCorrienteServiceTest {
                 usuarioRepo,
                 calendarioPagoRepo,
                 multaRepo,
+                configMultaRepo,
                 cobrosService);
 
         sucursal = new Sucursal();
@@ -79,6 +82,11 @@ class AbonoCorrienteServiceTest {
         credito.setAsesor(asesor);
         credito.setCliente(cliente);
         credito.setSucursal(sucursal);
+        credito.setMontoCapital(new BigDecimal("3000.00"));
+        credito.setTipoPago(TipoPago.DIARIO);
+
+        when(multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(anyLong(), any(), eq("NO_PAGO")))
+                .thenReturn(true);
     }
 
     private CalendarioPago slot(long id, int numeroPago, LocalDate fecha, BigDecimal monto, EstadoCalendarioPago estado) {
@@ -246,6 +254,53 @@ class AbonoCorrienteServiceTest {
         assertThat(result.diasParciales()).isEqualTo(0);
         assertThat(slotParcial.getEstado()).isEqualTo(EstadoCalendarioPago.RECUPERADO);
         assertThat(slotPendiente.getEstado()).isEqualTo(EstadoCalendarioPago.RECUPERADO);
+    }
+
+    @Test
+    void generaMultaNoPagoFaltante_paraSlotVencidoSinMultaPrevia() {
+        LocalDate vencido = LocalDate.now(ZoneId.of("America/Mexico_City")).minusDays(5);
+        BigDecimal cuota = new BigDecimal("826.67");
+        CalendarioPago slotVencido = slot(123L, 23, vencido, cuota, EstadoCalendarioPago.PENDIENTE);
+        List<Multa> multasGeneradas = new java.util.ArrayList<>();
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slotVencido));
+        when(multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(42L, vencido, "NO_PAGO"))
+                .thenReturn(false);
+        when(multaRepo.save(any())).thenAnswer(inv -> {
+            Multa multa = inv.getArgument(0);
+            if (!multasGeneradas.contains(multa)) {
+                multasGeneradas.add(multa);
+            }
+            return multa;
+        });
+        when(multaRepo.findPendientesByCreditoIdAndFecha(42L, vencido))
+                .thenAnswer(inv -> multasGeneradas);
+        when(abonoCoberturaRepo.sumTotalAplicadoByCalendarioPagoId(123L)).thenReturn(BigDecimal.ZERO);
+        when(abonoCoberturaRepo.sumMontoMultaByCalendarioPagoId(123L)).thenReturn(BigDecimal.ZERO);
+
+        AbonoCorriente savedAbono = new AbonoCorriente();
+        savedAbono.setId(10L);
+        savedAbono.setCredito(credito);
+        savedAbono.setFecha(LocalDate.now(ZoneId.of("America/Mexico_City")));
+        savedAbono.setMontoTotal(new BigDecimal("876.67"));
+        savedAbono.setMontoDistribuido(new BigDecimal("876.67"));
+        savedAbono.setMontoSobrante(BigDecimal.ZERO);
+        savedAbono.setRegistradoPor(asesor);
+        when(abonoCorrienteRepo.save(any())).thenReturn(savedAbono);
+        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AbonoCorrienteRequest req = new AbonoCorrienteRequest(42L, new BigDecimal("876.67"), null);
+        AbonoCorrienteDTO result = service.registrarAbono(req, 10L);
+
+        assertThat(multasGeneradas).hasSize(1);
+        assertThat(multasGeneradas.get(0).getTipo()).isEqualTo("NO_PAGO");
+        assertThat(multasGeneradas.get(0).getMonto()).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(result.coberturas()).hasSize(1);
+        assertThat(result.coberturas().get(0).montoMulta()).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(result.coberturas().get(0).montoCuota()).isEqualByComparingTo(cuota);
+        assertThat(slotVencido.getEstado()).isEqualTo(EstadoCalendarioPago.RECUPERADO);
     }
 
     @Test

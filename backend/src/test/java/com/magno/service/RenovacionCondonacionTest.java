@@ -25,6 +25,7 @@ class RenovacionCondonacionTest {
     private UsuarioRepository usuarioRepo;
     private CreditoCalculoService calculoService;
     private ConfigUmbralRenovacionRepository configUmbralRepo;
+    private RenovacionElegibilidadService renovacionElegibilidadService;
 
     private RenovacionService service;
 
@@ -47,6 +48,7 @@ class RenovacionCondonacionTest {
         usuarioRepo       = mock(UsuarioRepository.class);
         calculoService    = mock(CreditoCalculoService.class);
         configUmbralRepo  = mock(ConfigUmbralRenovacionRepository.class);
+        renovacionElegibilidadService = new RenovacionElegibilidadService(configUmbralRepo);
 
         service = new RenovacionService(
                 renovacionRepo,
@@ -55,7 +57,7 @@ class RenovacionCondonacionTest {
                 multaRepo,
                 usuarioRepo,
                 calculoService,
-                configUmbralRepo);
+                renovacionElegibilidadService);
 
         // Sucursal
         sucursal = new Sucursal();

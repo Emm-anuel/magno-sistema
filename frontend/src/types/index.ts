@@ -546,6 +546,21 @@ export interface AbonoCorrienteDTO {
   coberturas: AbonoCoberturaDTO[]
 }
 
+export interface AbonoCorrienteHistorialDTO {
+  abonoId: number
+  creditoId: number
+  cliente: { id: number; nombreCompleto: string }
+  fecha: string
+  montoTotal: number
+  montoDistribuido: number
+  montoSobrante: number
+  montoMulta: number
+  diasCubiertos: number
+  diasParciales: number
+  registradoPor: { id: number; nombreCompleto: string } | null
+  createdAt: string | null
+}
+
 export interface AbonoCorrienteRequest {
   creditoId: number
   montoRecibido: number

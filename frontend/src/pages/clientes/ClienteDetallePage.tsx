@@ -13,8 +13,9 @@ import { creditoService } from '@/services/creditoService'
 import { cobrosService } from '@/services/cobrosService'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
+import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
 import ClienteDocumentosSection from '@/components/clientes/ClienteDocumentosSection'
-import type { CreditoResumen } from '@/types'
+import type { CreditoDetalle, CreditoResumen } from '@/types'
 
 // ── Badge de estado ───────────────────────────────────────────────
 const ESTADO_CONFIG: Record<EstadoCliente, { label: string; cls: string }> = {
@@ -117,14 +118,45 @@ function parseCoord(v: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+function todayLocalIso(): string {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function creditoTieneAdeudoPendiente(credito?: CreditoDetalle | null): boolean {
+  if (!credito) return false
+
+  const hoyIso = todayLocalIso()
+  const calendario = credito.calendario ?? []
+  const pagosVencidosVisuales = calendario.filter(
+    (p) => p.estado === 'PENDIENTE' && p.fechaProgramada?.slice(0, 10) < hoyIso,
+  ).length
+  const pagosVencidos = Math.max(credito.estadisticas.pagosVencidos ?? 0, pagosVencidosVisuales)
+  const tieneRecuperadoParcial = calendario.some((p) => p.estado === 'RECUPERADO_PARCIAL')
+
+  return pagosVencidos > 0 || tieneRecuperadoParcial || (credito.estadisticas.multasPendientes ?? 0) > 0
+}
+
 interface CreditoActivoCardProps {
   credito: CreditoResumen
   onNavigate: (path: string) => void
   puedeRegistrarCobro: boolean
+  tieneAdeudoPendiente: boolean
   onRegistrarPago?: () => void
+  onPagarAdeudo?: () => void
 }
 
-function CreditoActivoCard({ credito, onNavigate, puedeRegistrarCobro, onRegistrarPago }: CreditoActivoCardProps) {
+function CreditoActivoCard({
+  credito,
+  onNavigate,
+  puedeRegistrarCobro,
+  tieneAdeudoPendiente,
+  onRegistrarPago,
+  onPagarAdeudo,
+}: CreditoActivoCardProps) {
   const monto = safeNC(credito.montoAprobado ?? credito.montoCapital)
   const pagoPeriodico = safeNC(credito.pagoPeriodico)
   const totalPagos = safeNC(credito.totalPagos ?? credito.plazoDias)
@@ -178,7 +210,7 @@ function CreditoActivoCard({ credito, onNavigate, puedeRegistrarCobro, onRegistr
         </div>
 
         <div className="flex gap-2 pt-1">
-          {puedeRegistrarCobro && (
+          {puedeRegistrarCobro && !tieneAdeudoPendiente && (
             <button
               type="button"
               className="btn flex-1 py-2 text-sm"
@@ -187,9 +219,18 @@ function CreditoActivoCard({ credito, onNavigate, puedeRegistrarCobro, onRegistr
               Registrar Pago
             </button>
           )}
+          {puedeRegistrarCobro && tieneAdeudoPendiente && onPagarAdeudo && (
+            <button
+              type="button"
+              className="btn-primary flex-1 py-2 text-sm"
+              onClick={onPagarAdeudo}
+            >
+              Pagar adeudo
+            </button>
+          )}
           <button
             type="button"
-            className={`btn-primary py-2 text-sm ${puedeRegistrarCobro ? 'flex-1' : 'w-full'}`}
+            className={`${puedeRegistrarCobro ? 'btn flex-1' : 'btn-primary w-full'} py-2 text-sm`}
             onClick={() => onNavigate(`/creditos/${credito.id}`)}
           >
             Ver crédito
@@ -208,6 +249,7 @@ export default function ClienteDetallePage() {
   const [tab, setTab] = useState<Tab>('datos')
   const [editOpen, setEditOpen] = useState(false)
   const [pagoModalOpen, setPagoModalOpen] = useState(false)
+  const [adeudoModalOpen, setAdeudoModalOpen] = useState(false)
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const esAsesor = usuario?.rol === 'ASESOR_COBRADOR'
@@ -239,10 +281,24 @@ export default function ClienteDetallePage() {
     staleTime: 30_000,
   })
 
+  const { data: ultimosAbonosAdeudo = [] } = useQuery({
+    queryKey: ['historial-abonos-cliente', Number(id)],
+    queryFn: () => cobrosService.getHistorialAbonos({ clienteId: Number(id) }),
+    enabled: !!id && tab === 'historial',
+    staleTime: 30_000,
+  })
+
   const creditoActivo = creditosData?.find((c) => c.estado === 'ACTIVO') ?? null
   const creditoEnProceso = creditosData?.find(
     (c) => c.estado === 'SOLICITADO' || c.estado === 'APROBADO'
   ) ?? null
+
+  const { data: creditoActivoDetalle } = useQuery({
+    queryKey: ['credito', creditoActivo?.id],
+    queryFn: () => creditoService.obtener(creditoActivo!.id),
+    enabled: !!creditoActivo,
+    staleTime: 30_000,
+  })
 
   const { data: asesores = [] } = useQuery({
     queryKey: ['asesores-list', usuario?.id, usuario?.rol],
@@ -290,6 +346,9 @@ export default function ClienteDetallePage() {
   const negocioLat = parseCoord(cliente.negocio_lat)
   const negocioLng = parseCoord(cliente.negocio_lng)
   const tieneUbicacionNegocio = negocioLat != null && negocioLng != null && (negocioLat !== 0 || negocioLng !== 0)
+  const tieneAdeudoCreditoActivo = creditoActivoDetalle
+    ? creditoTieneAdeudoPendiente(creditoActivoDetalle)
+    : cliente.estado_cliente === 'EN_MORA'
 
   return (
     <div className="space-y-4">
@@ -350,7 +409,9 @@ export default function ClienteDetallePage() {
           credito={creditoActivo}
           onNavigate={navigate}
           puedeRegistrarCobro={puedeRegistrarCobro}
+          tieneAdeudoPendiente={tieneAdeudoCreditoActivo}
           onRegistrarPago={puedeRegistrarCobro ? () => setPagoModalOpen(true) : undefined}
+          onPagarAdeudo={puedeRegistrarCobro ? () => setAdeudoModalOpen(true) : undefined}
         />
       ) : creditoEnProceso ? (
         <div className="card border-l-4 border-l-amber-400 p-4 flex items-center justify-between flex-wrap gap-3">
@@ -684,6 +745,74 @@ export default function ClienteDetallePage() {
                   </div>
                 </div>
               )}
+
+              {ultimosAbonosAdeudo.length > 0 && (
+                <div className="mt-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-[12px] font-semibold text-[#adb5bd] uppercase tracking-wide">
+                      Ultimos abonos de adeudo
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-sm text-xs"
+                      onClick={() => navigate('/historial')}
+                    >
+                      Ver historial completo
+                    </button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="tabla text-[12px]">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Dias</th>
+                          <th className="text-right">Monto</th>
+                          <th className="text-right">Multa</th>
+                          <th>Estado</th>
+                          <th>Registrado por</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ultimosAbonosAdeudo.slice(0, 10).map((a) => {
+                          const esParcial = a.diasParciales > 0
+                          return (
+                            <tr key={a.abonoId}>
+                              <td className="text-[#6c757d] whitespace-nowrap">
+                                {new Date(a.fecha + 'T12:00:00').toLocaleDateString('es-MX', {
+                                  day: '2-digit', month: 'short', year: 'numeric',
+                                })}
+                              </td>
+                              <td className="text-[#6c757d]">
+                                {a.diasCubiertos} cubierto{a.diasCubiertos === 1 ? '' : 's'}
+                                {a.diasParciales > 0 ? `, ${a.diasParciales} parcial` : ''}
+                              </td>
+                              <td className="text-right font-semibold text-[#2d6a4f]">
+                                {fmtMoney(a.montoDistribuido)}
+                              </td>
+                              <td className="text-right text-[#dc2626]">
+                                {Number(a.montoMulta ?? 0) > 0 ? fmtMoney(a.montoMulta) : '—'}
+                              </td>
+                              <td>
+                                <span className={`badge ${esParcial ? 'badge-amarillo' : 'badge-verde'}`}>
+                                  {esParcial ? 'Parcial' : 'Cubierto'}
+                                </span>
+                              </td>
+                              <td className="text-[#6c757d]">
+                                {a.registradoPor?.nombreCompleto ?? '—'}
+                                {a.createdAt && (
+                                  <span className="text-[10px] text-[#adb5bd]">
+                                    {' · '}Reg: {fmtDateTime(a.createdAt)}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -723,6 +852,19 @@ export default function ClienteDetallePage() {
           onSuccess={() => {
             setPagoModalOpen(false)
             qc.invalidateQueries({ queryKey: ['creditos-cliente', Number(id)] })
+          }}
+        />
+      )}
+
+      {adeudoModalOpen && creditoActivo && (
+        <ModalPagarAdeudo
+          creditoId={creditoActivo.id}
+          nombreCliente={cliente.nombre_completo}
+          onClose={() => setAdeudoModalOpen(false)}
+          onSuccess={() => {
+            setAdeudoModalOpen(false)
+            qc.invalidateQueries({ queryKey: ['creditos-cliente', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['credito', creditoActivo.id] })
           }}
         />
       )}

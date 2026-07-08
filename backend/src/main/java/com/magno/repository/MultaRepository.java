@@ -82,4 +82,9 @@ public interface MultaRepository extends JpaRepository<Multa, Long> {
        List<Multa> findPendientesByCreditoIdAndFecha(
                      @Param("creditoId") Long creditoId,
                      @Param("fecha") LocalDate fecha);
+
+       boolean existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(
+                     Long creditoId,
+                     LocalDate fecha,
+                     String tipo);
 }

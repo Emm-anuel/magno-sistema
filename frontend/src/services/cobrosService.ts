@@ -7,6 +7,7 @@ import type {
   PagoCobroDTO,
   MultaCobroDTO,
   AbonoCorrienteDTO,
+  AbonoCorrienteHistorialDTO,
   AbonoCorrienteRequest,
   Page,
 } from '@/types'
@@ -114,6 +115,35 @@ function normalizeMulta(raw: any): MultaCobroDTO {
   }
 }
 
+function normalizeAbonoHistorial(raw: any): AbonoCorrienteHistorialDTO {
+  const cliente = raw.cliente ?? {}
+  const registradoPor = raw.registradoPor ?? raw.registrado_por
+
+  return {
+    abonoId: raw.abonoId ?? raw.abono_id,
+    creditoId: raw.creditoId ?? raw.credito_id,
+    cliente: {
+      id: cliente.id,
+      nombreCompleto: cliente.nombreCompleto ?? cliente.nombre_completo,
+    },
+    fecha: raw.fecha,
+    montoTotal: raw.montoTotal ?? raw.monto_total ?? 0,
+    montoDistribuido: raw.montoDistribuido ?? raw.monto_distribuido ?? 0,
+    montoSobrante: raw.montoSobrante ?? raw.monto_sobrante ?? 0,
+    montoMulta: raw.montoMulta ?? raw.monto_multa ?? 0,
+    diasCubiertos: raw.diasCubiertos ?? raw.dias_cubiertos ?? 0,
+    diasParciales: raw.diasParciales ?? raw.dias_parciales ?? 0,
+    registradoPor: registradoPor
+      ? {
+          id: registradoPor.id,
+          nombreCompleto:
+            registradoPor.nombreCompleto ?? registradoPor.nombre_completo,
+        }
+      : null,
+    createdAt: raw.createdAt ?? raw.created_at ?? null,
+  }
+}
+
 function normalizePage<T>(raw: any, mapItem: (item: any) => T): Page<T> {
   return {
     content: (raw.content ?? []).map(mapItem),
@@ -153,6 +183,16 @@ export const cobrosService = {
       .get<any>('/cobros/historial', { params })
       .then((r) => normalizePage(r.data, normalizePago)),
 
+  getHistorialAbonos: (params?: {
+    asesorId?: number
+    clienteId?: number
+    fechaDesde?: string
+    fechaHasta?: string
+  }): Promise<AbonoCorrienteHistorialDTO[]> =>
+    api
+      .get<any[]>('/cobros/abono-corriente/historial', { params })
+      .then((r) => (r.data ?? []).map(normalizeAbonoHistorial)),
+
   getPagosPorCliente: (clienteId: number): Promise<PagoCobroDTO[]> =>
     api
       .get<any[]>(`/cobros/cliente/${clienteId}`)
@@ -161,6 +201,16 @@ export const cobrosService = {
   getMultasPorCredito: (creditoId: number): Promise<MultaCobroDTO[]> =>
     api
       .get<any[]>(`/cobros/multas/${creditoId}`)
+      .then((r) => (r.data ?? []).map(normalizeMulta)),
+
+  getPreviewMultasAbono: (creditoId: number, fechaPago?: string): Promise<MultaCobroDTO[]> =>
+    api
+      .get<any[]>('/cobros/abono-corriente/preview-multas', {
+        params: {
+          credito_id: creditoId,
+          fecha_pago: fechaPago,
+        },
+      })
       .then((r) => (r.data ?? []).map(normalizeMulta)),
 
   registrarAbonoCorrente: (req: AbonoCorrienteRequest): Promise<AbonoCorrienteDTO> =>

@@ -44,11 +44,8 @@ public class RenovacionService {
                         EstadoCalendarioPago.PARCIAL,
                         EstadoCalendarioPago.RECUPERADO_PARCIAL);
 
-        private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS = List.of(
-                        EstadoCalendarioPago.PAGADO,
-                        EstadoCalendarioPago.PARCIAL,
-                        EstadoCalendarioPago.ADELANTADO,
-                        EstadoCalendarioPago.RECUPERADO);
+        private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS =
+                        RenovacionElegibilidadService.ESTADOS_REALIZADOS;
 
         private final RenovacionRepository renovacionRepo;
         private final CreditoRepository creditoRepo;
@@ -56,7 +53,7 @@ public class RenovacionService {
         private final MultaRepository multaRepo;
         private final UsuarioRepository usuarioRepo;
         private final CreditoCalculoService calculoService;
-        private final ConfigUmbralRenovacionRepository configUmbralRepo;
+        private final RenovacionElegibilidadService renovacionElegibilidadService;
 
         public RenovacionService(RenovacionRepository renovacionRepo,
                         CreditoRepository creditoRepo,
@@ -64,14 +61,14 @@ public class RenovacionService {
                         MultaRepository multaRepo,
                         UsuarioRepository usuarioRepo,
                         CreditoCalculoService calculoService,
-                        ConfigUmbralRenovacionRepository configUmbralRepo) {
+                        RenovacionElegibilidadService renovacionElegibilidadService) {
                 this.renovacionRepo = renovacionRepo;
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
                 this.multaRepo = multaRepo;
                 this.usuarioRepo = usuarioRepo;
                 this.calculoService = calculoService;
-                this.configUmbralRepo = configUmbralRepo;
+                this.renovacionElegibilidadService = renovacionElegibilidadService;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -89,7 +86,7 @@ public class RenovacionService {
 
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(creditoId, ESTADOS_REALIZADOS);
 
-                int umbral = resolverUmbral(credito);
+                int umbral = renovacionElegibilidadService.resolverUmbral(credito);
                 boolean elegible = pagosRealizados >= umbral;
                 if (!elegible) {
                         throw new IllegalArgumentException(
@@ -169,7 +166,7 @@ public class RenovacionService {
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 req.creditoAnteriorId(), ESTADOS_REALIZADOS);
 
-                int umbral = resolverUmbral(creditoAnterior);
+                int umbral = renovacionElegibilidadService.resolverUmbral(creditoAnterior);
                 if (pagosRealizados < umbral) {
                         throw new IllegalArgumentException(
                                         "El cliente no es elegible para renovación. Pagos realizados: "
@@ -585,13 +582,15 @@ public class RenovacionService {
         // ────────────────────────────────────────────────────────────────────
 
         public List<ListoRenovarItemDTO> getListosParaRenovar(Long asesorId, Long sucursalId) {
-                List<EstadoCalendarioPago> realizados = List.of(
-                                EstadoCalendarioPago.PAGADO,
-                                EstadoCalendarioPago.PARCIAL,
-                                EstadoCalendarioPago.ADELANTADO);
+                List<EstadoCalendarioPago> realizados = ESTADOS_REALIZADOS;
 
-                return creditoRepo.findListosParaRenovar(asesorId, sucursalId, realizados)
+                return creditoRepo.findActivosParaEvaluarRenovacion(asesorId, sucursalId)
                                 .stream()
+                                .filter(c -> {
+                                        long pagosRealizados = calendarioPagoRepo
+                                                        .countByCreditoIdAndEstadoIn(c.getId(), realizados);
+                                        return renovacionElegibilidadService.esElegible(c, pagosRealizados);
+                                })
                                 .filter(c -> !renovacionRepo.existsByCreditoAnteriorIdAndEstadoAndDeletedAtIsNull(
                                                 c.getId(), EstadoRenovacion.SOLICITADO))
                                 .map(c -> {
@@ -737,18 +736,4 @@ public class RenovacionService {
                 return fecha.with(DayOfWeek.MONDAY);
         }
 
-        private int resolverUmbral(Credito credito) {
-                String tipoPagoStr = credito.getTipoPago() == TipoPago.SEMANAL ? "SEMANAL" : "DIARIO";
-                return configUmbralRepo
-                                .findBySucursalIdAndTipoPagoAndPlazo(
-                                                credito.getSucursal().getId(), tipoPagoStr, credito.getPlazoDias())
-                                .map(ConfigUmbralRenovacion::getUmbralPagos)
-                                .orElseGet(() -> {
-                                        if (credito.getTipoPago() == TipoPago.SEMANAL) {
-                                                return credito.getPlazoDias() == 12 ? 9 : 5;
-                                        } else {
-                                                return credito.getPlazoDias() == 30 ? 19 : 16;
-                                        }
-                                });
-        }
 }
