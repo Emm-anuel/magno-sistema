@@ -148,4 +148,45 @@ class CobrosServiceTest {
         assertThat(c.multasPendientes()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(c.tieneAdeudoPendiente()).isTrue();
     }
+
+    @Test
+    void resumenIncluyeTotalCobradoParaCardsDeHistorial() {
+        credito.setFechaVencimiento(LocalDate.of(2026, 7, 31));
+
+        CalendarioPago calendarioHoy = CalendarioPago.builder()
+                .id(2L)
+                .numeroPago(7)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        Pago pagoHoy = Pago.builder()
+                .id(77L)
+                .credito(credito)
+                .cliente(cliente)
+                .asesor(asesor)
+                .calendarioPago(calendarioHoy)
+                .numeroPago(7)
+                .fechaPago(HOY)
+                .montoRecibido(new BigDecimal("200.00"))
+                .montoEsperado(new BigDecimal("156.00"))
+                .esCompleto(true)
+                .multaAplicada(new BigDecimal("50.00"))
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of());
+        when(pagoRepo.findBySucursalAndAsesorIdAndFecha(eq(1L), isNull(), eq(HOY)))
+                .thenReturn(List.of(pagoHoy));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(calendarioHoy));
+        when(multaRepo.sumMontosPendientesByCreditoId(42L)).thenReturn(BigDecimal.ZERO);
+
+        RutaDiaDTO result = service.getRutaDia(null, 1L, HOY, "ADMINISTRADOR", 10L, 1L);
+
+        assertThat(result.resumen().totalCaja()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.resumen().totalRuta()).isEqualByComparingTo(new BigDecimal("200.00"));
+        assertThat(result.resumen().totalMultasCobradas()).isEqualByComparingTo(new BigDecimal("50.00"));
+    }
 }

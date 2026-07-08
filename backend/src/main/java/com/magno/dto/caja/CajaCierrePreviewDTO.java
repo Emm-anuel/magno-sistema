@@ -25,6 +25,7 @@ public record CajaCierrePreviewDTO(
         // Libres
         BigDecimal porcentajeAhorro,
         BigDecimal montoLibres,
+        BigDecimal total,
         BigDecimal ahorroFijo,
         BigDecimal totalGastos,
         BigDecimal totalNomina,

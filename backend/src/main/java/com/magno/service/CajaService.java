@@ -281,6 +281,8 @@ public class CajaService {
                                                                 : null,
                                                 c.getFechaHoraCierre(),
                                                 c.getSubtotalCaja(),
+                                                c.getMontoLibres(),
+                                                calcularTotal(c.getSubtotalCaja(), c.getMontoLibres()),
                                                 c.getEstado().name()))
                                 .toList();
         }
@@ -328,6 +330,7 @@ public class CajaService {
 
                 BigDecimal montoLibres = config.getPorcentajeAhorro().multiply(totalIngresoCarteras)
                                 .setScale(2, RoundingMode.HALF_UP);
+                BigDecimal total = calcularTotal(subtotalCaja, montoLibres);
                 BigDecimal ahorroFijo = config.getMontoAhorroFijo();
                 BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId()))
                                 .orElse(BigDecimal.ZERO);
@@ -363,6 +366,7 @@ public class CajaService {
                                 subtotalCaja,
                                 config.getPorcentajeAhorro(),
                                 montoLibres,
+                                total,
                                 ahorroFijo,
                                 totalGastos,
                                 totalNomina,
@@ -459,6 +463,14 @@ public class CajaService {
                 doc.add(new Paragraph(" "));
 
                 // ── Gastos operativos ────────────────────────────────────────────
+                doc.add(sectionHeader("TOTAL"));
+                if (caja.getSubtotalCaja() != null && caja.getMontoLibres() != null) {
+                        BigDecimal total = calcularTotal(caja.getSubtotalCaja(), caja.getMontoLibres());
+                        doc.add(new Paragraph("Subtotal caja - Monto Libres = " + fmtMonto(total))
+                                        .setBold().setFontSize(12));
+                }
+                doc.add(new Paragraph(" "));
+
                 List<Gasto> gastos = gastoRepo.findByCajaDiaIdAndDeletedAtIsNullOrderByCreatedAtAsc(cajaId);
                 if (!gastos.isEmpty()) {
                         doc.add(sectionHeader("GASTOS OPERATIVOS"));
@@ -539,11 +551,19 @@ public class CajaService {
                                 c.getDesembolsos(),
                                 c.getSubtotalCaja(),
                                 c.getMontoLibres(),
+                                calcularTotal(c.getSubtotalCaja(), c.getMontoLibres()),
                                 c.getAhorroFijo(),
                                 c.getTotalGastos(),
                                 c.getTotalNomina(),
                                 c.getTotalRealLibres(),
                                 inversiones);
+        }
+
+        private static BigDecimal calcularTotal(BigDecimal subtotalCaja, BigDecimal montoLibres) {
+                if (subtotalCaja == null || montoLibres == null) {
+                        return null;
+                }
+                return subtotalCaja.subtract(montoLibres);
         }
 
         private MovimientoInversionDTO toMovimientoDTO(CajaMovimientoInversion m) {

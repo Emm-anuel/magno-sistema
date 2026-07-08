@@ -86,7 +86,7 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
   const tileSource = useMemo(() => TILE_SOURCES[tileIndex], [tileIndex])
   const tilesUnavailable = tileIndex >= TILE_SOURCES.length - 1 && lastTileSourceFailed
 
-  // Obtener ubicación actual como default si no hay pin y no es readOnly
+  // Obtener ubicacion actual como default si no hay pin y no es readOnly.
   useEffect(() => {
     if (hasPin || readOnly || geoattempted) return
 
@@ -98,7 +98,7 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
         onChange(pos.coords.latitude, pos.coords.longitude)
       },
       () => {
-        // Silenciar errores de geolocalización
+        // Silenciar errores de geolocalizacion.
       },
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 300000 },
     )
@@ -123,14 +123,14 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
       const res = await fetch(`/geocode/search?${params.toString()}`)
 
       if (!res.ok) {
-        throw new Error('No se pudo buscar la dirección')
+        throw new Error('No se pudo buscar la direccion')
       }
 
       const data = (await res.json()) as GeocodeResult[]
       setSearchResults(Array.isArray(data) ? data : [])
 
       if (!data || data.length === 0) {
-        setSearchError('Sin resultados para esa búsqueda')
+        setSearchError('Sin resultados para esa busqueda')
       }
     } catch {
       setSearchError('No se pudo consultar el buscador de ubicaciones')
@@ -149,26 +149,6 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
     setSearchQuery(result.display_name)
   }
 
-  const handleGeolocate = () => {
-    if (!navigator.geolocation) return
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setSearchError('')
-        onChange(pos.coords.latitude, pos.coords.longitude)
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          setSearchError('Permiso de ubicación denegado. Actívalo en la configuración del navegador.')
-        } else if (err.code === err.POSITION_UNAVAILABLE) {
-          setSearchError('No se pudo obtener la ubicación. Verifica tu conexión o GPS.')
-        } else {
-          setSearchError('No se pudo obtener la ubicación (tiempo de espera agotado).')
-        }
-      },
-      { enableHighAccuracy: true, timeout: 8000 },
-    )
-  }
-
   return (
     <div className="space-y-2">
       {!readOnly && (
@@ -185,7 +165,7 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
                 }
               }}
               className="input"
-              placeholder="Buscar dirección o colonia"
+              placeholder="Buscar direccion o colonia"
             />
             <button
               type="button"
@@ -258,7 +238,7 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
 
         {tilesUnavailable && (
           <div className="absolute inset-x-3 bottom-3 rounded-md bg-white/90 border border-[#e9ecef] px-2 py-1 text-[11px] text-[#6c757d]">
-            No se pudieron cargar los mosaicos del mapa. Aún así puedes marcar la ubicación con clic o con "Mi ubicación".
+            No se pudieron cargar los mosaicos del mapa. Aun asi puedes marcar la ubicacion con clic.
           </div>
         )}
       </div>
@@ -267,14 +247,9 @@ export default function BusinessMap({ lat, lng, onChange, readOnly = false }: Bu
         <div className="flex items-center gap-2 flex-wrap">
           <p className="text-[11px] text-[#6c757d] flex-1 min-w-0">
             {hasPin
-              ? `Pin: ${lat!.toFixed(5)}, ${lng!.toFixed(5)} — Haz clic para mover`
-              : 'Haz clic en el mapa para marcar la ubicación del negocio'}
+              ? `Pin: ${lat!.toFixed(5)}, ${lng!.toFixed(5)} - Haz clic para mover`
+              : 'Haz clic en el mapa para marcar la ubicacion del negocio'}
           </p>
-          {'geolocation' in navigator && (
-            <button type="button" onClick={handleGeolocate} className="btn btn-sm text-xs shrink-0">
-              Mi ubicación
-            </button>
-          )}
           {hasPin && (
             <button
               type="button"

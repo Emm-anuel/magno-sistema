@@ -741,8 +741,13 @@ public class CobrosService {
                 .map(p -> Optional.ofNullable(p.getMultaAplicada()).orElse(BigDecimal.ZERO))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        BigDecimal totalCobrado = pagosHoy.stream()
+                .map(p -> Optional.ofNullable(p.getMontoRecibido()).orElse(BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return new RutaDiaDTO.Resumen(
                 totalClientes, cobrados, noPagaron, sinRegistrar, inhabiles,
+                BigDecimal.ZERO, totalCobrado,
                 totalMultasCobradas);
     }
 }

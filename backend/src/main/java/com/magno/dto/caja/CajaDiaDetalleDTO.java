@@ -23,6 +23,7 @@ public record CajaDiaDetalleDTO(
         BigDecimal desembolsos,
         BigDecimal subtotalCaja,
         BigDecimal montoLibres,
+        BigDecimal total,
         BigDecimal ahorroFijo,
         BigDecimal totalGastos,
         BigDecimal totalNomina,

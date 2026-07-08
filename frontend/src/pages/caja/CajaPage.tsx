@@ -128,6 +128,10 @@ function ConfirmCierreModal({
               <span className="text-[#6c757d]">Monto Libres</span>
               <span className="font-mono">{fmtMoney(preview.montoLibres)}</span>
             </div>
+            <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
+              <span className="font-semibold text-[#0d6efd]">Total</span>
+              <span className="font-mono font-semibold text-[#0d6efd]">{fmtMoney(preview.total)}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-[#6c757d]">− Ahorro fijo</span>
               <span className="font-mono text-[#dc2626]">−{fmtMoney(preview.ahorroFijo)}</span>
@@ -232,6 +236,7 @@ function CajaCerradaView({
     ['Desembolsos',       caja.desembolsos,       false],
     ['Subtotal caja',     caja.subtotalCaja,      true],
     ['Monto Libres',      caja.montoLibres,       false],
+    ['Total',             caja.total,             true],
     ['Ahorro fijo',       caja.ahorroFijo,        false],
     ...((caja.totalGastos ?? 0) > 0
       ? [['Gastos operativos', caja.totalGastos, false] as [string, number | null, boolean]]
@@ -748,6 +753,7 @@ export default function CajaPage() {
                         <th>Estado</th>
                         <th>Cerrada por</th>
                         <th className="text-right">Subtotal</th>
+                        <th className="text-right">Total</th>
                         <th className="w-28"></th>
                       </tr>
                     </thead>
@@ -775,6 +781,7 @@ export default function CajaPage() {
                               </td>
                               <td className="text-[#6c757d]">{h.cerradaPorNombre ?? '—'}</td>
                               <td className="text-right font-mono">{fmtMoney(h.subtotalCaja)}</td>
+                              <td className="text-right font-mono font-semibold">{fmtMoney(h.total)}</td>
                               <td>
                                 <div className="flex items-center justify-end gap-2">
                                   {h.estado === 'CERRADA' && (
@@ -821,7 +828,7 @@ export default function CajaPage() {
 
                             {selectedCajaId === h.id && histDetalle && (
                               <tr>
-                                <td colSpan={5} className="bg-[#f8f9fa] px-4 py-3">
+                                <td colSpan={6} className="bg-[#f8f9fa] px-4 py-3">
                                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12px]">
                                     <div>
                                       <span className="text-[#6c757d]">Ingreso carteras</span>
@@ -838,6 +845,10 @@ export default function CajaPage() {
                                     <div>
                                       <span className="text-[#6c757d]">Monto Libres</span>
                                       <div className="font-mono font-medium">{fmtMoney(histDetalle.montoLibres)}</div>
+                                    </div>
+                                    <div>
+                                      <span className="text-[#6c757d]">Total</span>
+                                      <div className="font-mono font-semibold text-[#0d6efd]">{fmtMoney(histDetalle.total)}</div>
                                     </div>
                                     <div>
                                       <span className="text-[#6c757d]">Ahorro fijo</span>
@@ -1099,6 +1110,10 @@ export default function CajaPage() {
                         <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
                           <span className="font-bold text-[#0d6efd]">Subtotal Caja</span>
                           <span className="font-bold font-mono text-[#0d6efd]">{fmtMoney(preview.subtotalCaja)}</span>
+                        </div>
+                        <div className="flex justify-between pt-1.5 border-t border-[#dee2e6]">
+                          <span className="font-bold text-[#15803d]">Total</span>
+                          <span className="font-bold font-mono text-[#15803d]">{fmtMoney(preview.total)}</span>
                         </div>
                       </div>
                     </div>

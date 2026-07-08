@@ -12,5 +12,7 @@ public record CajaDiaResumenDTO(
         String cerradaPorNombre,
         OffsetDateTime fechaHoraCierre,
         BigDecimal subtotalCaja,
+        BigDecimal montoLibres,
+        BigDecimal total,
         String estado
 ) {}

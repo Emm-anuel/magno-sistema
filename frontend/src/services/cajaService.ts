@@ -25,6 +25,7 @@ export interface CajaCierrePreview {
   subtotalCaja: number
   porcentajeAhorro: number
   montoLibres: number
+  total: number
   ahorroFijo: number
   totalGastos: number
   totalNomina: number
@@ -43,6 +44,8 @@ export interface CajaDiaResumen {
   cerradaPorNombre: string | null
   fechaHoraCierre: string | null
   subtotalCaja: number | null
+  montoLibres: number | null
+  total: number | null
   estado: string
 }
 
@@ -108,6 +111,7 @@ export interface CajaDiaDetalle {
   desembolsos: number | null
   subtotalCaja: number | null
   montoLibres: number | null
+  total: number | null
   ahorroFijo: number | null
   totalGastos: number | null
   totalNomina: number | null
@@ -163,6 +167,7 @@ function normalizeDetalle(raw: any): CajaDiaDetalle {
     desembolsos:         raw?.desembolsos      != null ? Number(raw.desembolsos)      : null,
     subtotalCaja:        raw?.subtotalCaja     != null ? Number(raw.subtotalCaja)     : null,
     montoLibres:         raw?.montoLibres      != null ? Number(raw.montoLibres)      : null,
+    total:               raw?.total            != null ? Number(raw.total)            : null,
     ahorroFijo:          raw?.ahorroFijo       != null ? Number(raw.ahorroFijo)       : null,
     totalGastos:         raw?.totalGastos      != null ? Number(raw.totalGastos)      : null,
     totalNomina:         raw?.totalNomina      != null ? Number(raw.totalNomina)      : null,
@@ -209,6 +214,8 @@ export const cajaService = {
          cerradaPorNombre: raw.cerradaPorNombre ?? null,
          fechaHoraCierre:  raw.fechaHoraCierre ?? null,
          subtotalCaja:     raw.subtotalCaja != null ? Number(raw.subtotalCaja) : null,
+         montoLibres:      raw.montoLibres != null ? Number(raw.montoLibres) : null,
+         total:            raw.total != null ? Number(raw.total) : null,
          estado:           raw.estado ?? '',
        }))),
 
@@ -232,6 +239,7 @@ export const cajaService = {
            subtotalCaja:              Number(d.subtotalCaja ?? 0),
            porcentajeAhorro:          Number(d.porcentajeAhorro ?? 0),
            montoLibres:               Number(d.montoLibres ?? 0),
+           total:                     Number(d.total ?? 0),
            ahorroFijo:                Number(d.ahorroFijo ?? 0),
            totalGastos:               Number(d.totalGastos ?? 0),
            totalNomina:               Number(d.totalNomina ?? 0),

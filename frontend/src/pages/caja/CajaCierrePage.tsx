@@ -153,6 +153,7 @@ function CajaCerradaView({
           <SummaryItem label="Desembolsos" value={fmtMoney(caja.desembolsos)} />
           <SummaryItem label="Subtotal caja" value={fmtMoney(caja.subtotalCaja)} bold />
           <SummaryItem label="Monto Libres" value={fmtMoney(caja.montoLibres)} />
+          <SummaryItem label="Total" value={fmtMoney(caja.total)} bold />
           <SummaryItem label="Ahorro fijo" value={fmtMoney(caja.ahorroFijo)} />
           {(caja.totalGastos ?? 0) > 0 && (
             <SummaryItem label="Gastos operativos" value={fmtMoney(caja.totalGastos)} />
@@ -379,6 +380,12 @@ export default function CajaCierrePage() {
                 <span className="text-[16px] font-bold text-[#15803d]">= Subtotal Caja</span>
                 <span className="text-[16px] font-bold font-mono text-[#15803d]">
                   {fmtMoney(preview.subtotalCaja)}
+                </span>
+              </div>
+              <div className="flex justify-between pt-2 border-t border-[#dee2e6]">
+                <span className="text-[16px] font-bold text-[#0d6efd]">= Total</span>
+                <span className="text-[16px] font-bold font-mono text-[#0d6efd]">
+                  {fmtMoney(preview.total)}
                 </span>
               </div>
             </div>
