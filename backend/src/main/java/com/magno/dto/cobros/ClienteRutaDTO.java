@@ -34,6 +34,7 @@ public record ClienteRutaDTO(
         BigDecimal montoRecibidoHoy, // si ya registró, cuánto recibió
         BigDecimal multasPendientes, // suma de multas no cobradas de este crédito
         String razonNoPago, // para tooltip en UI
-        Long pagoIdHoy // id del pago registrado hoy (para PATCH)
+        Long pagoIdHoy, // id del pago registrado hoy (para PATCH)
+        boolean tieneAdeudoPendiente // hay días atrasados sin resolver o multas, con o sin "no pago" registrado
 ) {
 }

@@ -31,6 +31,7 @@ function normalizeClienteRuta(raw: any): ClienteRuta {
     multasPendientes: raw.multasPendientes ?? raw.multas_pendientes ?? 0,
     razonNoPago: raw.razonNoPago ?? raw.razon_no_pago ?? null,
     pagoIdHoy: raw.pagoIdHoy ?? raw.pago_id_hoy ?? null,
+    tieneAdeudoPendiente: raw.tieneAdeudoPendiente ?? raw.tiene_adeudo_pendiente ?? false,
   }
 }
 

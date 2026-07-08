@@ -97,35 +97,39 @@ public class CobrosService {
         for (Credito credito : creditosActivos) {
             Cliente cliente = credito.getCliente();
 
+            List<CalendarioPago> calendarioCredito = calendarioPagoRepo
+                    .findByCreditoIdOrderByNumeroPago(credito.getId());
+
             // Buscar el pago del calendario correspondiente a esta fecha
-            Optional<CalendarioPago> cpOpt = calendarioPagoRepo
-                    .findByCreditoIdOrderByNumeroPago(credito.getId())
-                    .stream()
+            Optional<CalendarioPago> cpOpt = calendarioCredito.stream()
                     .filter(cp -> cp.getFechaProgramada().equals(fecha))
                     .findFirst();
 
+            BigDecimal multasPendientesCredito = Optional.ofNullable(
+                    multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
+                    .orElse(BigDecimal.ZERO);
+            boolean tieneAdeudoPendiente = multasPendientesCredito.compareTo(BigDecimal.ZERO) > 0
+                    || tieneCalendarioAdeudo(calendarioCredito, fecha);
+
             // Si la fecha no está en el calendario, puede ser día inhábil o fin de semana
             if (cpOpt.isEmpty() && esDiaInhabil) {
-                clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
+                clientesRuta.add(buildClienteRutaInhabil(cliente, credito, tieneAdeudoPendiente));
                 continue;
             }
             if (cpOpt.isEmpty()) {
                 // Fecha no programada (podría ser fin de semana)
                 if (fecha.getDayOfWeek() == DayOfWeek.SATURDAY
                         || fecha.getDayOfWeek() == DayOfWeek.SUNDAY) {
-                    clientesRuta.add(buildClienteRutaInhabil(cliente, credito));
+                    clientesRuta.add(buildClienteRutaInhabil(cliente, credito, tieneAdeudoPendiente));
                     continue;
                 }
                 // Puede ser que (a) ya completó todos los pagos, o (b) el crédito
-                // está vencido y todavía tiene adeudo pendiente (multas sin cobrar)
+                // está vencido y todavía tiene adeudo pendiente (con o sin multa
+                // generada — puede que nadie haya registrado "no pago" todavía)
                 if (credito.getFechaVencimiento() != null
-                        && credito.getFechaVencimiento().isBefore(fecha)) {
-                    BigDecimal multasPendientesVencido = Optional.ofNullable(
-                            multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
-                            .orElse(BigDecimal.ZERO);
-                    if (multasPendientesVencido.compareTo(BigDecimal.ZERO) > 0) {
-                        clientesRuta.add(buildClienteRutaVencido(cliente, credito, multasPendientesVencido));
-                    }
+                        && credito.getFechaVencimiento().isBefore(fecha)
+                        && tieneAdeudoPendiente) {
+                    clientesRuta.add(buildClienteRutaVencido(cliente, credito, multasPendientesCredito));
                 }
                 continue;
             }
@@ -137,9 +141,7 @@ public class CobrosService {
                     .filter(p -> p.getCredito().getId().equals(credito.getId()))
                     .findFirst();
 
-            BigDecimal multasPendientes = Optional.ofNullable(
-                    multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
-                    .orElse(BigDecimal.ZERO);
+            BigDecimal multasPendientes = multasPendientesCredito;
 
             String estadoHoy;
             BigDecimal montoRecibidoHoy = BigDecimal.ZERO;
@@ -182,7 +184,8 @@ public class CobrosService {
                     montoRecibidoHoy,
                     multasPendientes,
                     razonNoPago,
-                    pagoIdHoy));
+                    pagoIdHoy,
+                    tieneAdeudoPendiente));
         }
 
         // Ordenar: SIN_REGISTRO primero, NO_PAGADO segundo, PARCIAL tercero, PAGADO al
@@ -624,7 +627,20 @@ public class CobrosService {
         return diasFestivos.contains(fecha);
     }
 
-    private ClienteRutaDTO buildClienteRutaInhabil(Cliente cliente, Credito credito) {
+    /**
+     * Un slot cuenta como adeudo si quedó explícitamente sin resolver (NO_PAGADO,
+     * RECUPERADO_PARCIAL) o si sigue PENDIENTE con fecha ya pasada — esto último
+     * cubre el caso en que nadie ha registrado "no pago" para ese día todavía.
+     */
+    private boolean tieneCalendarioAdeudo(List<CalendarioPago> calendario, LocalDate fecha) {
+        return calendario.stream().anyMatch(cp -> cp.getEstado() == EstadoCalendarioPago.NO_PAGADO
+                || cp.getEstado() == EstadoCalendarioPago.RECUPERADO_PARCIAL
+                || (cp.getEstado() == EstadoCalendarioPago.PENDIENTE
+                        && cp.getFechaProgramada() != null
+                        && cp.getFechaProgramada().isBefore(fecha)));
+    }
+
+    private ClienteRutaDTO buildClienteRutaInhabil(Cliente cliente, Credito credito, boolean tieneAdeudoPendiente) {
         return new ClienteRutaDTO(
                 cliente.getId(),
                 cliente.getNombreCompleto(),
@@ -641,7 +657,8 @@ public class CobrosService {
                 null,
                 BigDecimal.ZERO,
                 null,
-                null);
+                null,
+                tieneAdeudoPendiente);
     }
 
     private ClienteRutaDTO buildClienteRutaVencido(Cliente cliente, Credito credito, BigDecimal multasPendientes) {
@@ -661,7 +678,8 @@ public class CobrosService {
                 null,
                 multasPendientes,
                 null,
-                null);
+                null,
+                true);
     }
 
     private Long resolverAsesorIdEfectivo(Long asesorId, String rolSolicitante, Long usuarioIdSolicitante) {

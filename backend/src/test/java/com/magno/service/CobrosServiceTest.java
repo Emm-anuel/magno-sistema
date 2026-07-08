@@ -119,4 +119,33 @@ class CobrosServiceTest {
 
         assertThat(result.clientes()).isEmpty();
     }
+
+    @Test
+    void creditoVencidoSinMultaPeroConPagoPendienteAtrasado_apareceEnRutaDiaComoVencido() {
+        // Nadie registró "no pago" para el día atrasado, así que no hay multa,
+        // pero el pago sigue PENDIENTE con fecha ya pasada — sí hay adeudo real.
+        CalendarioPago pendienteAtrasado = CalendarioPago.builder()
+                .id(1L)
+                .numeroPago(25)
+                .fechaProgramada(LocalDate.of(2026, 6, 24))
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of());
+        when(pagoRepo.findBySucursalAndAsesorIdAndFecha(eq(1L), isNull(), eq(HOY)))
+                .thenReturn(List.of());
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(pendienteAtrasado));
+        when(multaRepo.sumMontosPendientesByCreditoId(42L)).thenReturn(BigDecimal.ZERO);
+
+        RutaDiaDTO result = service.getRutaDia(null, 1L, HOY, "ADMINISTRADOR", 10L, 1L);
+
+        assertThat(result.clientes()).hasSize(1);
+        ClienteRutaDTO c = result.clientes().get(0);
+        assertThat(c.estadoHoy()).isEqualTo("VENCIDO");
+        assertThat(c.multasPendientes()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(c.tieneAdeudoPendiente()).isTrue();
+    }
 }

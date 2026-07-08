@@ -315,7 +315,7 @@ function ClienteCard({
               {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
             </button>
           )}
-          {c.multasPendientes > 0 && !esFechaHistorica && (
+          {c.tieneAdeudoPendiente && !esFechaHistorica && (
             <button
               type="button"
               onClick={onPagarAdeudo}
@@ -374,7 +374,7 @@ function ClienteRow({
               {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
             </button>
           )}
-          {c.multasPendientes > 0 && !esFechaHistorica && (
+          {c.tieneAdeudoPendiente && !esFechaHistorica && (
             <button
               type="button"
               onClick={onPagarAdeudo}

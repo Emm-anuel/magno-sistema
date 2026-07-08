@@ -265,7 +265,8 @@ export default function CreditoDetallePage() {
               Registrar Pago
             </button>
           )}
-          {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) && stats.multasPendientes > 0 && (
+          {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) &&
+            (pagosVencidosTotales > 0 || stats.multasPendientes > 0) && (
             <button
               className="btn btn-sm border-[#d97706] text-[#d97706] hover:bg-[#fef3c7]"
               onClick={() => setAdeudoOpen(true)}

@@ -458,6 +458,7 @@ export interface ClienteRuta {
   multasPendientes: number
   razonNoPago: string | null
   pagoIdHoy: number | null
+  tieneAdeudoPendiente: boolean
 }
 
 export interface RutaDia {
