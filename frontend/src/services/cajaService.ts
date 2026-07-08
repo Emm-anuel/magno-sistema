@@ -13,6 +13,14 @@ export interface MultaAsesorItem {
   totalMultas: number
 }
 
+export interface ClienteNoPagoAutomatico {
+  clienteId: number
+  nombreCompleto: string
+  creditoId: number
+  numeroPago: number
+  montoMulta: number
+}
+
 export interface CajaCierrePreview {
   cajaId: number
   montoApertura: number
@@ -34,6 +42,7 @@ export interface CajaCierrePreview {
   totalMultasCobradas: number
   multasCobrasRenovaciones: number
   totalMultasCondonadas: number
+  clientesSinRegistro: ClienteNoPagoAutomatico[]
 }
 
 export interface CajaDiaResumen {
@@ -251,6 +260,13 @@ export const cajaService = {
            totalMultasCobradas:       Number(d.totalMultasCobradas ?? 0),
            multasCobrasRenovaciones:  Number(d.multasCobrasRenovaciones ?? d.multas_cobras_renovaciones ?? 0),
            totalMultasCondonadas:     Number(d.totalMultasCondonadas ?? d.total_multas_condonadas ?? 0),
+           clientesSinRegistro:       (d.clientesSinRegistro ?? []).map((x: any) => ({
+             clienteId:     x.clienteId,
+             nombreCompleto: x.nombreCompleto,
+             creditoId:     x.creditoId,
+             numeroPago:    x.numeroPago,
+             montoMulta:    Number(x.montoMulta ?? 0),
+           })),
          }
        }),
 

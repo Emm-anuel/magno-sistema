@@ -1,5 +1,7 @@
 package com.magno.dto.caja;
 
+import com.magno.dto.cobros.ClienteNoPagoAutomaticoDTO;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -35,5 +37,8 @@ public record CajaCierrePreviewDTO(
         List<MultaAsesorItemDTO> multasPorAsesor,
         BigDecimal totalMultasCobradas,
         BigDecimal multasCobrasRenovaciones,
-        BigDecimal totalMultasCondonadas
+        BigDecimal totalMultasCondonadas,
+
+        // Pagos sin registro que se marcarán automáticamente como no pago al cerrar
+        List<ClienteNoPagoAutomaticoDTO> clientesSinRegistro
 ) {}
