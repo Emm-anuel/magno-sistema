@@ -472,6 +472,44 @@ export default function CajaCierrePage() {
             )}
           </Section>
 
+          {/* ── Pagos sin registro ──────────────────────────────────── */}
+          {preview.clientesSinRegistro.length > 0 && (
+            <Section
+              title={`Pagos sin registro (${preview.clientesSinRegistro.length})`}
+              defaultOpen
+            >
+              <p className="text-[13px] text-[#92400e] bg-[#fef3c7] rounded-lg px-3 py-2 mb-3">
+                Estos clientes no tienen un cobro registrado hoy. Al cerrar la caja se
+                marcarán automáticamente como &ldquo;no pagó&rdquo; y se les generará la
+                multa correspondiente.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="tabla">
+                  <thead>
+                    <tr>
+                      <th>Cliente</th>
+                      <th className="text-right">Multa a generar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {preview.clientesSinRegistro.map(row => (
+                      <tr key={row.creditoId}>
+                        <td className="text-[13px]">{row.nombreCompleto}</td>
+                        <td className="text-right font-mono">{fmtMoney(row.montoMulta)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="mt-2 text-right text-[13px]">
+                <span className="text-[#6c757d]">Total multas nuevas: </span>
+                <span className="font-semibold font-mono">
+                  {fmtMoney(preview.clientesSinRegistro.reduce((sum, r) => sum + r.montoMulta, 0))}
+                </span>
+              </div>
+            </Section>
+          )}
+
           {/* ── Action bar ───────────────────────────────────────────── */}
           <div className="flex justify-end pt-2">
             <button
