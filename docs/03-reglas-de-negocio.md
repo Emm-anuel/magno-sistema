@@ -95,6 +95,10 @@
 - Ejemplo: créditos $1k–$14k → $50/día; créditos $15k+ → $100/día.
 - Se aplica automáticamente al registrar "No pagó".
 - Días INHÁBIL NO generan multa.
+- Al cerrar la caja del día, cualquier pago que ningún asesor haya registrado se
+  marca automáticamente como "No pagó" (razón: "Cierre de caja — sin registro de
+  pago") y genera su multa igual que un no-pago manual. El preview de cierre
+  muestra estos clientes antes de confirmar.
 - Para créditos semanales la multa por no pago usa `config_multas.multa_semanal_no_pago` (base seed: $300).
 
 **Tipo 2 — Por pagos incompletos acumulados:**
