@@ -10,6 +10,7 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.magno.dto.caja.*;
+import com.magno.dto.cobros.ClienteNoPagoAutomaticoDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.repository.MultaRepository;
@@ -45,6 +46,7 @@ public class CajaService {
         private final GastoRepository gastoRepo;
         private final NominaPagoRepository nominaPagoRepo;
         private final MultaRepository multaRepo;
+        private final CobrosService cobrosService;
 
         public CajaService(CajaDiaRepository cajaDiaRepo,
                         CajaMovimientoInversionRepository movimientoRepo,
@@ -56,7 +58,8 @@ public class CajaService {
                         SucursalRepository sucursalRepo,
                         GastoRepository gastoRepo,
                         NominaPagoRepository nominaPagoRepo,
-                        MultaRepository multaRepo) {
+                        MultaRepository multaRepo,
+                        CobrosService cobrosService) {
                 this.cajaDiaRepo = cajaDiaRepo;
                 this.movimientoRepo = movimientoRepo;
                 this.configSucursalRepo = configSucursalRepo;
@@ -68,6 +71,7 @@ public class CajaService {
                 this.gastoRepo = gastoRepo;
                 this.nominaPagoRepo = nominaPagoRepo;
                 this.multaRepo = multaRepo;
+                this.cobrosService = cobrosService;
         }
 
         // ── Abrir ─────────────────────────────────────────────────────────────
@@ -132,6 +136,8 @@ public class CajaService {
                 fechaCaja = caja.getFecha();
                 OffsetDateTime inicioTs = fechaCaja.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
                 OffsetDateTime finTs = fechaCaja.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
+
+                cobrosService.marcarNoPagoAutomatico(sucursalId, fechaCaja, principal.userId());
 
                 BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fechaCaja);
                 BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosBySucursalAndFecha(sucursalId, inicioTs, finTs);
@@ -351,6 +357,9 @@ public class CajaService {
                 BigDecimal totalMultasCondonadas = multaRepo
                                 .sumMultasCondonadasBySucursalAndFecha(effectiveId, hoy);
 
+                List<ClienteNoPagoAutomaticoDTO> clientesSinRegistro = cobrosService
+                                .previsualizarNoPagoAutomatico(effectiveId, hoy);
+
                 return new CajaCierrePreviewDTO(
                                 caja.getId(),
                                 caja.getMontoApertura(),
@@ -370,7 +379,8 @@ public class CajaService {
                                 multasPorAsesor,
                                 totalMultas,
                                 multasCobrasRenovaciones,
-                                totalMultasCondonadas);
+                                totalMultasCondonadas,
+                                clientesSinRegistro);
         }
 
         // ── PDF de cierre ─────────────────────────────────────────────────────
