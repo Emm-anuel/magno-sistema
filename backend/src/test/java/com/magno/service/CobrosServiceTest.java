@@ -247,4 +247,110 @@ class CobrosServiceTest {
         verify(calendarioPagoRepo, never()).save(any());
         verify(usuarioRepo, never()).findById(any());
     }
+
+    @Test
+    void marcarNoPagoAutomatico_conDosCandidatos_marcaAmbosDeFormaIndependiente() {
+        // Segundo cliente/asesor/crédito, distintos del fixture compartido,
+        // para probar que el loop no cruza datos entre iteraciones.
+        Usuario asesor2 = new Usuario();
+        asesor2.setId(11L);
+        asesor2.setRol(rolAsesor);
+        asesor2.setSucursal(sucursal);
+
+        Cliente cliente2 = new Cliente();
+        cliente2.setId(6L);
+        cliente2.setNombre("Roberto");
+        cliente2.setApellidoPaterno("Gómez");
+        cliente2.setCelular("5598765432");
+        cliente2.setSucursal(sucursal);
+
+        Credito credito2 = new Credito();
+        credito2.setId(43L);
+        credito2.setEstado(EstadoCredito.ACTIVO);
+        credito2.setAsesor(asesor2);
+        credito2.setCliente(cliente2);
+        credito2.setSucursal(sucursal);
+        credito2.setMontoCapital(new BigDecimal("5000.00"));
+        credito2.setPagoPeriodico(new BigDecimal("1200.00"));
+        credito2.setTipoPago(TipoPago.SEMANAL); // fallback de multa distinto al DIARIO ($300 vs $50)
+        credito2.setPlazoDias(16);
+        credito2.setFechaVencimiento(LocalDate.of(2026, 6, 25));
+
+        CalendarioPago pendienteHoy1 = CalendarioPago.builder()
+                .id(7L)
+                .numeroPago(5)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        CalendarioPago pendienteHoy2 = CalendarioPago.builder()
+                .id(8L)
+                .numeroPago(3)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("1200.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito, credito2));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(pendienteHoy1));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(43L)).thenReturn(List.of(pendienteHoy2));
+        when(configMultaRepo.findBySucursalAndMonto(1L, new BigDecimal("3000.00"))).thenReturn(Optional.empty());
+        when(configMultaRepo.findBySucursalAndMonto(1L, new BigDecimal("5000.00"))).thenReturn(Optional.empty());
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = service.marcarNoPagoAutomatico(1L, HOY, 10L);
+
+        assertThat(resultado).hasSize(2);
+        assertThat(resultado.get(0).creditoId()).isEqualTo(42L);
+        assertThat(resultado.get(0).clienteId()).isEqualTo(5L);
+        assertThat(resultado.get(0).montoMulta()).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(resultado.get(1).creditoId()).isEqualTo(43L);
+        assertThat(resultado.get(1).clienteId()).isEqualTo(6L);
+        assertThat(resultado.get(1).montoMulta()).isEqualByComparingTo(new BigDecimal("300.00"));
+
+        // El registrador se busca una sola vez para todo el lote, no por candidato.
+        verify(usuarioRepo, times(1)).findById(10L);
+
+        ArgumentCaptor<Pago> pagoCaptor = ArgumentCaptor.forClass(Pago.class);
+        verify(pagoRepo, times(2)).save(pagoCaptor.capture());
+        List<Pago> pagosGuardados = pagoCaptor.getAllValues();
+
+        Pago pago1 = pagosGuardados.get(0);
+        assertThat(pago1.getCredito()).isEqualTo(credito);
+        assertThat(pago1.getCliente()).isEqualTo(cliente);
+        assertThat(pago1.getAsesor()).isEqualTo(asesor);
+        assertThat(pago1.getRegistradoPor()).isEqualTo(asesor);
+        assertThat(pago1.getMultaAplicada()).isEqualByComparingTo(new BigDecimal("50.00"));
+
+        Pago pago2 = pagosGuardados.get(1);
+        assertThat(pago2.getCredito()).isEqualTo(credito2);
+        assertThat(pago2.getCliente()).isEqualTo(cliente2);
+        assertThat(pago2.getAsesor()).isEqualTo(asesor2);
+        assertThat(pago2.getRegistradoPor()).isEqualTo(asesor);
+        assertThat(pago2.getMultaAplicada()).isEqualByComparingTo(new BigDecimal("300.00"));
+
+        ArgumentCaptor<CalendarioPago> cpCaptor = ArgumentCaptor.forClass(CalendarioPago.class);
+        verify(calendarioPagoRepo, times(2)).save(cpCaptor.capture());
+        List<CalendarioPago> calendariosGuardados = cpCaptor.getAllValues();
+        assertThat(calendariosGuardados.get(0).getId()).isEqualTo(7L);
+        assertThat(calendariosGuardados.get(0).getEstado()).isEqualTo(EstadoCalendarioPago.NO_PAGADO);
+        assertThat(calendariosGuardados.get(1).getId()).isEqualTo(8L);
+        assertThat(calendariosGuardados.get(1).getEstado()).isEqualTo(EstadoCalendarioPago.NO_PAGADO);
+
+        ArgumentCaptor<Multa> multaCaptor = ArgumentCaptor.forClass(Multa.class);
+        verify(multaRepo, times(2)).save(multaCaptor.capture());
+        List<Multa> multasGuardadas = multaCaptor.getAllValues();
+
+        Multa multa1 = multasGuardadas.get(0);
+        assertThat(multa1.getCredito()).isEqualTo(credito);
+        assertThat(multa1.getCliente()).isEqualTo(cliente);
+        assertThat(multa1.getMonto()).isEqualByComparingTo(new BigDecimal("50.00"));
+
+        Multa multa2 = multasGuardadas.get(1);
+        assertThat(multa2.getCredito()).isEqualTo(credito2);
+        assertThat(multa2.getCliente()).isEqualTo(cliente2);
+        assertThat(multa2.getMonto()).isEqualByComparingTo(new BigDecimal("300.00"));
+    }
 }
