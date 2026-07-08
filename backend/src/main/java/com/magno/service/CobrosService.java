@@ -207,6 +207,106 @@ public class CobrosService {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // No pago automático (cierre de caja)
+    // ────────────────────────────────────────────────────────────────────
+
+    private static final String RAZON_NO_PAGO_AUTOMATICO = "Cierre de caja — sin registro de pago";
+
+    private record CandidatoNoPagoAutomatico(
+            Credito credito, Cliente cliente, CalendarioPago calendarioPago, BigDecimal montoMulta) {
+    }
+
+    private List<CandidatoNoPagoAutomatico> buscarCandidatosNoPagoAutomatico(Long sucursalId, LocalDate fecha) {
+        List<Credito> activos = creditoRepo.findRutaDiaCreditosActivos(sucursalId, null, EstadoCredito.ACTIVO);
+        List<CandidatoNoPagoAutomatico> candidatos = new ArrayList<>();
+        for (Credito credito : activos) {
+            calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(credito.getId()).stream()
+                    .filter(cp -> cp.getFechaProgramada().equals(fecha)
+                            && cp.getEstado() == EstadoCalendarioPago.PENDIENTE)
+                    .findFirst()
+                    .ifPresent(cp -> {
+                        BigDecimal montoMulta = obtenerMontoMultaNoPago(
+                                sucursalId, credito.getMontoCapital(), credito.getTipoPago());
+                        candidatos.add(new CandidatoNoPagoAutomatico(
+                                credito, credito.getCliente(), cp, montoMulta));
+                    });
+        }
+        return candidatos;
+    }
+
+    /**
+     * Vista previa de solo lectura: qué clientes se marcarían como no pago si se
+     * cerrara la caja ahora mismo, sin persistir nada.
+     */
+    public List<ClienteNoPagoAutomaticoDTO> previsualizarNoPagoAutomatico(Long sucursalId, LocalDate fecha) {
+        return buscarCandidatosNoPagoAutomatico(sucursalId, fecha).stream()
+                .map(c -> new ClienteNoPagoAutomaticoDTO(
+                        c.cliente().getId(),
+                        c.cliente().getNombreCompleto(),
+                        c.credito().getId(),
+                        c.calendarioPago().getNumeroPago(),
+                        c.montoMulta()))
+                .toList();
+    }
+
+    /**
+     * Marca como NO_PAGADO (con multa) cualquier pago del calendario de la
+     * sucursal que siga PENDIENTE en la fecha dada — invocado al cerrar la caja.
+     */
+    @Transactional
+    public List<ClienteNoPagoAutomaticoDTO> marcarNoPagoAutomatico(Long sucursalId, LocalDate fecha,
+            Long registradorId) {
+        List<CandidatoNoPagoAutomatico> candidatos = buscarCandidatosNoPagoAutomatico(sucursalId, fecha);
+        if (candidatos.isEmpty()) {
+            return List.of();
+        }
+
+        Usuario registrador = usuarioRepo.findById(registradorId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + registradorId));
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = new ArrayList<>();
+        for (CandidatoNoPagoAutomatico candidato : candidatos) {
+            Pago pago = Pago.builder()
+                    .credito(candidato.credito())
+                    .cliente(candidato.cliente())
+                    .asesor(candidato.credito().getAsesor())
+                    .calendarioPago(candidato.calendarioPago())
+                    .numeroPago(candidato.calendarioPago().getNumeroPago())
+                    .fechaPago(fecha)
+                    .montoRecibido(BigDecimal.ZERO)
+                    .montoEsperado(candidato.calendarioPago().getMontoEsperado())
+                    .esCompleto(false)
+                    .razonNoPago(RAZON_NO_PAGO_AUTOMATICO)
+                    .multaAplicada(candidato.montoMulta())
+                    .registradoPor(registrador)
+                    .build();
+            pagoRepo.save(pago);
+
+            candidato.calendarioPago().setEstado(EstadoCalendarioPago.NO_PAGADO);
+            calendarioPagoRepo.save(candidato.calendarioPago());
+
+            Multa multa = Multa.builder()
+                    .pago(pago)
+                    .cliente(candidato.cliente())
+                    .credito(candidato.credito())
+                    .tipo("NO_PAGO")
+                    .monto(candidato.montoMulta())
+                    .fecha(fecha)
+                    .cobrada(false)
+                    .build();
+            multaRepo.save(multa);
+
+            resultado.add(new ClienteNoPagoAutomaticoDTO(
+                    candidato.cliente().getId(),
+                    candidato.cliente().getNombreCompleto(),
+                    candidato.credito().getId(),
+                    candidato.calendarioPago().getNumeroPago(),
+                    candidato.montoMulta()));
+        }
+        return resultado;
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // Registrar pago
     // ────────────────────────────────────────────────────────────────────
 

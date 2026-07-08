@@ -1,17 +1,21 @@
 package com.magno.service;
 
+import com.magno.dto.cobros.ClienteNoPagoAutomaticoDTO;
 import com.magno.dto.cobros.ClienteRutaDTO;
 import com.magno.dto.cobros.RutaDiaDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.*;
@@ -147,5 +151,100 @@ class CobrosServiceTest {
         assertThat(c.estadoHoy()).isEqualTo("VENCIDO");
         assertThat(c.multasPendientes()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(c.tieneAdeudoPendiente()).isTrue();
+    }
+
+    @Test
+    void marcarNoPagoAutomatico_marcaPendienteComoNoPagoYGeneraMulta() {
+        CalendarioPago pendienteHoy = CalendarioPago.builder()
+                .id(7L)
+                .numeroPago(5)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(pendienteHoy));
+        when(configMultaRepo.findBySucursalAndMonto(1L, new BigDecimal("3000.00"))).thenReturn(Optional.empty());
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = service.marcarNoPagoAutomatico(1L, HOY, 10L);
+
+        assertThat(resultado).hasSize(1);
+        ClienteNoPagoAutomaticoDTO dto = resultado.get(0);
+        assertThat(dto.clienteId()).isEqualTo(5L);
+        assertThat(dto.creditoId()).isEqualTo(42L);
+        assertThat(dto.numeroPago()).isEqualTo(5);
+        assertThat(dto.montoMulta()).isEqualByComparingTo(new BigDecimal("50.00"));
+
+        ArgumentCaptor<Pago> pagoCaptor = ArgumentCaptor.forClass(Pago.class);
+        verify(pagoRepo).save(pagoCaptor.capture());
+        Pago pagoGuardado = pagoCaptor.getValue();
+        assertThat(pagoGuardado.getMontoRecibido()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(pagoGuardado.getEsCompleto()).isFalse();
+        assertThat(pagoGuardado.getRazonNoPago()).isEqualTo("Cierre de caja — sin registro de pago");
+        assertThat(pagoGuardado.getMultaAplicada()).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(pagoGuardado.getAsesor()).isEqualTo(asesor);
+        assertThat(pagoGuardado.getRegistradoPor()).isEqualTo(asesor);
+
+        ArgumentCaptor<CalendarioPago> cpCaptor = ArgumentCaptor.forClass(CalendarioPago.class);
+        verify(calendarioPagoRepo).save(cpCaptor.capture());
+        assertThat(cpCaptor.getValue().getEstado()).isEqualTo(EstadoCalendarioPago.NO_PAGADO);
+
+        ArgumentCaptor<Multa> multaCaptor = ArgumentCaptor.forClass(Multa.class);
+        verify(multaRepo).save(multaCaptor.capture());
+        Multa multaGuardada = multaCaptor.getValue();
+        assertThat(multaGuardada.getTipo()).isEqualTo("NO_PAGO");
+        assertThat(multaGuardada.getMonto()).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(multaGuardada.getCobrada()).isFalse();
+    }
+
+    @Test
+    void marcarNoPagoAutomatico_sinSlotPendienteEseDia_noGeneraNada() {
+        CalendarioPago yaPagado = CalendarioPago.builder()
+                .id(7L)
+                .numeroPago(5)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PAGADO)
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(yaPagado));
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = service.marcarNoPagoAutomatico(1L, HOY, 10L);
+
+        assertThat(resultado).isEmpty();
+        verify(pagoRepo, never()).save(any());
+        verify(multaRepo, never()).save(any());
+        verify(calendarioPagoRepo, never()).save(any());
+        verify(usuarioRepo, never()).findById(any());
+    }
+
+    @Test
+    void previsualizarNoPagoAutomatico_calculaSinPersistirNada() {
+        CalendarioPago pendienteHoy = CalendarioPago.builder()
+                .id(7L)
+                .numeroPago(5)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(pendienteHoy));
+        when(configMultaRepo.findBySucursalAndMonto(1L, new BigDecimal("3000.00"))).thenReturn(Optional.empty());
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = service.previsualizarNoPagoAutomatico(1L, HOY);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).montoMulta()).isEqualByComparingTo(new BigDecimal("50.00"));
+        verify(pagoRepo, never()).save(any());
+        verify(multaRepo, never()).save(any());
+        verify(calendarioPagoRepo, never()).save(any());
+        verify(usuarioRepo, never()).findById(any());
     }
 }
