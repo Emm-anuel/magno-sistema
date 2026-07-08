@@ -187,13 +187,18 @@ public class CajaService {
                 CajaDia caja = cajaDiaRepo.findById(cajaId)
                                 .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
 
+                if (!"ADMINISTRADOR".equals(principal.rol())
+                                && !caja.getSucursal().getId().equals(principal.sucursalId())) {
+                        throw new IllegalArgumentException("No puedes reabrir una caja de otra sucursal");
+                }
+
                 if (caja.getEstado() != EstadoCaja.CERRADA) {
-                        throw new IllegalArgumentException("Solo se puede cancelar un corte de caja cerrado");
+                        throw new IllegalArgumentException("Solo se puede reabrir una caja cerrada");
                 }
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
                 if (!hoy.equals(caja.getFecha())) {
-                        throw new IllegalArgumentException("Solo se puede cancelar el corte de caja del día actual");
+                        throw new IllegalArgumentException("Solo se puede reabrir la caja del dia actual");
                 }
 
                 caja.setEstado(EstadoCaja.ABIERTA);

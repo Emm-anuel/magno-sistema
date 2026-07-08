@@ -185,7 +185,7 @@ function ConfirmCancelCorteModal({
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-[#f59e0b] shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <h2 className="text-[15px] font-semibold text-[#212529]">Cancelar corte de caja</h2>
+            <h2 className="text-[15px] font-semibold text-[#212529]">Reabrir caja</h2>
             <p className="text-[12px] text-[#6c757d] mt-1">
               La caja volverá al estado abierta. Solo disponible el mismo día del cierre.
             </p>
@@ -210,7 +210,7 @@ function ConfirmCancelCorteModal({
             onClick={onConfirm}
             disabled={isPending}
           >
-            {isPending ? 'Cancelando…' : 'Sí, cancelar corte'}
+            {isPending ? 'Reabriendo...' : 'Si, reabrir caja'}
           </button>
         </div>
       </div>
@@ -435,6 +435,7 @@ export default function CajaPage() {
   const { usuario } = useAuthStore()
   const queryClient = useQueryClient()
   const isAdmin     = usuario?.rol === 'ADMINISTRADOR'
+  const puedeReabrirCaja = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
 
   // Sucursal efectiva
   const [adminSucursalId, setAdminSucursalId] = useState<number | null>(null)
@@ -467,6 +468,7 @@ export default function CajaPage() {
 
   const cajaId      = estado?.cajaId ?? null
   const cajaAbierta = estado?.estado === 'ABIERTA' && cajaId != null
+  const cajaCerradaHoy = estado?.estado === 'CERRADA' && cajaId != null
 
   // Resumen del día (preview cierre, refresca cada minuto)
   const { data: preview } = useQuery({
@@ -579,7 +581,7 @@ export default function CajaPage() {
     onSuccess: (_, targetCajaId) => {
       setShowCancelCorteId(null)
       if (selectedCajaId === targetCajaId) setSelectedCajaId(null)
-      toast.success('Corte de caja cancelado correctamente')
+      toast.success('Caja reabierta correctamente')
       queryClient.invalidateQueries({ queryKey: ['caja-historial-lista'] })
       queryClient.invalidateQueries({ queryKey: ['caja-historial-detalle'] })
       queryClient.invalidateQueries({ queryKey: ['caja-estado'] })
@@ -587,7 +589,7 @@ export default function CajaPage() {
     },
     onError: (err: any) => {
       setShowCancelCorteId(null)
-      toast.error(err.message ?? 'No se pudo cancelar el corte de caja')
+      toast.error(err.message ?? 'No se pudo reabrir la caja')
     },
   })
 
@@ -759,7 +761,7 @@ export default function CajaPage() {
                     </thead>
                     <tbody>
                       {historialLista.map(h => {
-                        const puedeCancelarCorte = isAdmin && h.estado === 'CERRADA' && h.fecha === hoy
+                        const puedeCancelarCorte = puedeReabrirCaja && h.estado === 'CERRADA' && h.fecha === hoy
                         const puedeCerrarCaja = h.estado === 'ABIERTA'
                         return (
                           <Fragment key={h.id}>
@@ -814,7 +816,7 @@ export default function CajaPage() {
                                   {puedeCancelarCorte && (
                                     <button
                                       type="button"
-                                      title="Cancelar corte"
+                                      title="Reabrir caja"
                                       className="text-[#adb5bd] hover:text-[#dc2626] transition-colors"
                                       onClick={e => { e.stopPropagation(); setShowCancelCorteId(h.id) }}
                                       disabled={cancelarCorteMut.isPending}
@@ -1008,6 +1010,32 @@ export default function CajaPage() {
           )}
 
           {/* ── Caja abierta ───────────────────────────────────────── */}
+          {cajaCerradaHoy && (
+            <div className="card max-w-2xl border-[#f8d7da]">
+              <div className="card-body">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-[#dc2626] shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-[15px] font-semibold text-[#842029]">
+                      El corte del dia de hoy ha sido cerrado
+                    </h2>
+                    <p className="text-[12px] text-[#6c757d] mt-1">
+                      Ya existe una caja cerrada para esta sucursal. Para continuar operando hoy,
+                      reabre la caja desde el tab Historial.
+                    </p>
+                    <button
+                      type="button"
+                      className="btn btn-sm mt-3"
+                      onClick={() => setActiveTab('historial')}
+                    >
+                      Ir a historial
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {cajaAbierta && estado && (
             <>
               {/* Status bar */}

@@ -50,7 +50,7 @@ public class CajaController {
     }
 
     @PostMapping("/{cajaId}/cancelar")
-    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
     public ResponseEntity<CajaDiaDetalleDTO> cancelar(
             @PathVariable Long cajaId,
             Authentication auth) {
