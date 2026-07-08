@@ -45,9 +45,14 @@ public class InversionService {
             throw new IllegalArgumentException(
                     "Solo se pueden registrar movimientos mientras la caja está abierta");
         }
-        ConceptoInversion concepto = conceptoRepo.findByIdAndDeletedAtIsNull(req.conceptoInversionId())
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Concepto no encontrado: " + req.conceptoInversionId()));
+        ConceptoInversion concepto = null;
+        if (req.conceptoInversionId() != null) {
+            concepto = conceptoRepo.findByIdAndDeletedAtIsNull(req.conceptoInversionId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Concepto no encontrado: " + req.conceptoInversionId()));
+        } else if (req.descripcion() == null || req.descripcion().isBlank()) {
+            throw new IllegalArgumentException("La descripción es obligatoria cuando no se captura concepto");
+        }
 
         CajaMovimientoInversion mov = CajaMovimientoInversion.builder()
                 .cajaDia(caja)
@@ -78,8 +83,8 @@ public class InversionService {
     private MovimientoInversionDTO toDTO(CajaMovimientoInversion m) {
         return new MovimientoInversionDTO(
                 m.getId(),
-                m.getConceptoInversion().getId(),
-                m.getConceptoInversion().getNombre(),
+                m.getConceptoInversion() != null ? m.getConceptoInversion().getId() : null,
+                m.getConceptoInversion() != null ? m.getConceptoInversion().getNombre() : null,
                 m.getDescripcion(),
                 m.getMonto(),
                 m.getRegistradoPor().getId(),

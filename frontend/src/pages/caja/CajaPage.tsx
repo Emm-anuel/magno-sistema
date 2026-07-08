@@ -894,7 +894,7 @@ export default function CajaPage() {
                                         <tbody>
                                           {histDetalle.inversiones.map(m => (
                                             <tr key={m.id}>
-                                              <td>{m.conceptoNombre}</td>
+                                              <td>{m.conceptoNombre ?? '—'}</td>
                                               <td className="text-[#6c757d]">{m.descripcion ?? '—'}</td>
                                               <td className={`text-right font-mono ${m.monto < 0 ? 'text-[#dc2626]' : ''}`}>
                                                 {fmtMoney(m.monto)}

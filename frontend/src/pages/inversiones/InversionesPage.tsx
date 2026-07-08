@@ -27,6 +27,7 @@ export default function InversionesPage() {
   const location = useLocation()
   const { usuario } = useAuthStore()
   const queryClient = useQueryClient()
+  const esRetiroCaja = location.pathname === '/retiros-caja'
 
   const isAdmin = usuario?.rol === 'ADMINISTRADOR'
   const [fecha, setFecha] = useState(todayLocalStr())
@@ -85,7 +86,7 @@ export default function InversionesPage() {
   const { data: conceptos = [] } = useQuery({
     queryKey: ['conceptos-inversion', efectivaSucursalId],
     queryFn: () => adminService.getConceptos(efectivaSucursalId!),
-    enabled: efectivaSucursalId !== undefined,
+    enabled: !esRetiroCaja && efectivaSucursalId !== undefined,
     staleTime: 300_000,
   })
 
@@ -94,7 +95,11 @@ export default function InversionesPage() {
   const [descripcion, setDescripcion] = useState('')
   const [monto, setMonto] = useState('')
 
-  const formValid = conceptoId > 0 && monto !== '' && Number(monto) !== 0
+  const montoNum = Number(monto)
+  const montoValido = monto !== '' && Number.isFinite(montoNum) && montoNum !== 0
+  const formValid = esRetiroCaja
+    ? descripcion.trim().length > 0 && montoValido
+    : conceptoId > 0 && montoValido
 
   function resetForm() {
     setConceptoId(0)
@@ -105,9 +110,9 @@ export default function InversionesPage() {
 
   const registrarMut = useMutation({
     mutationFn: () => inversionService.registrar(cajaId!, {
-      conceptoInversionId: conceptoId,
+      conceptoInversionId: esRetiroCaja ? null : conceptoId,
       descripcion: descripcion.trim() || undefined,
-      monto: Number(monto),
+      monto: esRetiroCaja ? -Math.abs(montoNum) : montoNum,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inversiones', cajaId] })
@@ -128,8 +133,10 @@ export default function InversionesPage() {
     onError: () => toast.error('Error al eliminar'),
   })
 
-  const total = inversiones.reduce((s, m) => s + m.monto, 0)
-  const esRetiroCaja = location.pathname === '/retiros-caja'
+  const movimientosMostrados = esRetiroCaja
+    ? inversiones.filter(m => m.monto < 0)
+    : inversiones
+  const totalMostrado = movimientosMostrados.reduce((s, m) => s + m.monto, 0)
 
   return (
     <div className="page-container space-y-4">
@@ -212,49 +219,54 @@ export default function InversionesPage() {
                 onSubmit={e => { e.preventDefault(); if (formValid) registrarMut.mutate() }}
                 className="p-3 bg-[#f8f9fa] rounded-lg border border-[#dee2e6] space-y-3"
               >
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className={`grid grid-cols-1 ${esRetiroCaja ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-3`}>
+                  {!esRetiroCaja && (
+                    <div>
+                      <label className="block text-[12px] font-medium text-[#495057] mb-1">
+                        Concepto <span className="text-[#dc2626]">*</span>
+                      </label>
+                      <select
+                        className="input"
+                        value={conceptoId}
+                        onChange={e => setConceptoId(Number(e.target.value))}
+                      >
+                        <option value={0} disabled>Selecciona…</option>
+                        {conceptos.map(c => (
+                          <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                      Concepto <span className="text-[#dc2626]">*</span>
-                    </label>
-                    <select
-                      className="input"
-                      value={conceptoId}
-                      onChange={e => setConceptoId(Number(e.target.value))}
-                    >
-                      <option value={0} disabled>Selecciona…</option>
-                      {conceptos.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                      Descripción
+                      Descripción {esRetiroCaja && <span className="text-[#dc2626]">*</span>}
                     </label>
                     <input
                       type="text"
                       className="input"
-                      placeholder="Opcional"
+                      placeholder={esRetiroCaja ? 'Motivo del retiro' : 'Opcional'}
                       value={descripcion}
                       onChange={e => setDescripcion(e.target.value)}
                     />
                   </div>
                   <div>
                     <label className="block text-[12px] font-medium text-[#495057] mb-1">
-                      Monto <span className="text-[#dc2626]">*</span>
+                      {esRetiroCaja ? 'Monto del retiro' : 'Monto'} <span className="text-[#dc2626]">*</span>
                     </label>
                     <input
                       type="number"
                       step="0.01"
+                      min={esRetiroCaja ? '0.01' : undefined}
                       className="input"
                       placeholder="0.00"
                       value={monto}
                       onChange={e => setMonto(e.target.value)}
                     />
-                    <p className="text-[11px] text-[#6c757d] mt-0.5">
-                      Negativo para retiro / salida de capital
-                    </p>
+                    {!esRetiroCaja && (
+                      <p className="text-[11px] text-[#6c757d] mt-0.5">
+                        Negativo para retiro / salida de capital
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end">
@@ -277,7 +289,7 @@ export default function InversionesPage() {
               <p className="text-[13px] text-[#6c757d]">Cargando…</p>
             ) : isError ? (
               <p className="text-[13px] text-[#dc2626]">Error al cargar los movimientos</p>
-            ) : inversiones.length === 0 ? (
+            ) : movimientosMostrados.length === 0 ? (
               <p className="text-[13px] text-[#adb5bd] text-center py-4">
                 Sin movimientos registrados
               </p>
@@ -286,7 +298,7 @@ export default function InversionesPage() {
                 <table className="tabla">
                   <thead>
                     <tr>
-                      <th>Concepto</th>
+                      {!esRetiroCaja && <th>Concepto</th>}
                       <th>Descripción</th>
                       <th className="text-right">Monto</th>
                       <th>Registrado por</th>
@@ -295,9 +307,11 @@ export default function InversionesPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {inversiones.map(m => (
+                    {movimientosMostrados.map(m => (
                       <tr key={m.id}>
-                        <td className="font-medium">{m.conceptoNombre}</td>
+                        {!esRetiroCaja && (
+                          <td className="font-medium">{m.conceptoNombre ?? '—'}</td>
+                        )}
                         <td className="text-[#6c757d]">{m.descripcion ?? '—'}</td>
                         <td className={`text-right font-mono ${m.monto < 0 ? 'text-[#dc2626]' : ''}`}>
                           {fmtMoney(m.monto)}
@@ -327,11 +341,13 @@ export default function InversionesPage() {
             )}
 
             {/* Subtotal */}
-            {inversiones.length > 0 && (
+            {movimientosMostrados.length > 0 && (
               <div className="text-right text-[13px]">
-                <span className="text-[#6c757d]">Subtotal inversiones: </span>
-                <span className={`font-semibold font-mono ${total < 0 ? 'text-[#dc2626]' : ''}`}>
-                  {fmtMoney(total)}
+                <span className="text-[#6c757d]">
+                  {esRetiroCaja ? 'Subtotal retiros: ' : 'Subtotal inversiones: '}
+                </span>
+                <span className={`font-semibold font-mono ${totalMostrado < 0 ? 'text-[#dc2626]' : ''}`}>
+                  {fmtMoney(totalMostrado)}
                 </span>
               </div>
             )}

@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record MovimientoInversionRequest(
-        @NotNull Long conceptoInversionId,
+        Long conceptoInversionId,
         String descripcion,
         @NotNull BigDecimal monto
 ) {}

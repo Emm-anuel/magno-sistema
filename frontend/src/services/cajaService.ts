@@ -71,8 +71,8 @@ export interface CajaEstado {
 
 export interface MovimientoInversion {
   id: number
-  conceptoInversionId: number
-  conceptoNombre: string
+  conceptoInversionId: number | null
+  conceptoNombre: string | null
   descripcion: string | null
   monto: number
   registradoPorId: number
@@ -148,8 +148,8 @@ function normalizeEstado(raw: any): CajaEstado {
 function normalizeMovimiento(raw: any): MovimientoInversion {
   return {
     id:                  raw?.id,
-    conceptoInversionId: raw?.conceptoInversionId,
-    conceptoNombre:      raw?.conceptoNombre ?? '',
+    conceptoInversionId: raw?.conceptoInversionId ?? null,
+    conceptoNombre:      raw?.conceptoNombre ?? null,
     descripcion:         raw?.descripcion ?? null,
     monto:               Number(raw?.monto ?? 0),
     registradoPorId:     raw?.registradoPorId,

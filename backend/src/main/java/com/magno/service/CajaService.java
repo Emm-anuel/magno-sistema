@@ -441,7 +441,7 @@ public class CajaService {
                         tInv.addHeaderCell(hCell("Monto").setTextAlignment(TextAlignment.RIGHT));
                         BigDecimal totalInv = BigDecimal.ZERO;
                         for (MovimientoInversionDTO m : inversiones) {
-                                tInv.addCell(cell(m.conceptoNombre()));
+                                tInv.addCell(cell(m.conceptoNombre() != null ? m.conceptoNombre() : "—"));
                                 tInv.addCell(cell(m.descripcion() != null ? m.descripcion() : "—"));
                                 tInv.addCell(cell(fmtMonto(m.monto())).setTextAlignment(TextAlignment.RIGHT));
                                 totalInv = totalInv.add(m.monto());
@@ -470,6 +470,16 @@ public class CajaService {
 
                 // ── Fórmula subtotal ─────────────────────────────────────────────
                 doc.add(sectionHeader("SUBTOTAL CAJA"));
+                doc.add(new Paragraph("Apertura: " + fmtMonto(caja.getMontoApertura()))
+                                .setFontSize(10));
+                if (caja.getIngresoCarteras() != null) {
+                        doc.add(new Paragraph("Ingresos carteras: " + fmtMonto(caja.getIngresoCarteras()))
+                                        .setFontSize(9));
+                }
+                if (caja.getDesembolsos() != null) {
+                        doc.add(new Paragraph("Desembolsos: -" + fmtMonto(caja.getDesembolsos()))
+                                        .setFontSize(9));
+                }
                 if (caja.getSubtotalCaja() != null) {
                         doc.add(new Paragraph(
                                         "Apertura + Ingresos − Desembolsos + Inversiones = "
@@ -585,8 +595,8 @@ public class CajaService {
         private MovimientoInversionDTO toMovimientoDTO(CajaMovimientoInversion m) {
                 return new MovimientoInversionDTO(
                                 m.getId(),
-                                m.getConceptoInversion().getId(),
-                                m.getConceptoInversion().getNombre(),
+                                m.getConceptoInversion() != null ? m.getConceptoInversion().getId() : null,
+                                m.getConceptoInversion() != null ? m.getConceptoInversion().getNombre() : null,
                                 m.getDescripcion(),
                                 m.getMonto(),
                                 m.getRegistradoPor().getId(),

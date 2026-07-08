@@ -247,4 +247,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V31-movimientos-caja-concepto-opcional" author="magno">
+        <sqlFile
+            path="db/changelog/V31__movimientos_caja_concepto_opcional.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

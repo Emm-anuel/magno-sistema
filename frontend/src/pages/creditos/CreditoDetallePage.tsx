@@ -132,6 +132,20 @@ export default function CreditoDetallePage() {
     staleTime: 30_000,
   })
 
+  const { data: multasCredito = [] } = useQuery({
+    queryKey: ['multas-credito', numId],
+    queryFn: () => cobrosService.getMultasPorCredito(numId),
+    enabled: !!credito,
+    staleTime: 30_000,
+  })
+
+  const { data: multasPreviewAdeudo = [] } = useQuery({
+    queryKey: ['preview-multas-abono', numId, hoyIso],
+    queryFn: () => cobrosService.getPreviewMultasAbono(numId, hoyIso),
+    enabled: !!credito,
+    staleTime: 30_000,
+  })
+
   const subirVideoMut = useMutation({
     mutationFn: (url: string) => creditoService.subirVideoEntrega(numId, url),
     onSuccess: () => {
@@ -178,18 +192,38 @@ export default function CreditoDetallePage() {
     return estado === 'PENDIENTE' && Boolean(fechaIso) && fechaIso < hoyIso
   }
 
+  function esSlotAdeudoParaCorriente(pago: { estado: string; fechaProgramada?: string | null }) {
+    const fechaIso = pago.fechaProgramada?.slice(0, 10)
+    return pago.estado === 'NO_PAGADO' ||
+      pago.estado === 'RECUPERADO_PARCIAL' ||
+      (pago.estado === 'PENDIENTE' && typeof fechaIso === 'string' && fechaIso <= hoyIso)
+  }
+
   // ── Stats ─────────────────────────────────────────────────────────
 
   const { estadisticas: stats } = credito
   const calendario = credito.calendario ?? []
   const evidenciaUrls = credito.evidenciaUrls ?? []
+  const fechasAdeudoParaCorriente = new Set(
+    calendario
+      .filter(esSlotAdeudoParaCorriente)
+      .map((pago) => pago.fechaProgramada?.slice(0, 10))
+      .filter(Boolean),
+  )
+  const multasPendientesParaCorriente = multasPreviewAdeudo
+    .filter((multa) => !multa.cobrada && fechasAdeudoParaCorriente.has(multa.fecha?.slice(0, 10)))
+    .reduce((sum, multa) => sum + Number(multa.monto ?? 0), 0)
+  const multasPendientesVisual = Math.max(
+    Number(stats.multasPendientes ?? 0),
+    multasPendientesParaCorriente,
+  )
   const pagosVencidosVisuales = calendario.filter(
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && p.fechaProgramada.slice(0, 10) < hoyIso,
   ).length
   const pagosVencidosTotales = Math.max(stats.pagosVencidos ?? 0, pagosVencidosVisuales)
   const tieneRecuperadoParcial = calendario.some((p) => p.estado === 'RECUPERADO_PARCIAL')
   const tieneAdeudoPendiente =
-    pagosVencidosTotales > 0 || tieneRecuperadoParcial || (stats.multasPendientes ?? 0) > 0
+    pagosVencidosTotales > 0 || tieneRecuperadoParcial || multasPendientesVisual > 0
   const pagoPeriodicoCalendario = calendario.length > 0 ? calendario[0].montoEsperado : null
   const pagoPeriodicoVisual = pagoPeriodicoCalendario ?? credito.pagoPeriodico
   const hayDiferenciaPagoHistorico =
@@ -223,6 +257,72 @@ export default function CreditoDetallePage() {
   const totalCobradoCredito = totalCobradoPagosRuta + totalCobradoAbonos
   const totalAplicadoACredito = totalCuotaPagosRuta + totalCuotaAbonos
   const saldoRestante = Math.max(totalAPagarCredito - totalAplicadoACredito, 0)
+  const multasCalendario = [
+    ...multasCredito,
+    ...multasPreviewAdeudo.filter(
+      (multaPreview) => !multaPreview.id || !multasCredito.some((multa) => multa.id === multaPreview.id),
+    ),
+  ]
+  const multasPorPagoId = multasCalendario.reduce<Record<number, number>>((acc, multa) => {
+    const pagoId = Number(multa.pagoId ?? 0)
+    const monto = Number(multa.monto ?? 0)
+    if (pagoId > 0 && monto > 0) {
+      acc[pagoId] = (acc[pagoId] ?? 0) + monto
+    }
+    return acc
+  }, {})
+  const multasPorFecha = multasCalendario.reduce<Record<string, number>>((acc, multa) => {
+    const fecha = multa.fecha?.slice(0, 10)
+    const monto = Number(multa.monto ?? 0)
+    if (fecha && monto > 0) {
+      acc[fecha] = (acc[fecha] ?? 0) + monto
+    }
+    return acc
+  }, {})
+  const multasPagoPorNumero = pagosHistorialCredito.reduce<Record<number, number>>((acc, pago) => {
+    const monto = Number(pago.multaAplicada ?? 0)
+    if (pago.numeroPago != null && monto > 0) {
+      acc[pago.numeroPago] = Math.max(acc[pago.numeroPago] ?? 0, monto)
+    }
+    return acc
+  }, {})
+  const multasAbonoPorNumero = abonosCredito
+    .flatMap((abono) => abono.coberturas)
+    .reduce<Record<number, number>>((acc, cobertura) => {
+      const monto = Number(cobertura.montoMulta ?? 0)
+      if (monto > 0) {
+        acc[cobertura.numeroPago] = (acc[cobertura.numeroPago] ?? 0) + monto
+      }
+      return acc
+    }, {})
+  const hayMultasCalendario =
+    multasCalendario.some((multa) => Number(multa.monto ?? 0) > 0) ||
+    Object.values(multasPagoPorNumero).some((monto) => monto > 0) ||
+    Object.values(multasAbonoPorNumero).some((monto) => monto > 0)
+  const abonosAplicadosPorNumero = abonosCredito
+    .flatMap((abono) => abono.coberturas)
+    .reduce<Record<number, number>>((acc, cobertura) => {
+      acc[cobertura.numeroPago] = (acc[cobertura.numeroPago] ?? 0) + Number(cobertura.totalAplicado ?? 0)
+      return acc
+    }, {})
+  const multasPendientesPorFechaAdeudo = multasPreviewAdeudo
+    .filter((multa) => !multa.cobrada)
+    .reduce<Record<string, number>>((acc, multa) => {
+      const fecha = multa.fecha?.slice(0, 10)
+      const monto = Number(multa.monto ?? 0)
+      if (fecha && fechasAdeudoParaCorriente.has(fecha) && monto > 0) {
+        acc[fecha] = (acc[fecha] ?? 0) + monto
+      }
+      return acc
+    }, {})
+  const adeudoParaPonerseCorriente = calendario.reduce((sum, pago) => {
+    if (!esSlotAdeudoParaCorriente(pago)) return sum
+    const fecha = pago.fechaProgramada?.slice(0, 10) ?? ''
+    const cuota = Number(pago.montoEsperado ?? 0)
+    const multa = multasPendientesPorFechaAdeudo[fecha] ?? 0
+    const yaAbonado = abonosAplicadosPorNumero[pago.numeroPago] ?? 0
+    return sum + Math.max(cuota + multa - yaAbonado, 0)
+  }, 0)
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -419,8 +519,8 @@ export default function CreditoDetallePage() {
                     <div className="text-[11px] text-gray-500 mt-0.5">Vencidos</div>
                   </div>
                   <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                    <div className={`text-xl font-bold ${stats.multasPendientes > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
-                      {fmtMoney(stats.multasPendientes)}
+                    <div className={`text-xl font-bold ${multasPendientesVisual > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
+                      {fmtMoney(multasPendientesVisual)}
                     </div>
                     <div className="text-[11px] text-gray-500 mt-0.5">Multas pendientes</div>
                   </div>
@@ -497,6 +597,9 @@ export default function CreditoDetallePage() {
                       <th className="w-44 !text-center px-2 py-3">Fecha</th>
                       <th className="w-36 !text-center px-2 py-3 font-mono whitespace-nowrap">Monto esperado</th>
                       <th className="w-36 !text-center px-2 py-3 font-mono whitespace-nowrap">Monto recibido</th>
+                      {hayMultasCalendario && (
+                        <th className="w-28 !text-center px-2 py-3 font-mono whitespace-nowrap">Multa</th>
+                      )}
                       <th className="w-40 !text-center px-2 py-3">Estado</th>
                       <th className="w-44 !text-center px-2 py-3">Acciones</th>
                     </tr>
@@ -553,6 +656,13 @@ export default function CreditoDetallePage() {
                       const abonoDeEstaFila = esAbono
                         ? abonosCredito.find((a) => a.coberturas.some((c) => c.numeroPago === pago.numeroPago))
                         : null
+                      const fechaPagoProgramada = pago.fechaProgramada?.slice(0, 10) ?? ''
+                      const multaFila = Math.max(
+                        multasPorPagoId[pago.id] ?? 0,
+                        multasPorFecha[fechaPagoProgramada] ?? 0,
+                        multasPagoPorNumero[pago.numeroPago] ?? 0,
+                        multasAbonoPorNumero[pago.numeroPago] ?? 0,
+                      )
 
                       return (
                         <tr key={pago.id} className={rowClass}>
@@ -577,6 +687,13 @@ export default function CreditoDetallePage() {
                                 })()
                             }
                           </td>
+                          {hayMultasCalendario && (
+                            <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">
+                              {multaFila > 0
+                                ? <span className="text-[#dc2626]">{fmtMoney(multaFila)}</span>
+                                : <span className="text-gray-400">—</span>}
+                            </td>
+                          )}
                           <td className="text-center px-2 py-3 whitespace-nowrap">
                             <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${badgeCls}`}>
                               {badgeLabel}
@@ -641,7 +758,7 @@ export default function CreditoDetallePage() {
                     p.fechaProgramada != null &&
                     p.fechaProgramada.slice(0, 10) >= hoyIso
                 ).length
-                const multasPend = stats.multasPendientes
+                const multasPend = multasPendientesVisual
 
                 return (
                   <>
@@ -680,8 +797,13 @@ export default function CreditoDetallePage() {
                           Multas pendientes: {fmtMoney(multasPend)}
                         </span>
                       )}
+                      {adeudoParaPonerseCorriente > 0 && (
+                        <span className="text-[#f59e0b] font-semibold">
+                          Adeudo para ponerse al corriente: {fmtMoney(adeudoParaPonerseCorriente)}
+                        </span>
+                      )}
                       <span className="text-gray-700 font-semibold">
-                        Saldo restante: {fmtMoney(saldoRestante)}
+                        Saldo restante crédito: {fmtMoney(saldoRestante)}
                       </span>
                     </div>
                   </>

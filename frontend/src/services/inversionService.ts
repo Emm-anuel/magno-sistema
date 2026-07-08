@@ -2,8 +2,8 @@ import { api } from '@/services/api'
 
 export interface MovimientoInversion {
   id: number
-  conceptoInversionId: number
-  conceptoNombre: string
+  conceptoInversionId: number | null
+  conceptoNombre: string | null
   descripcion: string | null
   monto: number
   registradoPorId: number
@@ -14,8 +14,8 @@ export interface MovimientoInversion {
 function normalize(raw: any): MovimientoInversion {
   return {
     id:                  raw?.id,
-    conceptoInversionId: raw?.conceptoInversionId,
-    conceptoNombre:      raw?.conceptoNombre ?? '',
+    conceptoInversionId: raw?.conceptoInversionId ?? null,
+    conceptoNombre:      raw?.conceptoNombre ?? null,
     descripcion:         raw?.descripcion ?? null,
     monto:               Number(raw?.monto ?? 0),
     registradoPorId:     raw?.registradoPorId,
@@ -29,7 +29,7 @@ export const inversionService = {
     api.get(`/inversiones?cajaId=${cajaId}`).then(r => (r.data as any[]).map(normalize)),
 
   registrar: (cajaId: number, payload: {
-    conceptoInversionId: number
+    conceptoInversionId?: number | null
     descripcion?: string
     monto: number
   }): Promise<MovimientoInversion> =>

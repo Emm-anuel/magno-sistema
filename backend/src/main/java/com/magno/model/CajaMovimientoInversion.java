@@ -24,7 +24,7 @@ public class CajaMovimientoInversion {
     private CajaDia cajaDia;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "concepto_inversion_id", nullable = false)
+    @JoinColumn(name = "concepto_inversion_id")
     private ConceptoInversion conceptoInversion;
 
     @Column(length = 255)
