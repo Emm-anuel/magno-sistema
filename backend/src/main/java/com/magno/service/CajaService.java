@@ -291,6 +291,7 @@ public class CajaService {
                                                 c.getCerradaPor() != null ? c.getCerradaPor().getNombreCompleto()
                                                                 : null,
                                                 c.getFechaHoraCierre(),
+                                                c.getMontoApertura(),
                                                 c.getSubtotalCaja(),
                                                 c.getMontoLibres(),
                                                 calcularTotal(c.getSubtotalCaja(), c.getMontoLibres()),

@@ -74,7 +74,9 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
 
       {generated && data && (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            <MetricCard label="Total Apertura" value={fmt(data.totalMontoApertura)}
+              colorClass="bg-slate-50 border-slate-300 text-slate-800" />
             <MetricCard label="Total Ingresos Carteras" value={fmt(data.totalIngresoCarteras)}
               colorClass="bg-emerald-50 border-emerald-300 text-emerald-800" />
             <MetricCard label="Total Desembolsos" value={fmt(data.totalDesembolsos)}
@@ -99,6 +101,7 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
                 <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
                   <tr>
                     <th className="px-4 py-3 text-left">Fecha</th>
+                    <th className="px-4 py-3 text-right">Apertura</th>
                     <th className="px-4 py-3 text-right">Ing. Carteras</th>
                     <th className="px-4 py-3 text-right">Desembolsos</th>
                     <th className="px-4 py-3 text-right">Gastos</th>
@@ -115,6 +118,7 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
                           day: '2-digit', month: 'short', year: 'numeric',
                         })}
                       </td>
+                      <td className="px-4 py-3 text-right text-slate-700">{fmt(f.montoApertura)}</td>
                       <td className="px-4 py-3 text-right text-emerald-700">{fmt(f.ingresoCarteras)}</td>
                       <td className="px-4 py-3 text-right text-blue-700">{fmt(f.desembolsos)}</td>
                       <td className="px-4 py-3 text-right text-amber-700">{fmt(f.gastos)}</td>
@@ -127,6 +131,7 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
                 <tfoot className="bg-emerald-100 font-semibold text-emerald-900 text-sm">
                   <tr>
                     <td className="px-4 py-3">TOTALES</td>
+                    <td className="px-4 py-3 text-right">{fmt(data.totalMontoApertura)}</td>
                     <td className="px-4 py-3 text-right">{fmt(data.totalIngresoCarteras)}</td>
                     <td className="px-4 py-3 text-right">{fmt(data.totalDesembolsos)}</td>
                     <td className="px-4 py-3 text-right">{fmt(data.totalGastos)}</td>

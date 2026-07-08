@@ -754,6 +754,7 @@ export default function CajaPage() {
                         <th>Fecha</th>
                         <th>Estado</th>
                         <th>Cerrada por</th>
+                        <th className="text-right">Apertura</th>
                         <th className="text-right">Subtotal</th>
                         <th className="text-right">Total</th>
                         <th className="w-28"></th>
@@ -782,6 +783,7 @@ export default function CajaPage() {
                                 </span>
                               </td>
                               <td className="text-[#6c757d]">{h.cerradaPorNombre ?? '—'}</td>
+                              <td className="text-right font-mono">{fmtMoney(h.montoApertura)}</td>
                               <td className="text-right font-mono">{fmtMoney(h.subtotalCaja)}</td>
                               <td className="text-right font-mono font-semibold">{fmtMoney(h.total)}</td>
                               <td>
@@ -830,8 +832,12 @@ export default function CajaPage() {
 
                             {selectedCajaId === h.id && histDetalle && (
                               <tr>
-                                <td colSpan={6} className="bg-[#f8f9fa] px-4 py-3">
+                                <td colSpan={7} className="bg-[#f8f9fa] px-4 py-3">
                                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-[12px]">
+                                    <div>
+                                      <span className="text-[#6c757d]">Apertura</span>
+                                      <div className="font-mono font-medium">{fmtMoney(histDetalle.montoApertura)}</div>
+                                    </div>
                                     <div>
                                       <span className="text-[#6c757d]">Ingreso carteras</span>
                                       <div className="font-mono font-medium">{fmtMoney(histDetalle.ingresoCarteras)}</div>

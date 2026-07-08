@@ -29,6 +29,7 @@ class CobrosServiceTest {
     private CalendarioPagoRepository calendarioPagoRepo;
     private ConfigMultaRepository configMultaRepo;
     private DiaFestivoRepository diaFestivoRepo;
+    private AbonoCoberturaDetalleRepository abonoCoberturaRepo;
 
     private CobrosService service;
 
@@ -49,10 +50,11 @@ class CobrosServiceTest {
         calendarioPagoRepo = mock(CalendarioPagoRepository.class);
         configMultaRepo = mock(ConfigMultaRepository.class);
         diaFestivoRepo = mock(DiaFestivoRepository.class);
+        abonoCoberturaRepo = mock(AbonoCoberturaDetalleRepository.class);
 
         service = new CobrosService(
                 pagoRepo, multaRepo, creditoRepo, usuarioRepo,
-                calendarioPagoRepo, configMultaRepo, diaFestivoRepo);
+                calendarioPagoRepo, configMultaRepo, diaFestivoRepo, abonoCoberturaRepo);
 
         sucursal = new Sucursal();
         sucursal.setId(1L);
@@ -192,6 +194,55 @@ class CobrosServiceTest {
         assertThat(result.resumen().totalCaja()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(result.resumen().totalRuta()).isEqualByComparingTo(new BigDecimal("200.00"));
         assertThat(result.resumen().totalMultasCobradas()).isEqualByComparingTo(new BigDecimal("50.00"));
+    }
+
+    @Test
+    void rutaDiaMuestraPagoRecuperadoPorAbonoComoPagadoAunqueExistaNoPagoOriginal() {
+        credito.setFechaVencimiento(LocalDate.of(2026, 7, 31));
+
+        CalendarioPago calendarioHoy = CalendarioPago.builder()
+                .id(9L)
+                .numeroPago(8)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.RECUPERADO)
+                .build();
+
+        Pago noPagoOriginal = Pago.builder()
+                .id(88L)
+                .credito(credito)
+                .cliente(cliente)
+                .asesor(asesor)
+                .calendarioPago(calendarioHoy)
+                .numeroPago(8)
+                .fechaPago(HOY)
+                .montoRecibido(BigDecimal.ZERO)
+                .montoEsperado(new BigDecimal("156.00"))
+                .esCompleto(false)
+                .razonNoPago("No pagó en ruta")
+                .multaAplicada(new BigDecimal("50.00"))
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of());
+        when(pagoRepo.findBySucursalAndAsesorIdAndFecha(eq(1L), isNull(), eq(HOY)))
+                .thenReturn(List.of(noPagoOriginal));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(calendarioHoy));
+        when(multaRepo.sumMontosPendientesByCreditoId(42L)).thenReturn(BigDecimal.ZERO);
+        when(abonoCoberturaRepo.sumTotalAplicadoByCalendarioPagoId(9L))
+                .thenReturn(new BigDecimal("206.00"));
+
+        RutaDiaDTO result = service.getRutaDia(null, 1L, HOY, "ADMINISTRADOR", 10L, 1L);
+
+        assertThat(result.clientes()).hasSize(1);
+        ClienteRutaDTO c = result.clientes().get(0);
+        assertThat(c.estadoHoy()).isEqualTo("PAGADO");
+        assertThat(c.montoRecibidoHoy()).isEqualByComparingTo(new BigDecimal("206.00"));
+        assertThat(c.razonNoPago()).isNull();
+        assertThat(c.pagoIdHoy()).isNull();
+        assertThat(result.resumen().cobrados()).isEqualTo(1);
+        assertThat(result.resumen().noPagaron()).isZero();
     }
 
     @Test

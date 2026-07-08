@@ -76,6 +76,7 @@ public class ReporteService {
                 .collect(Collectors.toMap(CajaDia::getFecha, Function.identity(), (a, b) -> a));
 
         BigDecimal totalIngresos = BigDecimal.ZERO;
+        BigDecimal totalApertura = BigDecimal.ZERO;
         BigDecimal totalDesembolsos = BigDecimal.ZERO;
         BigDecimal totalGastos = BigDecimal.ZERO;
         BigDecimal totalNomina = BigDecimal.ZERO;
@@ -84,20 +85,22 @@ public class ReporteService {
         for (LocalDate fecha = desde; !fecha.isAfter(hasta); fecha = fecha.plusDays(1)) {
             CajaDia dia = dias.get(fecha);
             BigDecimal ingresos = coalesce(pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fecha));
+            BigDecimal apertura = dia != null ? coalesce(dia.getMontoApertura()) : BigDecimal.ZERO;
             BigDecimal inversiones = dia != null ? coalesce(movimientoRepo.sumMontoByCajaDiaId(dia.getId())) : BigDecimal.ZERO;
             BigDecimal desembolsos = dia != null ? coalesce(dia.getDesembolsos()) : BigDecimal.ZERO;
             BigDecimal gastos = dia != null ? coalesce(dia.getTotalGastos()) : BigDecimal.ZERO;
             BigDecimal nomina = dia != null ? coalesce(dia.getTotalNomina()) : BigDecimal.ZERO;
             BigDecimal subtotal = dia != null && dia.getSubtotalCaja() != null
                     ? dia.getSubtotalCaja()
-                    : ingresos.subtract(desembolsos).subtract(gastos).subtract(nomina).add(inversiones);
+                    : apertura.add(ingresos).subtract(desembolsos).add(inversiones);
 
             if (dia == null && ingresos.compareTo(BigDecimal.ZERO) == 0) {
                 continue;
             }
 
-            filas.add(new FilaDiariaDTO(fecha, ingresos, desembolsos, gastos, nomina, inversiones, subtotal));
+            filas.add(new FilaDiariaDTO(fecha, apertura, ingresos, desembolsos, gastos, nomina, inversiones, subtotal));
 
+            totalApertura = totalApertura.add(apertura);
             totalIngresos = totalIngresos.add(ingresos);
             totalDesembolsos = totalDesembolsos.add(desembolsos);
             totalGastos = totalGastos.add(gastos);
@@ -108,6 +111,7 @@ public class ReporteService {
 
         return new ReporteIngresosEgresosDTO(
                 filas,
+                totalApertura,
                 totalIngresos,
                 totalDesembolsos,
                 totalGastos,
@@ -318,6 +322,7 @@ public class ReporteService {
         doc.add(pdfSubtitle("Generado: " + ahoraFmt()));
         doc.add(new Paragraph(" "));
 
+        doc.add(new Paragraph("Total Apertura: " + fmtMonto(datos.totalMontoApertura())).setFontSize(10));
         doc.add(new Paragraph("Total Ingresos Carteras: " + fmtMonto(datos.totalIngresoCarteras())).setFontSize(10));
         doc.add(new Paragraph("Total Desembolsos: " + fmtMonto(datos.totalDesembolsos())).setFontSize(10));
         doc.add(new Paragraph("Total Gastos: " + fmtMonto(datos.totalGastos())).setFontSize(10));
@@ -326,9 +331,10 @@ public class ReporteService {
         doc.add(new Paragraph(" "));
 
         doc.add(sectionHeader("DETALLE POR DÍA"));
-        Table t = new Table(UnitValue.createPercentArray(new float[] { 65, 75, 75, 60, 60, 65, 75 }))
+        Table t = new Table(UnitValue.createPercentArray(new float[] { 60, 65, 70, 70, 55, 55, 60, 70 }))
                 .setWidth(UnitValue.createPercentValue(100));
         t.addHeaderCell(hCell("Fecha"));
+        t.addHeaderCell(hCell("Apertura").setTextAlignment(TextAlignment.RIGHT));
         t.addHeaderCell(hCell("Ing. Carteras").setTextAlignment(TextAlignment.RIGHT));
         t.addHeaderCell(hCell("Desembolsos").setTextAlignment(TextAlignment.RIGHT));
         t.addHeaderCell(hCell("Gastos").setTextAlignment(TextAlignment.RIGHT));
@@ -338,6 +344,7 @@ public class ReporteService {
 
         for (FilaDiariaDTO f : datos.filas()) {
             t.addCell(cell(f.fecha().format(fmt)));
+            t.addCell(cell(fmtMonto(f.montoApertura())).setTextAlignment(TextAlignment.RIGHT));
             t.addCell(cell(fmtMonto(f.ingresoCarteras())).setTextAlignment(TextAlignment.RIGHT));
             t.addCell(cell(fmtMonto(f.desembolsos())).setTextAlignment(TextAlignment.RIGHT));
             t.addCell(cell(fmtMonto(f.gastos())).setTextAlignment(TextAlignment.RIGHT));

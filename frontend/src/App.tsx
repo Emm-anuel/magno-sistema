@@ -72,6 +72,7 @@ export default function App() {
               <Route path="/caja" element={<CajaPage />} />
               <Route path="/caja/cierre" element={<CajaCierrePage />} />
               <Route path="/gastos" element={<GastosPage />} />
+              <Route path="/retiros-caja" element={<InversionesPage />} />
               <Route path="/inversiones" element={<InversionesPage />} />
               <Route path="/reportes" element={<ReportesPage />} />
             </Route>

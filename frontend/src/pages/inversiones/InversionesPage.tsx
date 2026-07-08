@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { Plus, Trash2, AlertTriangle } from 'lucide-react'
@@ -23,6 +24,7 @@ function fmtTime(iso: string) {
 }
 
 export default function InversionesPage() {
+  const location = useLocation()
   const { usuario } = useAuthStore()
   const queryClient = useQueryClient()
 
@@ -127,10 +129,11 @@ export default function InversionesPage() {
   })
 
   const total = inversiones.reduce((s, m) => s + m.monto, 0)
+  const esRetiroCaja = location.pathname === '/retiros-caja'
 
   return (
     <div className="page-container space-y-4">
-      <h1 className="page-title">Movimientos de Inversión</h1>
+      <h1 className="page-title">{esRetiroCaja ? 'Retiros de Caja' : 'Movimientos de Inversión'}</h1>
 
       {/* Filtros */}
       <div className="card card-body">

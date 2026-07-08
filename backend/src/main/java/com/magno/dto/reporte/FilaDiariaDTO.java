@@ -5,6 +5,7 @@ import java.time.LocalDate;
 
 public record FilaDiariaDTO(
         LocalDate fecha,
+        BigDecimal montoApertura,
         BigDecimal ingresoCarteras,
         BigDecimal desembolsos,
         BigDecimal gastos,

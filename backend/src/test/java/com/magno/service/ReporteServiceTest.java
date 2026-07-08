@@ -62,6 +62,7 @@ class ReporteServiceTest {
                                 LocalDate.of(2026, 4, 30));
 
                 assertThat(result.filas()).isEmpty();
+                assertThat(result.totalMontoApertura()).isEqualByComparingTo(BigDecimal.ZERO);
                 assertThat(result.totalIngresoCarteras()).isEqualByComparingTo(BigDecimal.ZERO);
                 assertThat(result.totalDesembolsos()).isEqualByComparingTo(BigDecimal.ZERO);
                 assertThat(result.totalGastos()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -92,6 +93,8 @@ class ReporteServiceTest {
                                 LocalDate.of(2026, 4, 8));
 
                 assertThat(result.filas()).hasSize(2);
+                assertThat(result.totalMontoApertura()).isEqualByComparingTo("750.00");
+                assertThat(result.filas().get(0).montoApertura()).isEqualByComparingTo("500.00");
                 assertThat(result.totalIngresoCarteras()).isEqualByComparingTo("3000.00");
                 assertThat(result.totalDesembolsos()).isEqualByComparingTo("1300.00");
                 assertThat(result.totalGastos()).isEqualByComparingTo("250.00");
@@ -110,7 +113,9 @@ class ReporteServiceTest {
 
                 assertThat(result.filas()).hasSize(1);
                 assertThat(result.filas().get(0).fecha()).isEqualTo(fecha);
+                assertThat(result.filas().get(0).montoApertura()).isEqualByComparingTo(BigDecimal.ZERO);
                 assertThat(result.filas().get(0).ingresoCarteras()).isEqualByComparingTo("750.00");
+                assertThat(result.totalMontoApertura()).isEqualByComparingTo(BigDecimal.ZERO);
                 assertThat(result.totalIngresoCarteras()).isEqualByComparingTo("750.00");
                 assertThat(result.subtotalNeto()).isEqualByComparingTo("750.00");
         }
@@ -183,6 +188,7 @@ class ReporteServiceTest {
                 CajaDia cd = new CajaDia();
                 cd.setId(id);
                 cd.setFecha(fecha);
+                cd.setMontoApertura(id == 1L ? new BigDecimal("500.00") : new BigDecimal("250.00"));
                 cd.setIngresoCarteras(ingresoCarteras);
                 cd.setDesembolsos(desembolsos);
                 cd.setTotalGastos(totalGastos);

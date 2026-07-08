@@ -2,6 +2,7 @@ import { api } from '@/services/api'
 
 export interface FilaDiaria {
   fecha: string
+  montoApertura: number
   ingresoCarteras: number
   desembolsos: number
   gastos: number
@@ -12,6 +13,7 @@ export interface FilaDiaria {
 
 export interface ReporteIngresosEgresos {
   filas: FilaDiaria[]
+  totalMontoApertura: number
   totalIngresoCarteras: number
   totalDesembolsos: number
   totalGastos: number

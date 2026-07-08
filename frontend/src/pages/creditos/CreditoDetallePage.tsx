@@ -205,11 +205,24 @@ export default function CreditoDetallePage() {
   const totalAPagarCredito =
     credito.totalAPagar ??
     ((credito.montoCapital ?? 0) + (credito.cargoFinanciero ?? 0))
-  // Uses montoEsperado as approximation for PARCIAL (montoRecibido not available in list view)
-  const totalPagado = calendario
-    .filter((p) => ['PAGADO', 'ADELANTADO', 'PARCIAL'].includes(p.estado))
-    .reduce((sum, p) => sum + p.montoEsperado, 0)
-  const saldoRestante = totalAPagarCredito - totalPagado
+  const pagosHistorialCredito = pagosHistorial.filter((p) => p.creditoId === numId)
+  const totalCobradoPagosRuta = pagosHistorialCredito
+    .reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
+  const totalCuotaPagosRuta = pagosHistorialCredito
+    .reduce((sum, p) => {
+      const recibido = Number(p.montoRecibido ?? 0)
+      const multa = Number(p.multaAplicada ?? 0)
+      return sum + Math.max(recibido - multa, 0)
+    }, 0)
+  const totalCobradoAbonos = abonosCredito
+    .reduce((sum, a) => sum + Number(a.montoDistribuido ?? 0), 0)
+  const totalCuotaAbonos = abonosCredito
+    .reduce((sum, a) => (
+      sum + a.coberturas.reduce((sub, c) => sub + Number(c.montoCuota ?? 0), 0)
+    ), 0)
+  const totalCobradoCredito = totalCobradoPagosRuta + totalCobradoAbonos
+  const totalAplicadoACredito = totalCuotaPagosRuta + totalCuotaAbonos
+  const saldoRestante = Math.max(totalAPagarCredito - totalAplicadoACredito, 0)
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -610,9 +623,11 @@ export default function CreditoDetallePage() {
               {/* Enhanced summary */}
               {(() => {
                 const pagadosCount = calendario.filter(
-                  (p) => p.estado === 'PAGADO' || p.estado === 'ADELANTADO'
+                  (p) => p.estado === 'PAGADO' || p.estado === 'ADELANTADO' || p.estado === 'RECUPERADO'
                 ).length
-                const parcialesCount = calendario.filter((p) => p.estado === 'PARCIAL').length
+                const parcialesCount = calendario.filter(
+                  (p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL'
+                ).length
                 const noPagaronCount = calendario.filter((p) => p.estado === 'NO_PAGADO').length
                 const vencidosCount = calendario.filter(
                   (p) =>
@@ -626,9 +641,6 @@ export default function CreditoDetallePage() {
                     p.fechaProgramada != null &&
                     p.fechaProgramada.slice(0, 10) >= hoyIso
                 ).length
-                const totalCobradoCalendario = pagosHistorial
-                  .filter((p) => p.creditoId === numId)
-                  .reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
                 const multasPend = stats.multasPendientes
 
                 return (
@@ -661,7 +673,7 @@ export default function CreditoDetallePage() {
                     </div>
                     <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
                       <span className="text-[#16a34a] font-semibold">
-                        Total cobrado: {fmtMoney(totalCobradoCalendario)}
+                        Total cobrado: {fmtMoney(totalCobradoCredito)}
                       </span>
                       {multasPend > 0 && (
                         <span className="text-[#dc2626] font-semibold">

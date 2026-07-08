@@ -52,6 +52,7 @@ export interface CajaDiaResumen {
   abiertaPorNombre: string
   cerradaPorNombre: string | null
   fechaHoraCierre: string | null
+  montoApertura: number
   subtotalCaja: number | null
   montoLibres: number | null
   total: number | null
@@ -222,6 +223,7 @@ export const cajaService = {
          abiertaPorNombre: raw.abiertaPorNombre ?? '',
          cerradaPorNombre: raw.cerradaPorNombre ?? null,
          fechaHoraCierre:  raw.fechaHoraCierre ?? null,
+         montoApertura:    Number(raw.montoApertura ?? 0),
          subtotalCaja:     raw.subtotalCaja != null ? Number(raw.subtotalCaja) : null,
          montoLibres:      raw.montoLibres != null ? Number(raw.montoLibres) : null,
          total:            raw.total != null ? Number(raw.total) : null,

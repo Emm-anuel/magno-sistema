@@ -2,8 +2,13 @@ import { api } from '@/services/api'
 
 export interface DashboardKpis {
   cobros: number
+  pagosRuta: number
+  abonosAdeudo: number
+  totalCobrado: number
   creditosActivos: number
   multas: number
+  multasRuta: number
+  multasAbonos: number
   porcentajeAhorro: number
   montoAhorro: number
   montoAhorroFijo: number
@@ -31,8 +36,13 @@ export interface DashboardAsesorIngreso {
   asesorId: number
   asesorNombre: string
   ingresoCarteras: number
+  pagosRuta: number
+  abonosAdeudo: number
+  totalCobrado: number
   desembolsos: number
   multas: number
+  multasRuta: number
+  multasAbonos: number
   clientesActivos: number
 }
 

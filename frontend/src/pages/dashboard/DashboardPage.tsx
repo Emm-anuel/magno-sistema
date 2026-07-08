@@ -248,12 +248,22 @@ export default function DashboardPage() {
 
       {!isLoading && (
         <>
-          {/* ── Métricas (6 cards admin / 5 cards resto) ── */}
-          <div className={`grid grid-cols-2 gap-3 ${isAdmin ? 'lg:grid-cols-3 xl:grid-cols-6' : 'lg:grid-cols-3 xl:grid-cols-5'}`}>
+          {/* ── Métricas ── */}
+          <div className={`grid grid-cols-2 gap-3 ${isAdmin ? 'lg:grid-cols-4' : 'lg:grid-cols-3 xl:grid-cols-4'}`}>
             <div className="metric-card">
-              <p className="metric-label">Cobros {rangeLabel.toLowerCase()}</p>
-              <p className="metric-val text-[#2d6a4f]">{fmtMoney(kpis?.cobros)}</p>
-              <p className="metric-sub">Ingreso de carteras</p>
+              <p className="metric-label">Total cobrado</p>
+              <p className="metric-val text-[#2d6a4f]">{fmtMoney(kpis?.totalCobrado ?? kpis?.cobros)}</p>
+              <p className="metric-sub">Ruta + abonos</p>
+            </div>
+            <div className="metric-card">
+              <p className="metric-label">Pagos de ruta</p>
+              <p className="metric-val">{fmtMoney(kpis?.pagosRuta)}</p>
+              <p className="metric-sub">Pagos normales</p>
+            </div>
+            <div className="metric-card">
+              <p className="metric-label">Abonos adeudo</p>
+              <p className="metric-val text-[#2563eb]">{fmtMoney(kpis?.abonosAdeudo)}</p>
+              <p className="metric-sub">Recuperado</p>
             </div>
             <div className="metric-card">
               <p className="metric-label">Créditos activos</p>
@@ -263,7 +273,9 @@ export default function DashboardPage() {
             <div className="metric-card">
               <p className="metric-label">Multas {rangeLabel.toLowerCase()}</p>
               <p className="metric-val text-[#dc2626]">{fmtMoney(kpis?.multas)}</p>
-              <p className="metric-sub">Pagos con multa</p>
+              <p className="metric-sub">
+                Ruta {fmtMoney(kpis?.multasRuta)} / Abonos {fmtMoney(kpis?.multasAbonos)}
+              </p>
             </div>
             {isAdmin && (
               <div className="metric-card">
@@ -364,7 +376,9 @@ export default function DashboardPage() {
               <thead>
                 <tr>
                   <th>Asesor</th>
-                  <th>Ingreso Carteras</th>
+                  <th>Pagos ruta</th>
+                  <th>Abonos</th>
+                  <th>Total cobrado</th>
                   <th>Desembolsos</th>
                   <th>Multas</th>
                   <th>Clientes</th>
@@ -373,7 +387,7 @@ export default function DashboardPage() {
               <tbody>
                 {ingresoPorAsesor.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center text-[#adb5bd] py-6 text-[13px]">
+                    <td colSpan={7} className="text-center text-[#adb5bd] py-6 text-[13px]">
                       Sin datos por ahora
                     </td>
                   </tr>
@@ -381,7 +395,9 @@ export default function DashboardPage() {
                   ingresoPorAsesor.map((item) => (
                     <tr key={item.asesorId}>
                       <td>{item.asesorNombre}</td>
-                      <td>{fmtMoney(item.ingresoCarteras)}</td>
+                      <td>{fmtMoney(item.pagosRuta)}</td>
+                      <td>{fmtMoney(item.abonosAdeudo)}</td>
+                      <td>{fmtMoney(item.totalCobrado ?? item.ingresoCarteras)}</td>
                       <td>{fmtMoney(item.desembolsos)}</td>
                       <td>{fmtMoney(item.multas)}</td>
                       <td>{item.clientesActivos}</td>

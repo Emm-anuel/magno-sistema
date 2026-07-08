@@ -26,4 +26,24 @@ public interface AbonoCoberturaDetalleRepository extends JpaRepository<AbonoCobe
 
     @Query("SELECT COALESCE(SUM(d.montoCuota), 0) FROM AbonoCoberturaDetalle d WHERE d.calendarioPago.id = :cpId")
     BigDecimal sumMontoCuotaByCalendarioPagoId(@Param("cpId") Long cpId);
+
+    @Query("SELECT COALESCE(SUM(d.montoMulta), 0) FROM AbonoCoberturaDetalle d " +
+            "WHERE (:sucursalId IS NULL OR d.abono.credito.sucursal.id = :sucursalId) " +
+            "AND (:asesorId IS NULL OR d.abono.credito.asesor.id = :asesorId) " +
+            "AND d.abono.fecha >= :desde AND d.abono.fecha <= :hasta")
+    BigDecimal sumMontoMultaByScopeAndFechaRange(@Param("sucursalId") Long sucursalId,
+            @Param("asesorId") Long asesorId,
+            @Param("desde") java.time.LocalDate desde,
+            @Param("hasta") java.time.LocalDate hasta);
+
+    @Query("SELECT d.abono.credito.asesor.id, COALESCE(SUM(d.montoMulta), 0) " +
+            "FROM AbonoCoberturaDetalle d " +
+            "WHERE (:sucursalId IS NULL OR d.abono.credito.sucursal.id = :sucursalId) " +
+            "AND (:asesorId IS NULL OR d.abono.credito.asesor.id = :asesorId) " +
+            "AND d.abono.fecha >= :desde AND d.abono.fecha <= :hasta " +
+            "GROUP BY d.abono.credito.asesor.id")
+    List<Object[]> findMultasAbonosPorAsesorByScopeAndFechaRange(@Param("sucursalId") Long sucursalId,
+            @Param("asesorId") Long asesorId,
+            @Param("desde") java.time.LocalDate desde,
+            @Param("hasta") java.time.LocalDate hasta);
 }

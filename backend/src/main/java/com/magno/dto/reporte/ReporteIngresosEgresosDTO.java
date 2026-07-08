@@ -5,6 +5,7 @@ import java.util.List;
 
 public record ReporteIngresosEgresosDTO(
         List<FilaDiariaDTO> filas,
+        BigDecimal totalMontoApertura,
         BigDecimal totalIngresoCarteras,
         BigDecimal totalDesembolsos,
         BigDecimal totalGastos,

@@ -12,6 +12,8 @@ import com.magno.model.EstadoCredito;
 import com.magno.model.Renovacion;
 import com.magno.model.Usuario;
 import com.magno.repository.CalendarioPagoRepository;
+import com.magno.repository.AbonoCoberturaDetalleRepository;
+import com.magno.repository.AbonoCorrienteRepository;
 import com.magno.repository.ClienteRepository;
 import com.magno.repository.ConfigSucursalRepository;
 import com.magno.repository.CreditoRepository;
@@ -41,6 +43,8 @@ public class DashboardService {
             EstadoCalendarioPago.NO_PAGADO, EstadoCalendarioPago.PARCIAL, EstadoCalendarioPago.RECUPERADO_PARCIAL);
 
     private final PagoRepository pagoRepo;
+    private final AbonoCorrienteRepository abonoCorrienteRepo;
+    private final AbonoCoberturaDetalleRepository abonoCoberturaRepo;
     private final CreditoRepository creditoRepo;
     private final RenovacionRepository renovacionRepo;
     private final CalendarioPagoRepository calendarioRepo;
@@ -49,6 +53,8 @@ public class DashboardService {
     private final ConfigSucursalRepository configSucursalRepo;
 
     public DashboardService(PagoRepository pagoRepo,
+            AbonoCorrienteRepository abonoCorrienteRepo,
+            AbonoCoberturaDetalleRepository abonoCoberturaRepo,
             CreditoRepository creditoRepo,
             RenovacionRepository renovacionRepo,
             CalendarioPagoRepository calendarioRepo,
@@ -56,6 +62,8 @@ public class DashboardService {
             ClienteRepository clienteRepo,
             ConfigSucursalRepository configSucursalRepo) {
         this.pagoRepo = pagoRepo;
+        this.abonoCorrienteRepo = abonoCorrienteRepo;
+        this.abonoCoberturaRepo = abonoCoberturaRepo;
         this.creditoRepo = creditoRepo;
         this.renovacionRepo = renovacionRepo;
         this.calendarioRepo = calendarioRepo;
@@ -76,13 +84,19 @@ public class DashboardService {
         OffsetDateTime inicioTs = desdeSafe.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
         OffsetDateTime finTs = hastaSafe.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
 
-        BigDecimal cobros = asesorId != null
+        BigDecimal pagosRuta = asesorId != null
                 ? coalesce(pagoRepo.sumMontoCobradoByAsesorAndFechaRange(asesorId, desdeSafe, hastaSafe))
                 : coalesce(pagoRepo.sumIngresoBySucursalAndFechaRange(sucursalId, desdeSafe, hastaSafe));
+        BigDecimal abonosAdeudo = coalesce(abonoCorrienteRepo.sumMontoDistribuidoByScopeAndFechaRange(
+                sucursalId, asesorId, desdeSafe, hastaSafe));
+        BigDecimal totalCobrado = pagosRuta.add(abonosAdeudo);
 
-        BigDecimal multas = asesorId != null
+        BigDecimal multasRuta = asesorId != null
                 ? coalesce(pagoRepo.sumMultasByAsesorAndFechaRange(asesorId, desdeSafe, hastaSafe))
                 : coalesce(pagoRepo.sumMultasBySucursalAndFechaRange(sucursalId, desdeSafe, hastaSafe));
+        BigDecimal multasAbonos = coalesce(abonoCoberturaRepo.sumMontoMultaByScopeAndFechaRange(
+                sucursalId, asesorId, desdeSafe, hastaSafe));
+        BigDecimal multas = multasRuta.add(multasAbonos);
 
         BigDecimal desembolsosCreditos = coalesce(
                 creditoRepo.sumDesembolsosByScopeAndFecha(sucursalId, asesorId, inicioTs, finTs));
@@ -101,12 +115,17 @@ public class DashboardService {
         BigDecimal montoAhorroFijo = config.getMontoAhorroFijo() != null
                 ? config.getMontoAhorroFijo()
                 : BigDecimal.ZERO;
-        BigDecimal montoAhorro = cobros.multiply(porcentajeAhorro).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal montoAhorro = totalCobrado.multiply(porcentajeAhorro).setScale(2, RoundingMode.HALF_UP);
 
         DashboardKpisDTO kpis = new DashboardKpisDTO(
-                cobros,
+                totalCobrado,
+                pagosRuta,
+                abonosAdeudo,
+                totalCobrado,
                 creditosActivos,
                 multas,
+                multasRuta,
+                multasAbonos,
                 porcentajeAhorro,
                 montoAhorro,
                 montoAhorroFijo,
@@ -167,13 +186,36 @@ public class DashboardService {
             }
         }
 
+        Map<Long, AbonoAgg> abonosMap = new HashMap<>();
+        for (Object[] row : abonoCorrienteRepo.findAbonosPorAsesorByScopeAndFechaRange(
+                sucursalId, asesorId, desde, hasta)) {
+            Long id = ((Number) row[0]).longValue();
+            String nombre = (String) row[1];
+            long count = ((Number) row[2]).longValue();
+            BigDecimal monto = coalesce((BigDecimal) row[3]);
+            abonosMap.put(id, new AbonoAgg(nombre, count, monto));
+        }
+
+        Map<Long, BigDecimal> multasAbonosMap = new HashMap<>();
+        for (Object[] row : abonoCoberturaRepo.findMultasAbonosPorAsesorByScopeAndFechaRange(
+                sucursalId, asesorId, desde, hasta)) {
+            Long id = ((Number) row[0]).longValue();
+            BigDecimal monto = coalesce((BigDecimal) row[1]);
+            multasAbonosMap.put(id, monto);
+        }
+
         List<Usuario> asesores = resolveAsesores(sucursalId, asesorId, principal);
         List<DashboardAsesorIngresoDTO> salida = new ArrayList<>();
 
         for (Usuario asesor : asesores) {
             IngresoAgg agg = ingresosMap.get(asesor.getId());
-            BigDecimal ingreso = agg != null ? agg.monto : BigDecimal.ZERO;
-            BigDecimal multas = agg != null ? agg.multas : BigDecimal.ZERO;
+            AbonoAgg abonoAgg = abonosMap.get(asesor.getId());
+            BigDecimal pagosRuta = agg != null ? agg.monto : BigDecimal.ZERO;
+            BigDecimal abonosAdeudo = abonoAgg != null ? abonoAgg.monto : BigDecimal.ZERO;
+            BigDecimal ingreso = pagosRuta.add(abonosAdeudo);
+            BigDecimal multasRuta = agg != null ? agg.multas : BigDecimal.ZERO;
+            BigDecimal multasAbonos = multasAbonosMap.getOrDefault(asesor.getId(), BigDecimal.ZERO);
+            BigDecimal multas = multasRuta.add(multasAbonos);
 
             BigDecimal desembolsosCreditos = coalesce(creditoRepo.sumDesembolsosByScopeAndFecha(
                     sucursalId, asesor.getId(),
@@ -189,8 +231,13 @@ public class DashboardService {
                     asesor.getId(),
                     asesor.getNombreCompleto(),
                     ingreso,
+                    pagosRuta,
+                    abonosAdeudo,
+                    ingreso,
                     desembolsos,
                     multas,
+                    multasRuta,
+                    multasAbonos,
                     clientesActivos));
         }
 
@@ -220,5 +267,8 @@ public class DashboardService {
     }
 
     private record IngresoAgg(String nombre, long count, BigDecimal monto, BigDecimal multas) {
+    }
+
+    private record AbonoAgg(String nombre, long count, BigDecimal monto) {
     }
 }

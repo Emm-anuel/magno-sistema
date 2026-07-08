@@ -36,6 +36,7 @@ public class CobrosService {
     private final CalendarioPagoRepository calendarioPagoRepo;
     private final ConfigMultaRepository configMultaRepo;
     private final DiaFestivoRepository diaFestivoRepo;
+    private final AbonoCoberturaDetalleRepository abonoCoberturaRepo;
 
     public CobrosService(PagoRepository pagoRepo,
             MultaRepository multaRepo,
@@ -43,7 +44,8 @@ public class CobrosService {
             UsuarioRepository usuarioRepo,
             CalendarioPagoRepository calendarioPagoRepo,
             ConfigMultaRepository configMultaRepo,
-            DiaFestivoRepository diaFestivoRepo) {
+            DiaFestivoRepository diaFestivoRepo,
+            AbonoCoberturaDetalleRepository abonoCoberturaRepo) {
         this.pagoRepo = pagoRepo;
         this.multaRepo = multaRepo;
         this.creditoRepo = creditoRepo;
@@ -51,6 +53,7 @@ public class CobrosService {
         this.calendarioPagoRepo = calendarioPagoRepo;
         this.configMultaRepo = configMultaRepo;
         this.diaFestivoRepo = diaFestivoRepo;
+        this.abonoCoberturaRepo = abonoCoberturaRepo;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -148,8 +151,17 @@ public class CobrosService {
             String razonNoPago = null;
             Long pagoIdHoy = null;
 
+            EstadoCalendarioPago estadoCalendario = cp.getEstado();
             if (esDiaInhabil) {
                 estadoHoy = "INHABIL";
+            } else if (estadoCalendario == EstadoCalendarioPago.RECUPERADO
+                    || estadoCalendario == EstadoCalendarioPago.RECUPERADO_PARCIAL) {
+                montoRecibidoHoy = Optional.ofNullable(
+                        abonoCoberturaRepo.sumTotalAplicadoByCalendarioPagoId(cp.getId()))
+                        .orElse(BigDecimal.ZERO);
+                estadoHoy = estadoCalendario == EstadoCalendarioPago.RECUPERADO
+                        ? "PAGADO"
+                        : "PARCIAL";
             } else if (pagoHoyOpt.isPresent()) {
                 Pago pagoHoy = pagoHoyOpt.get();
                 pagoIdHoy = pagoHoy.getId();
@@ -164,6 +176,12 @@ public class CobrosService {
                 } else {
                     estadoHoy = "PARCIAL";
                 }
+            } else if (estadoCalendario == EstadoCalendarioPago.PAGADO
+                    || estadoCalendario == EstadoCalendarioPago.ADELANTADO) {
+                estadoHoy = "PAGADO";
+                montoRecibidoHoy = cp.getMontoEsperado();
+            } else if (estadoCalendario == EstadoCalendarioPago.PARCIAL) {
+                estadoHoy = "PARCIAL";
             } else {
                 estadoHoy = "SIN_REGISTRO";
             }

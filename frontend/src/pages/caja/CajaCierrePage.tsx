@@ -149,6 +149,7 @@ function CajaCerradaView({
       {/* Summary cards */}
       <Section title="Resumen final" highlight defaultOpen>
         <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <SummaryItem label="Apertura" value={fmtMoney(caja.montoApertura)} />
           <SummaryItem label="Ingreso carteras" value={fmtMoney(caja.ingresoCarteras)} />
           <SummaryItem label="Desembolsos" value={fmtMoney(caja.desembolsos)} />
           <SummaryItem label="Subtotal caja" value={fmtMoney(caja.subtotalCaja)} bold />
