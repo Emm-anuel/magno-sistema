@@ -9,7 +9,14 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
-import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import com.magno.dto.reporte.*;
 import com.magno.dto.renovacion.ColocacionItemDTO;
@@ -749,7 +756,7 @@ public class ReporteService {
 
     private int xlInfo(Sheet sheet, int rowIdx, CellStyle style, String text) {
         Row row = sheet.createRow(rowIdx);
-        Cell cell = row.createCell(0);
+        var cell = row.createCell(0);
         cell.setCellValue(text);
         if (style != null) cell.setCellStyle(style);
         return rowIdx + 1;
@@ -757,15 +764,15 @@ public class ReporteService {
 
     private int xlKV(Sheet sheet, int rowIdx, String label, BigDecimal value, CellStyle labelStyle, CellStyle numStyle) {
         Row row = sheet.createRow(rowIdx);
-        Cell lbl = row.createCell(0); lbl.setCellValue(label); if (labelStyle != null) lbl.setCellStyle(labelStyle);
-        Cell val = row.createCell(1); val.setCellValue(value != null ? value.doubleValue() : 0.0); if (numStyle != null) val.setCellStyle(numStyle);
+        var lbl = row.createCell(0); lbl.setCellValue(label); if (labelStyle != null) lbl.setCellStyle(labelStyle);
+        var val = row.createCell(1); val.setCellValue(value != null ? value.doubleValue() : 0.0); if (numStyle != null) val.setCellStyle(numStyle);
         return rowIdx + 1;
     }
 
     private int xlHRow(Sheet sheet, int rowIdx, CellStyle style, String... cols) {
         Row row = sheet.createRow(rowIdx);
         for (int i = 0; i < cols.length; i++) {
-            Cell cell = row.createCell(i); cell.setCellValue(cols[i]);
+            var cell = row.createCell(i); cell.setCellValue(cols[i]);
             if (style != null) cell.setCellStyle(style);
         }
         return rowIdx + 1;
@@ -776,7 +783,7 @@ public class ReporteService {
     }
 
     private void xlNum(Row row, int col, BigDecimal val, CellStyle style) {
-        Cell cell = row.createCell(col);
+        var cell = row.createCell(col);
         cell.setCellValue(val != null ? val.doubleValue() : 0.0);
         if (style != null) cell.setCellStyle(style);
     }
