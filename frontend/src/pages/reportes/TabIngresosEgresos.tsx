@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import MetricCard from '@/components/reportes/MetricCard'
 import FiltroFechas from '@/components/reportes/FiltroFechas'
 import ExportPdfButton from '@/components/reportes/ExportPdfButton'
+import ExportExcelButton from '@/components/reportes/ExportExcelButton'
 import { reporteService, type ReporteIngresosEgresos } from '@/services/reporteService'
 
 function mesActual() {
@@ -61,14 +62,24 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
           disabled={!sucursalId}
         />
         {generated && (
-          <ExportPdfButton
-            onExport={() => reporteService.exportIngresosEgresosPdf(
-              sucursalId!,
-              lastRange?.desde ?? desde,
-              lastRange?.hasta ?? hasta,
-            )}
-            disabled={!data || loading || !lastRange}
-          />
+          <div className="flex gap-2">
+            <ExportPdfButton
+              onExport={() => reporteService.exportIngresosEgresosPdf(
+                sucursalId!,
+                lastRange?.desde ?? desde,
+                lastRange?.hasta ?? hasta,
+              )}
+              disabled={!data || loading || !lastRange}
+            />
+            <ExportExcelButton
+              onExport={() => reporteService.exportIngresosEgresosExcel(
+                sucursalId!,
+                lastRange?.desde ?? desde,
+                lastRange?.hasta ?? hasta,
+              )}
+              disabled={!data || loading || !lastRange}
+            />
+          </div>
         )}
       </div>
 

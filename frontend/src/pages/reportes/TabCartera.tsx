@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import MetricCard from '@/components/reportes/MetricCard'
 import ExportPdfButton from '@/components/reportes/ExportPdfButton'
+import ExportExcelButton from '@/components/reportes/ExportExcelButton'
 import { reporteService, type ReporteCartera } from '@/services/reporteService'
 
 function fmt(n: number | null | undefined) {
@@ -122,14 +123,24 @@ export default function TabCartera({ sucursalId }: Props) {
           </button>
         </div>
         {data && (
-          <ExportPdfButton
-            onExport={() => reporteService.exportCarteraPdf(
-              sucursalId!,
-              lastFilters?.asesorId ?? asesorId,
-              lastFilters?.estado ?? estado,
-            )}
-            disabled={loading || !lastFilters}
-          />
+          <div className="flex gap-2">
+            <ExportPdfButton
+              onExport={() => reporteService.exportCarteraPdf(
+                sucursalId!,
+                lastFilters?.asesorId ?? asesorId,
+                lastFilters?.estado ?? estado,
+              )}
+              disabled={loading || !lastFilters}
+            />
+            <ExportExcelButton
+              onExport={() => reporteService.exportCarteraExcel(
+                sucursalId!,
+                lastFilters?.asesorId ?? asesorId,
+                lastFilters?.estado ?? estado,
+              )}
+              disabled={loading || !lastFilters}
+            />
+          </div>
         )}
       </div>
 

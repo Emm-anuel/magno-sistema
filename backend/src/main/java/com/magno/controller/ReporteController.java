@@ -127,6 +127,54 @@ public class ReporteController {
         return pdfResponse(pdf, "por-asesor-" + desde + "-" + hasta + ".pdf");
     }
 
+    // ── Excel ─────────────────────────────────────────────────────────────
+
+    @GetMapping("/ingresos-egresos/excel")
+    public ResponseEntity<byte[]> ingresosEgresosExcel(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        byte[] xlsx = reporteService.exportarIngresosEgresosExcel(sid, desde, hasta);
+        return xlsxResponse(xlsx, "ingresos-egresos-" + desde + "-" + hasta + ".xlsx");
+    }
+
+    @GetMapping("/colocaciones/excel")
+    public ResponseEntity<byte[]> colocacionesExcel(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) Long asesorId,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        byte[] xlsx = reporteService.exportarColocacionesExcel(sid, desde, hasta, asesorId);
+        return xlsxResponse(xlsx, "colocaciones-" + desde + "-" + hasta + ".xlsx");
+    }
+
+    @GetMapping("/cartera/excel")
+    public ResponseEntity<byte[]> carteraExcel(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam(required = false) Long asesorId,
+            @RequestParam(defaultValue = "TODOS") String estado,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        byte[] xlsx = reporteService.exportarCarteraExcel(sid, asesorId, estado);
+        return xlsxResponse(xlsx, "cartera.xlsx");
+    }
+
+    @GetMapping("/por-asesor/excel")
+    public ResponseEntity<byte[]> porAsesorExcel(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) Long asesorId,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        byte[] xlsx = reporteService.exportarPorAsesorExcel(sid, desde, hasta, asesorId);
+        return xlsxResponse(xlsx, "por-asesor-" + desde + "-" + hasta + ".xlsx");
+    }
+
     private Long effectiveSucursalId(Long requestId, JwtPrincipal principal) {
         if ("ADMINISTRADOR".equals(principal.rol())) {
             if (requestId != null) {
@@ -149,5 +197,13 @@ public class ReporteController {
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
         return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
+    private ResponseEntity<byte[]> xlsxResponse(byte[] data, String filename) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        return ResponseEntity.ok().headers(headers).body(data);
     }
 }

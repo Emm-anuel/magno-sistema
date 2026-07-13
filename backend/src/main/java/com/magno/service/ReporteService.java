@@ -9,6 +9,8 @@ import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import com.magno.dto.reporte.*;
 import com.magno.dto.renovacion.ColocacionItemDTO;
 import com.magno.model.*;
@@ -506,6 +508,166 @@ public class ReporteService {
         return baos.toByteArray();
     }
 
+    // ── Excel Ingresos/Egresos ───────────────────────────────────────────
+
+    public byte[] exportarIngresosEgresosExcel(Long sucursalId, LocalDate desde, LocalDate hasta) {
+        ReporteIngresosEgresosDTO datos = getIngresosEgresos(sucursalId, desde, hasta);
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("Ingresos y Egresos");
+            CellStyle title = xlTitle(wb); CellStyle hdr = xlHeader(wb); CellStyle cur = xlCurrency(wb);
+            int r = 0;
+            r = xlInfo(sheet, r, title, "MAGNO — Reporte de Ingresos y Egresos");
+            r = xlInfo(sheet, r, null, resolveSucursalLabel(sucursalId));
+            r = xlInfo(sheet, r, null, "Período: " + desde.format(fmt) + " al " + hasta.format(fmt));
+            r = xlInfo(sheet, r, null, "Generado: " + ahoraFmt());
+            r++;
+            r = xlKV(sheet, r, "Total Apertura", datos.totalMontoApertura(), hdr, cur);
+            r = xlKV(sheet, r, "Total Ingresos Carteras", datos.totalIngresoCarteras(), hdr, cur);
+            r = xlKV(sheet, r, "Total Desembolsos", datos.totalDesembolsos(), hdr, cur);
+            r = xlKV(sheet, r, "Total Gastos", datos.totalGastos(), hdr, cur);
+            r = xlKV(sheet, r, "Total Nómina", datos.totalNomina(), hdr, cur);
+            r = xlKV(sheet, r, "Subtotal Neto", datos.subtotalNeto(), hdr, cur);
+            r++;
+            r = xlHRow(sheet, r, hdr, "Fecha", "Apertura", "Ing. Carteras", "Desembolsos", "Gastos", "Nómina", "Inversiones", "Subtotal");
+            for (FilaDiariaDTO f : datos.filas()) {
+                Row row = sheet.createRow(r++);
+                xlText(row, 0, f.fecha().format(fmt));
+                xlNum(row, 1, f.montoApertura(), cur); xlNum(row, 2, f.ingresoCarteras(), cur);
+                xlNum(row, 3, f.desembolsos(), cur);  xlNum(row, 4, f.gastos(), cur);
+                xlNum(row, 5, f.nomina(), cur);        xlNum(row, 6, f.inversiones(), cur);
+                xlNum(row, 7, f.subtotalCaja(), cur);
+            }
+            for (int i = 0; i < 8; i++) sheet.autoSizeColumn(i);
+            wb.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generando Excel de ingresos/egresos", e);
+        }
+    }
+
+    // ── Excel Colocaciones ───────────────────────────────────────────────
+
+    public byte[] exportarColocacionesExcel(Long sucursalId, LocalDate desde, LocalDate hasta, Long asesorId) {
+        ReporteColocacionesDTO datos = getColocaciones(sucursalId, desde, hasta, asesorId);
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("Colocaciones");
+            CellStyle title = xlTitle(wb); CellStyle hdr = xlHeader(wb); CellStyle cur = xlCurrency(wb);
+            int r = 0;
+            r = xlInfo(sheet, r, title, "MAGNO — Reporte de Colocaciones");
+            r = xlInfo(sheet, r, null, resolveSucursalLabel(sucursalId));
+            r = xlInfo(sheet, r, null, "Período: " + desde.format(fmt) + " al " + hasta.format(fmt));
+            r = xlInfo(sheet, r, null, "Filtro asesor: " + resolveAsesorLabel(asesorId));
+            r = xlInfo(sheet, r, null, "Generado: " + ahoraFmt());
+            r++;
+            r = xlHRow(sheet, r, hdr, "Fecha", "Cliente", "Cto. Anterior", "Cto. Nuevo", "Desembolso", "Pago", "Asesor", "Tipo");
+            for (ColocacionItemDTO item : datos.items()) {
+                Row row = sheet.createRow(r++);
+                xlText(row, 0, item.fecha().format(fmt));
+                xlText(row, 1, item.clienteNombre());
+                xlNum(row, 2, item.creditoAnterior(), cur);
+                xlNum(row, 3, item.creditoNuevo(), cur);
+                xlNum(row, 4, item.desembolso(), cur);
+                xlText(row, 5, item.tipoPago());
+                xlText(row, 6, item.asesorNombre());
+                xlText(row, 7, item.tipo());
+            }
+            r++;
+            r = xlKV(sheet, r, "Total Desembolsos", datos.totalDesembolsos(), hdr, cur);
+            r = xlKV(sheet, r, "Total Caja", datos.totalCaja(), hdr, cur);
+            for (int i = 0; i < 8; i++) sheet.autoSizeColumn(i);
+            wb.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generando Excel de colocaciones", e);
+        }
+    }
+
+    // ── Excel Cartera ────────────────────────────────────────────────────
+
+    public byte[] exportarCarteraExcel(Long sucursalId, Long asesorId, String estado) {
+        ReporteCarteraDTO datos = getCartera(sucursalId, asesorId, estado);
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("Cartera");
+            CellStyle title = xlTitle(wb); CellStyle hdr = xlHeader(wb); CellStyle cur = xlCurrency(wb);
+            int r = 0;
+            r = xlInfo(sheet, r, title, "MAGNO — Reporte de Cartera");
+            r = xlInfo(sheet, r, null, resolveSucursalLabel(sucursalId));
+            r = xlInfo(sheet, r, null, "Filtro asesor: " + resolveAsesorLabel(asesorId));
+            r = xlInfo(sheet, r, null, "Estado: " + (estado == null ? "TODOS" : estado));
+            r = xlInfo(sheet, r, null, "Generado: " + ahoraFmt());
+            r++;
+            r = xlKV(sheet, r, "Total créditos activos", BigDecimal.valueOf(datos.totalCreditosActivos()), hdr, xlCurrency(wb));
+            r = xlKV(sheet, r, "Monto total colocado", datos.montoTotalColocado(), hdr, cur);
+            r = xlKV(sheet, r, "Créditos en mora", BigDecimal.valueOf(datos.creditosEnMora()), hdr, xlCurrency(wb));
+            r = xlKV(sheet, r, "Monto en riesgo", datos.montoEnRiesgo(), hdr, cur);
+            r++;
+            r = xlHRow(sheet, r, hdr, "Cliente", "Asesor", "Monto", "Pagos Realizados", "Pagos Total", "Saldo Pendiente", "Multas Pend.", "Estado");
+            for (CreditoActivoDTO c : datos.creditos()) {
+                Row row = sheet.createRow(r++);
+                xlText(row, 0, c.clienteNombre());
+                xlText(row, 1, c.asesorNombre());
+                xlNum(row, 2, c.montoCapital(), cur);
+                row.createCell(3).setCellValue(c.pagosRealizados());
+                row.createCell(4).setCellValue(c.pagosTotal());
+                xlNum(row, 5, c.saldoPendiente(), cur);
+                xlNum(row, 6, c.multasPendientes(), cur);
+                xlText(row, 7, c.enMora() ? "En mora" : "Al corriente");
+            }
+            for (int i = 0; i < 8; i++) sheet.autoSizeColumn(i);
+            wb.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generando Excel de cartera", e);
+        }
+    }
+
+    // ── Excel Por Asesor ─────────────────────────────────────────────────
+
+    public byte[] exportarPorAsesorExcel(Long sucursalId, LocalDate desde, LocalDate hasta, Long asesorId) {
+        ReportePorAsesorDTO datos = getPorAsesor(sucursalId, desde, hasta, asesorId);
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
+            Sheet sheet = wb.createSheet("Por Asesor");
+            CellStyle title = xlTitle(wb); CellStyle hdr = xlHeader(wb); CellStyle cur = xlCurrency(wb);
+            int r = 0;
+            r = xlInfo(sheet, r, title, "MAGNO — Reporte Por Asesor");
+            r = xlInfo(sheet, r, null, resolveSucursalLabel(sucursalId));
+            r = xlInfo(sheet, r, null, "Período: " + desde.format(fmt) + " al " + hasta.format(fmt));
+            r = xlInfo(sheet, r, null, "Filtro asesor: " + resolveAsesorLabel(asesorId));
+            r = xlInfo(sheet, r, null, "Generado: " + ahoraFmt());
+            r++;
+            r = xlHRow(sheet, r, hdr, "Asesor", "Cobros", "Mto. Cobrado", "Multas Cob.",
+                    "Incompletos", "Cli. Activos", "Colocado", "En Mora", "En Riesgo");
+            for (AsesorResumenDTO a : datos.asesores()) {
+                Row row = sheet.createRow(r++);
+                xlText(row, 0, a.asesorNombre());
+                row.createCell(1).setCellValue(a.cobrosRegistrados());
+                xlNum(row, 2, a.montoCobrado(), cur);
+                xlNum(row, 3, a.multasCobradas(), cur);
+                row.createCell(4).setCellValue(a.pagosIncompletos());
+                row.createCell(5).setCellValue(a.clientesActivos());
+                xlNum(row, 6, a.montoTotalColocado(), cur);
+                row.createCell(7).setCellValue(a.clientesEnMora());
+                xlNum(row, 8, a.montoEnRiesgo(), cur);
+            }
+            r++;
+            Row totRow = sheet.createRow(r);
+            xlText(totRow, 0, "TOTALES");
+            totRow.createCell(1).setCellValue(datos.totalCobrosRegistrados());
+            xlNum(totRow, 2, datos.totalMontoCobrado(), cur);
+            xlNum(totRow, 3, datos.totalMultasCobradas(), cur);
+            totRow.createCell(5).setCellValue(datos.totalClientesActivos());
+            totRow.createCell(7).setCellValue(datos.totalClientesEnMora());
+            for (int i = 0; i < 9; i++) sheet.autoSizeColumn(i);
+            wb.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generando Excel por asesor", e);
+        }
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────
 
     private BigDecimal coalesce(BigDecimal value) {
@@ -559,5 +721,63 @@ public class ReporteService {
         if (value == null)
             return "$0.00";
         return "$" + String.format("%,.2f", value);
+    }
+
+    // ── Excel helpers ────────────────────────────────────────────────────
+
+    private CellStyle xlTitle(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        Font f = wb.createFont(); f.setBold(true); f.setFontHeightInPoints((short) 13);
+        s.setFont(f); return s;
+    }
+
+    private CellStyle xlHeader(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        Font f = wb.createFont(); f.setBold(true); f.setFontHeightInPoints((short) 10);
+        s.setFont(f);
+        s.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        s.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return s;
+    }
+
+    private CellStyle xlCurrency(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        DataFormat fmt = wb.createDataFormat();
+        s.setDataFormat(fmt.getFormat("$#,##0.00"));
+        return s;
+    }
+
+    private int xlInfo(Sheet sheet, int rowIdx, CellStyle style, String text) {
+        Row row = sheet.createRow(rowIdx);
+        Cell cell = row.createCell(0);
+        cell.setCellValue(text);
+        if (style != null) cell.setCellStyle(style);
+        return rowIdx + 1;
+    }
+
+    private int xlKV(Sheet sheet, int rowIdx, String label, BigDecimal value, CellStyle labelStyle, CellStyle numStyle) {
+        Row row = sheet.createRow(rowIdx);
+        Cell lbl = row.createCell(0); lbl.setCellValue(label); if (labelStyle != null) lbl.setCellStyle(labelStyle);
+        Cell val = row.createCell(1); val.setCellValue(value != null ? value.doubleValue() : 0.0); if (numStyle != null) val.setCellStyle(numStyle);
+        return rowIdx + 1;
+    }
+
+    private int xlHRow(Sheet sheet, int rowIdx, CellStyle style, String... cols) {
+        Row row = sheet.createRow(rowIdx);
+        for (int i = 0; i < cols.length; i++) {
+            Cell cell = row.createCell(i); cell.setCellValue(cols[i]);
+            if (style != null) cell.setCellStyle(style);
+        }
+        return rowIdx + 1;
+    }
+
+    private void xlText(Row row, int col, String val) {
+        row.createCell(col).setCellValue(val != null ? val : "—");
+    }
+
+    private void xlNum(Row row, int col, BigDecimal val, CellStyle style) {
+        Cell cell = row.createCell(col);
+        cell.setCellValue(val != null ? val.doubleValue() : 0.0);
+        if (style != null) cell.setCellStyle(style);
     }
 }

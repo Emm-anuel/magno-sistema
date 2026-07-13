@@ -111,6 +111,17 @@ async function downloadPdf(url: string, params: Record<string, any>, filename: s
   URL.revokeObjectURL(href)
 }
 
+async function downloadExcel(url: string, params: Record<string, any>, filename: string) {
+  const response = await api.get(url, { params, responseType: 'blob' })
+  const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  const href = URL.createObjectURL(new Blob([response.data], { type: mime }))
+  const a = document.createElement('a')
+  a.href = href
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(href)
+}
+
 export const reporteService = {
   getSucursales: (): Promise<Sucursal[]> =>
     api.get<any[]>('/sucursales').then(r => r.data.map((s: any) => ({ id: s.id, nombre: s.nombre }))),
@@ -145,4 +156,19 @@ export const reporteService = {
   exportPorAsesorPdf: (sucursalId: number, desde: string, hasta: string, asesorId?: number) =>
     downloadPdf('/reportes/por-asesor/pdf', { sucursalId, desde, hasta, asesorId },
       `por-asesor-${desde}-${hasta}.pdf`),
+
+  exportIngresosEgresosExcel: (sucursalId: number, desde: string, hasta: string) =>
+    downloadExcel('/reportes/ingresos-egresos/excel', { sucursalId, desde, hasta },
+      `ingresos-egresos-${desde}-${hasta}.xlsx`),
+
+  exportColocacionesExcel: (sucursalId: number, desde: string, hasta: string, asesorId?: number) =>
+    downloadExcel('/reportes/colocaciones/excel', { sucursalId, desde, hasta, asesorId },
+      `colocaciones-${desde}-${hasta}.xlsx`),
+
+  exportCarteraExcel: (sucursalId: number, asesorId?: number, estado = 'TODOS') =>
+    downloadExcel('/reportes/cartera/excel', { sucursalId, asesorId, estado }, 'cartera.xlsx'),
+
+  exportPorAsesorExcel: (sucursalId: number, desde: string, hasta: string, asesorId?: number) =>
+    downloadExcel('/reportes/por-asesor/excel', { sucursalId, desde, hasta, asesorId },
+      `por-asesor-${desde}-${hasta}.xlsx`),
 }

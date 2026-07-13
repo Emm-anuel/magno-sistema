@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import FiltroFechas from '@/components/reportes/FiltroFechas'
 import ExportPdfButton from '@/components/reportes/ExportPdfButton'
+import ExportExcelButton from '@/components/reportes/ExportExcelButton'
 import { reporteService, type ReporteColocaciones } from '@/services/reporteService'
 
 function lunesDeHoy() {
@@ -98,15 +99,26 @@ export default function TabColocaciones({ sucursalId }: Props) {
           </div>
         </div>
         {generated && (
-          <ExportPdfButton
-            onExport={() => reporteService.exportColocacionesPdf(
-              sucursalId!,
-              lastFilters?.desde ?? desde,
-              lastFilters?.hasta ?? hasta,
-              lastFilters?.asesorId ?? asesorId,
-            )}
-            disabled={!data || loading || !lastFilters}
-          />
+          <div className="flex gap-2">
+            <ExportPdfButton
+              onExport={() => reporteService.exportColocacionesPdf(
+                sucursalId!,
+                lastFilters?.desde ?? desde,
+                lastFilters?.hasta ?? hasta,
+                lastFilters?.asesorId ?? asesorId,
+              )}
+              disabled={!data || loading || !lastFilters}
+            />
+            <ExportExcelButton
+              onExport={() => reporteService.exportColocacionesExcel(
+                sucursalId!,
+                lastFilters?.desde ?? desde,
+                lastFilters?.hasta ?? hasta,
+                lastFilters?.asesorId ?? asesorId,
+              )}
+              disabled={!data || loading || !lastFilters}
+            />
+          </div>
         )}
       </div>
 
