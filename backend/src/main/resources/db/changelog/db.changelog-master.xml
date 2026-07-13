@@ -263,4 +263,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V33-numero-cliente" author="magno">
+        <sqlFile
+            path="db/changelog/V33__numero_cliente.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

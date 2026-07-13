@@ -10,6 +10,7 @@ import java.time.OffsetDateTime;
  */
 public record ClienteResumenDTO(
         Long id,
+        String numeroCliente,
         String nombre,
         String apellidoPaterno,
         String apellidoMaterno,
@@ -50,6 +51,7 @@ public record ClienteResumenDTO(
 
         return new ClienteResumenDTO(
                 c.getId(),
+                c.getNumeroCliente(),
                 c.getNombre(),
                 c.getApellidoPaterno(),
                 c.getApellidoMaterno(),

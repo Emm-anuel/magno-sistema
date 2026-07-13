@@ -24,6 +24,9 @@ public class Cliente {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 20, unique = true)
+    private String numeroCliente;
+
     // ── Datos personales ──────────────────────────────────────────
     @Column(nullable = false, length = 100)
     private String nombre;

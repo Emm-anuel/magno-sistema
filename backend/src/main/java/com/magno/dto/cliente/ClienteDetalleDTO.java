@@ -11,6 +11,7 @@ import java.time.OffsetDateTime;
  */
 public record ClienteDetalleDTO(
         Long id,
+        String numeroCliente,
 
         // Datos personales
         String nombre,
@@ -120,6 +121,7 @@ public record ClienteDetalleDTO(
 
         return new ClienteDetalleDTO(
                 c.getId(),
+                c.getNumeroCliente(),
                 c.getNombre(),
                 c.getApellidoPaterno(),
                 c.getApellidoMaterno(),

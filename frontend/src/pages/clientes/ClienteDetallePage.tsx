@@ -490,6 +490,7 @@ export default function ClienteDetallePage() {
                   Datos Personales
                 </p>
                 <div>
+                  <Row label="Número de cliente" value={cliente.numero_cliente ?? '—'} />
                   <Row label="Nombre completo" value={cliente.nombre_completo} />
                   <Row label="Fecha nacimiento" value={fmtDate(cliente.fecha_nacimiento)} />
                   <Row label="Estado civil" value={ESTADO_CIVIL_LABELS[cliente.estado_civil as EstadoCivil] ?? cliente.estado_civil} />

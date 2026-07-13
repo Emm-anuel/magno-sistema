@@ -168,6 +168,7 @@ export interface SucursalInfo {
 
 export interface ClienteResumen {
   id: number
+  numero_cliente?: string
   nombre: string
   apellido_paterno: string
   apellido_materno?: string
@@ -187,6 +188,7 @@ export interface ClienteResumen {
 
 export interface ClienteDetalle {
   id: number
+  numero_cliente?: string
   // Datos personales
   nombre: string
   apellido_paterno: string

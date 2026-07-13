@@ -253,7 +253,7 @@ export default function ClientesPage() {
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#adb5bd]" />
             <input
               type="search"
-              placeholder="Nombre, celular, CURP..."
+              placeholder="Nombre, No. cliente, celular, CURP..."
               value={buscar}
               onChange={(e) => { setBuscar(e.target.value); setPagina(0) }}
               className="input pl-8 max-w-xs"
@@ -309,6 +309,7 @@ export default function ClientesPage() {
               <table className="tabla">
                 <thead>
                   <tr>
+                    <th className="w-[90px]">No.</th>
                     <th>Cliente</th>
                     <th>Negocio</th>
                     <th>Asesor</th>
@@ -321,13 +322,16 @@ export default function ClientesPage() {
                 <tbody>
                   {clientes.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center text-[#adb5bd] py-8">
+                      <td colSpan={8} className="text-center text-[#adb5bd] py-8">
                         Sin resultados
                       </td>
                     </tr>
                   ) : (
                     clientes.map((c) => (
                       <tr key={c.id}>
+                        <td className="font-mono text-[13px] text-[#495057]">
+                          {c.numero_cliente ?? <span className="text-[#adb5bd]">—</span>}
+                        </td>
                         <td>
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-[#dcfce7] flex items-center justify-center text-[11px] font-semibold text-[#166534] shrink-0">

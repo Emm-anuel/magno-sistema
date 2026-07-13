@@ -58,7 +58,8 @@ public class ClienteService {
                             cb.concat(root.get("apellidoPaterno"), ""))), term),
                     cb.like(cb.lower(root.get("celular")), term),
                     cb.like(cb.lower(root.get("curp")), term),
-                    cb.like(cb.lower(root.get("ineNumero")), term)
+                    cb.like(cb.lower(root.get("ineNumero")), term),
+                    cb.like(cb.lower(root.get("numeroCliente")), term)
             ));
         }
 
@@ -121,7 +122,7 @@ public class ClienteService {
         }
 
         final Long resolvedSucursalId = sucursalId;
-        Sucursal sucursal = sucursalRepo.findById(resolvedSucursalId)
+        Sucursal sucursal = sucursalRepo.findByIdForUpdate(resolvedSucursalId)
                 .orElseThrow(() -> new EntityNotFoundException("Sucursal no encontrada: " + resolvedSucursalId));
 
         Usuario creador = usuarioRepo.findById(createdByUserId).orElse(null);
@@ -183,6 +184,7 @@ public class ClienteService {
                 .sucursal(sucursal)
                 .activo(true)
                 .createdBy(creador)
+                .numeroCliente(generarNumeroCliente(sucursal))
                 .build();
 
         return ClienteDetalleDTO.from(clienteRepo.save(nuevo), false);
@@ -371,5 +373,16 @@ public class ClienteService {
                     return m;
                 })
                 .toList();
+    }
+
+    private String generarNumeroCliente(Sucursal sucursal) {
+        if (sucursal.getPrefijo() == null || sucursal.getPrefijo().isBlank()) {
+            throw new IllegalStateException(
+                "La sucursal '" + sucursal.getNombre() + "' no tiene prefijo configurado");
+        }
+        int siguiente = sucursal.getNumeroSecuencial() + 1;
+        sucursal.setNumeroSecuencial(siguiente);
+        sucursalRepo.save(sucursal);
+        return String.format("%s%02d", sucursal.getPrefijo(), siguiente);
     }
 }

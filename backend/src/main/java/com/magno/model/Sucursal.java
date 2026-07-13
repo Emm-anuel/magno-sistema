@@ -32,6 +32,12 @@ public class Sucursal {
     @Column(nullable = false)
     private Boolean activa;
 
+    @Column(length = 10)
+    private String prefijo;
+
+    @Column(nullable = false)
+    private Integer numeroSecuencial;
+
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -45,6 +51,8 @@ public class Sucursal {
         updatedAt = now;
         if (activa == null)
             activa = true;
+        if (numeroSecuencial == null)
+            numeroSecuencial = 0;
     }
 
     @PreUpdate
