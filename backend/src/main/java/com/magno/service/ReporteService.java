@@ -55,6 +55,7 @@ public class ReporteService {
     private final RenovacionRepository renovacionRepo;
     private final UsuarioRepository usuarioRepo;
     private final SucursalRepository sucursalRepo;
+    private final GastoRepository gastoRepo;
 
     public ReporteService(CajaDiaRepository cajaDiaRepo,
             CajaMovimientoInversionRepository movimientoRepo,
@@ -64,7 +65,8 @@ public class ReporteService {
             CalendarioPagoRepository calendarioRepo,
             RenovacionRepository renovacionRepo,
             UsuarioRepository usuarioRepo,
-            SucursalRepository sucursalRepo) {
+            SucursalRepository sucursalRepo,
+            GastoRepository gastoRepo) {
         this.cajaDiaRepo = cajaDiaRepo;
         this.movimientoRepo = movimientoRepo;
         this.creditoRepo = creditoRepo;
@@ -74,6 +76,7 @@ public class ReporteService {
         this.renovacionRepo = renovacionRepo;
         this.usuarioRepo = usuarioRepo;
         this.sucursalRepo = sucursalRepo;
+        this.gastoRepo = gastoRepo;
     }
 
     // ── Ingresos/Egresos ─────────────────────────────────────────────────
@@ -118,6 +121,26 @@ public class ReporteService {
 
         BigDecimal subtotalNeto = totalIngresos.subtract(totalDesembolsos).subtract(totalGastos).subtract(totalNomina);
 
+        List<GastoReporteDTO> gastosDetalle = gastoRepo
+                .findBySucursalAndFechaRange(sucursalId, desde, hasta)
+                .stream()
+                .map(g -> new GastoReporteDTO(
+                        g.getCajaDia().getFecha(),
+                        g.getCategoriaGasto() != null ? g.getCategoriaGasto().getNombre() : "—",
+                        g.getConcepto(),
+                        g.getMonto()))
+                .toList();
+
+        List<InversionReporteDTO> inversionesDetalle = movimientoRepo
+                .findBySucursalAndFechaRange(sucursalId, desde, hasta)
+                .stream()
+                .map(m -> new InversionReporteDTO(
+                        m.getCajaDia().getFecha(),
+                        m.getConceptoInversion() != null ? m.getConceptoInversion().getNombre() : "—",
+                        m.getDescripcion(),
+                        m.getMonto()))
+                .toList();
+
         return new ReporteIngresosEgresosDTO(
                 filas,
                 totalApertura,
@@ -125,7 +148,9 @@ public class ReporteService {
                 totalDesembolsos,
                 totalGastos,
                 totalNomina,
-                subtotalNeto);
+                subtotalNeto,
+                gastosDetalle,
+                inversionesDetalle);
     }
 
     // ── Colocaciones ─────────────────────────────────────────────────────
@@ -363,6 +388,42 @@ public class ReporteService {
         }
         doc.add(t);
 
+        if (!datos.gastosDetalle().isEmpty()) {
+            doc.add(new Paragraph(" "));
+            doc.add(sectionHeader("DETALLE DE GASTOS"));
+            Table tg = new Table(UnitValue.createPercentArray(new float[]{ 55, 90, 180, 70 }))
+                    .setWidth(UnitValue.createPercentValue(100));
+            tg.addHeaderCell(hCell("Fecha"));
+            tg.addHeaderCell(hCell("Categoría"));
+            tg.addHeaderCell(hCell("Concepto"));
+            tg.addHeaderCell(hCell("Monto").setTextAlignment(TextAlignment.RIGHT));
+            for (GastoReporteDTO g : datos.gastosDetalle()) {
+                tg.addCell(cell(g.fecha().format(fmt)));
+                tg.addCell(cell(g.categoria()));
+                tg.addCell(cell(g.concepto()));
+                tg.addCell(cell(fmtMonto(g.monto())).setTextAlignment(TextAlignment.RIGHT));
+            }
+            doc.add(tg);
+        }
+
+        if (!datos.inversionesDetalle().isEmpty()) {
+            doc.add(new Paragraph(" "));
+            doc.add(sectionHeader("DETALLE DE INVERSIONES"));
+            Table ti = new Table(UnitValue.createPercentArray(new float[]{ 55, 90, 180, 70 }))
+                    .setWidth(UnitValue.createPercentValue(100));
+            ti.addHeaderCell(hCell("Fecha"));
+            ti.addHeaderCell(hCell("Concepto"));
+            ti.addHeaderCell(hCell("Descripción"));
+            ti.addHeaderCell(hCell("Monto").setTextAlignment(TextAlignment.RIGHT));
+            for (InversionReporteDTO inv : datos.inversionesDetalle()) {
+                ti.addCell(cell(inv.fecha().format(fmt)));
+                ti.addCell(cell(inv.concepto()));
+                ti.addCell(cell(inv.descripcion()));
+                ti.addCell(cell(fmtMonto(inv.monto())).setTextAlignment(TextAlignment.RIGHT));
+            }
+            doc.add(ti);
+        }
+
         doc.close();
         return baos.toByteArray();
     }
@@ -521,8 +582,10 @@ public class ReporteService {
         ReporteIngresosEgresosDTO datos = getIngresosEgresos(sucursalId, desde, hasta);
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         try (XSSFWorkbook wb = new XSSFWorkbook(); ByteArrayOutputStream baos = new ByteArrayOutputStream()) {
-            Sheet sheet = wb.createSheet("Ingresos y Egresos");
             CellStyle title = xlTitle(wb); CellStyle hdr = xlHeader(wb); CellStyle cur = xlCurrency(wb);
+
+            // Hoja 1: resumen diario
+            Sheet sheet = wb.createSheet("Ingresos y Egresos");
             int r = 0;
             r = xlInfo(sheet, r, title, "MAGNO — Reporte de Ingresos y Egresos");
             r = xlInfo(sheet, r, null, resolveSucursalLabel(sucursalId));
@@ -546,6 +609,43 @@ public class ReporteService {
                 xlNum(row, 7, f.subtotalCaja(), cur);
             }
             for (int i = 0; i < 8; i++) sheet.autoSizeColumn(i);
+
+            // Hoja 2: detalle de gastos
+            if (!datos.gastosDetalle().isEmpty()) {
+                Sheet sg = wb.createSheet("Detalle Gastos");
+                int rg = 0;
+                rg = xlInfo(sg, rg, title, "Detalle de Gastos");
+                rg = xlInfo(sg, rg, null, "Período: " + desde.format(fmt) + " al " + hasta.format(fmt));
+                rg++;
+                rg = xlHRow(sg, rg, hdr, "Fecha", "Categoría", "Concepto", "Monto");
+                for (GastoReporteDTO g : datos.gastosDetalle()) {
+                    Row row = sg.createRow(rg++);
+                    xlText(row, 0, g.fecha().format(fmt));
+                    xlText(row, 1, g.categoria());
+                    xlText(row, 2, g.concepto());
+                    xlNum(row, 3, g.monto(), cur);
+                }
+                for (int i = 0; i < 4; i++) sg.autoSizeColumn(i);
+            }
+
+            // Hoja 3: detalle de inversiones
+            if (!datos.inversionesDetalle().isEmpty()) {
+                Sheet si = wb.createSheet("Detalle Inversiones");
+                int ri = 0;
+                ri = xlInfo(si, ri, title, "Detalle de Inversiones");
+                ri = xlInfo(si, ri, null, "Período: " + desde.format(fmt) + " al " + hasta.format(fmt));
+                ri++;
+                ri = xlHRow(si, ri, hdr, "Fecha", "Concepto", "Descripción", "Monto");
+                for (InversionReporteDTO inv : datos.inversionesDetalle()) {
+                    Row row = si.createRow(ri++);
+                    xlText(row, 0, inv.fecha().format(fmt));
+                    xlText(row, 1, inv.concepto());
+                    xlText(row, 2, inv.descripcion());
+                    xlNum(row, 3, inv.monto(), cur);
+                }
+                for (int i = 0; i < 4; i++) si.autoSizeColumn(i);
+            }
+
             wb.write(baos);
             return baos.toByteArray();
         } catch (Exception e) {

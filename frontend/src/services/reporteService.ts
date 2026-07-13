@@ -11,6 +11,20 @@ export interface FilaDiaria {
   subtotalCaja: number
 }
 
+export interface GastoReporte {
+  fecha: string
+  categoria: string
+  concepto: string
+  monto: number
+}
+
+export interface InversionReporte {
+  fecha: string
+  concepto: string
+  descripcion: string | null
+  monto: number
+}
+
 export interface ReporteIngresosEgresos {
   filas: FilaDiaria[]
   totalMontoApertura: number
@@ -19,6 +33,8 @@ export interface ReporteIngresosEgresos {
   totalGastos: number
   totalNomina: number
   subtotalNeto: number
+  gastosDetalle: GastoReporte[]
+  inversionesDetalle: InversionReporte[]
 }
 
 export interface ColocacionFila {

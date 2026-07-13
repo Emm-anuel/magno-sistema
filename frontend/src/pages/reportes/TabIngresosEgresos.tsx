@@ -3,7 +3,7 @@ import MetricCard from '@/components/reportes/MetricCard'
 import FiltroFechas from '@/components/reportes/FiltroFechas'
 import ExportPdfButton from '@/components/reportes/ExportPdfButton'
 import ExportExcelButton from '@/components/reportes/ExportExcelButton'
-import { reporteService, type ReporteIngresosEgresos } from '@/services/reporteService'
+import { reporteService, type ReporteIngresosEgresos, type GastoReporte, type InversionReporte } from '@/services/reporteService'
 
 function mesActual() {
   const hoy = new Date()
@@ -51,6 +51,10 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
   const netoColor = neto >= 0
     ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
     : 'bg-red-50 border-red-300 text-red-800'
+
+  function fmtFecha(s: string) {
+    return new Date(s + 'T12:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
 
   return (
     <div className="space-y-6">
@@ -156,8 +160,67 @@ export default function TabIngresosEgresos({ sucursalId }: Props) {
               </table>
             </div>
           )}
+
+          {data.gastosDetalle.length > 0 && (
+            <DetalleTable
+              titulo="Detalle de Gastos"
+              headers={['Fecha', 'Categoría', 'Concepto', 'Monto']}
+              rows={data.gastosDetalle.map((g: GastoReporte) => [
+                fmtFecha(g.fecha), g.categoria, g.concepto, fmt(g.monto),
+              ])}
+              amountCol={3}
+            />
+          )}
+
+          {data.inversionesDetalle.length > 0 && (
+            <DetalleTable
+              titulo="Detalle de Inversiones"
+              headers={['Fecha', 'Concepto', 'Descripción', 'Monto']}
+              rows={data.inversionesDetalle.map((inv: InversionReporte) => [
+                fmtFecha(inv.fecha), inv.concepto, inv.descripcion ?? '—', fmt(inv.monto),
+              ])}
+              amountCol={3}
+            />
+          )}
         </>
       )}
+    </div>
+  )
+}
+
+function DetalleTable({ titulo, headers, rows, amountCol }: {
+  titulo: string
+  headers: string[]
+  rows: string[][]
+  amountCol: number
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide bg-gray-100 px-4 py-2 rounded-t border border-b-0 border-gray-200">
+        {titulo}
+      </h3>
+      <div className="overflow-x-auto rounded-b-lg border border-gray-200">
+        <table className="min-w-full text-sm">
+          <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
+            <tr>
+              {headers.map((h, i) => (
+                <th key={i} className={`px-4 py-3 ${i === amountCol ? 'text-right' : 'text-left'}`}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map((row, i) => (
+              <tr key={i} className="hover:bg-gray-50">
+                {row.map((cell, j) => (
+                  <td key={j} className={`px-4 py-2 ${j === amountCol ? 'text-right font-medium text-amber-700' : ''}`}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

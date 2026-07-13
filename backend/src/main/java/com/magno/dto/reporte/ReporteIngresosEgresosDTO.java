@@ -10,5 +10,7 @@ public record ReporteIngresosEgresosDTO(
         BigDecimal totalDesembolsos,
         BigDecimal totalGastos,
         BigDecimal totalNomina,
-        BigDecimal subtotalNeto) {
+        BigDecimal subtotalNeto,
+        List<GastoReporteDTO> gastosDetalle,
+        List<InversionReporteDTO> inversionesDetalle) {
 }
