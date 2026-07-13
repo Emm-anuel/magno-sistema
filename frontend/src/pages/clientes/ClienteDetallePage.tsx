@@ -3,7 +3,7 @@ import BusinessMap from '@/components/BusinessMap'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Pencil, Power, FileText, User, Briefcase, Users } from 'lucide-react'
+import { ArrowLeft, Pencil, Power, FileText, User, Briefcase, Users, FileSpreadsheet } from 'lucide-react'
 import { api, clienteService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { ClienteModal } from './ClientesPage'
@@ -343,6 +343,29 @@ export default function ClienteDetallePage() {
   }
 
   const puedeEditar = !esAsesor || cliente.estado_cliente === 'SIN_CREDITO'
+
+  const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
+
+  const descargar = async (formato: 'pdf' | 'excel') => {
+    setExportando(formato)
+    try {
+      const mime = formato === 'pdf' ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      const ext  = formato === 'pdf' ? 'pdf' : 'xlsx'
+      const resp = await api.get(`/clientes/${id}/${formato}`, { responseType: 'blob' })
+      const href = URL.createObjectURL(new Blob([resp.data], { type: mime }))
+      const a    = document.createElement('a')
+      const num  = cliente.numero_cliente ?? id
+      a.href     = href
+      a.download = `ficha-cliente-${num}.${ext}`
+      a.click()
+      URL.revokeObjectURL(href)
+    } catch {
+      toast.error('Error al generar el archivo')
+    } finally {
+      setExportando(null)
+    }
+  }
   const negocioLat = parseCoord(cliente.negocio_lat)
   const negocioLng = parseCoord(cliente.negocio_lng)
   const tieneUbicacionNegocio = negocioLat != null && negocioLng != null && (negocioLat !== 0 || negocioLng !== 0)
@@ -377,7 +400,27 @@ export default function ClienteDetallePage() {
           </p>
         </div>
 
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+          <button
+            type="button"
+            className="btn btn-sm border-red-500 text-red-600 hover:bg-red-50"
+            onClick={() => descargar('pdf')}
+            disabled={exportando !== null}
+            title="Descargar ficha en PDF"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{exportando === 'pdf' ? 'Generando…' : 'PDF'}</span>
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm border-green-600 text-green-700 hover:bg-green-50"
+            onClick={() => descargar('excel')}
+            disabled={exportando !== null}
+            title="Descargar ficha en Excel"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{exportando === 'excel' ? 'Generando…' : 'Excel'}</span>
+          </button>
           {puedeEditar && (
             <button
               type="button"

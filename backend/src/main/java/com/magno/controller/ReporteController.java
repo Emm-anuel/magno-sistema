@@ -1,6 +1,7 @@
 package com.magno.controller;
 
 import com.magno.dto.reporte.ReporteCarteraDTO;
+import com.magno.dto.reporte.ReporteClientesDTO;
 import com.magno.dto.reporte.ReporteColocacionesDTO;
 import com.magno.dto.reporte.ReporteIngresosEgresosDTO;
 import com.magno.dto.reporte.ReportePorAsesorDTO;
@@ -125,6 +126,38 @@ public class ReporteController {
         Long sid = effectiveSucursalId(sucursalId, principal(auth));
         byte[] pdf = reporteService.exportarPorAsesorPdf(sid, desde, hasta, asesorId);
         return pdfResponse(pdf, "por-asesor-" + desde + "-" + hasta + ".pdf");
+    }
+
+    // ── Clientes ─────────────────────────────────────────────────────────
+
+    @GetMapping("/clientes")
+    public ResponseEntity<ReporteClientesDTO> clientes(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam(required = false) Long asesorId,
+            @RequestParam(defaultValue = "TODOS") String estado,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        return ResponseEntity.ok(reporteService.getClientes(sid, asesorId, estado));
+    }
+
+    @GetMapping("/clientes/pdf")
+    public ResponseEntity<byte[]> clientesPdf(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam(required = false) Long asesorId,
+            @RequestParam(defaultValue = "TODOS") String estado,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        return pdfResponse(reporteService.exportarClientesPdf(sid, asesorId, estado), "clientes.pdf");
+    }
+
+    @GetMapping("/clientes/excel")
+    public ResponseEntity<byte[]> clientesExcel(
+            @RequestParam(required = false) Long sucursalId,
+            @RequestParam(required = false) Long asesorId,
+            @RequestParam(defaultValue = "TODOS") String estado,
+            Authentication auth) {
+        Long sid = effectiveSucursalId(sucursalId, principal(auth));
+        return xlsxResponse(reporteService.exportarClientesExcel(sid, asesorId, estado), "clientes.xlsx");
     }
 
     // ── Excel ─────────────────────────────────────────────────────────────

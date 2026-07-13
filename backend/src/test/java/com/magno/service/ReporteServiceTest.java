@@ -29,6 +29,7 @@ class ReporteServiceTest {
         private UsuarioRepository usuarioRepo;
         private SucursalRepository sucursalRepo;
         private GastoRepository gastoRepo;
+        private ClienteRepository clienteRepo;
         private ReporteService service;
 
         @BeforeEach
@@ -43,10 +44,11 @@ class ReporteServiceTest {
                 usuarioRepo = mock(UsuarioRepository.class);
                 sucursalRepo = mock(SucursalRepository.class);
                 gastoRepo = mock(GastoRepository.class);
+                clienteRepo = mock(ClienteRepository.class);
                 service = new ReporteService(
                                 cajaDiaRepo, movimientoRepo, creditoRepo,
                                 pagoRepo, multaRepo, calendarioRepo,
-                                renovacionRepo, usuarioRepo, sucursalRepo, gastoRepo);
+                                renovacionRepo, usuarioRepo, sucursalRepo, gastoRepo, clienteRepo);
         }
 
         @Test

@@ -5,14 +5,16 @@ import TabIngresosEgresos from '@/pages/reportes/TabIngresosEgresos'
 import TabColocaciones from '@/pages/reportes/TabColocaciones'
 import TabCartera from '@/pages/reportes/TabCartera'
 import TabPorAsesor from '@/pages/reportes/TabPorAsesor'
+import TabClientes from '@/pages/reportes/TabClientes'
 
-type Tab = 'ingresos-egresos' | 'colocaciones' | 'cartera' | 'por-asesor'
+type Tab = 'ingresos-egresos' | 'colocaciones' | 'cartera' | 'por-asesor' | 'clientes'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'ingresos-egresos', label: 'Ingresos/Egresos' },
   { id: 'colocaciones', label: 'Colocaciones' },
   { id: 'cartera', label: 'Cartera' },
   { id: 'por-asesor', label: 'Por Asesor' },
+  { id: 'clientes', label: 'Clientes' },
 ]
 
 export default function ReportesPage() {
@@ -71,6 +73,9 @@ export default function ReportesPage() {
         </div>
         <div className={activeTab === 'por-asesor' ? 'block' : 'hidden'}>
           <TabPorAsesor sucursalId={sucursalId} />
+        </div>
+        <div className={activeTab === 'clientes' ? 'block' : 'hidden'}>
+          <TabClientes sucursalId={sucursalId} />
         </div>
       </div>
     </div>

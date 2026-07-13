@@ -3,6 +3,7 @@ package com.magno.repository;
 import com.magno.model.Cliente;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -46,4 +47,10 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long>,
      */
     @Query(value = "SELECT COUNT(*) > 0 FROM creditos WHERE cliente_id = :clienteId AND estado = 'ACTIVO' AND deleted_at IS NULL", nativeQuery = true)
     boolean tieneCredito(@Param("clienteId") Long clienteId);
+
+    @EntityGraph(attributePaths = {"asesor", "sucursal"})
+    List<Cliente> findBySucursalIdOrderByApellidoPaternoAscNombreAsc(Long sucursalId);
+
+    @EntityGraph(attributePaths = {"asesor", "sucursal"})
+    List<Cliente> findBySucursalIdAndAsesorIdOrderByApellidoPaternoAscNombreAsc(Long sucursalId, Long asesorId);
 }

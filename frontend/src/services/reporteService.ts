@@ -104,6 +104,28 @@ export interface Sucursal {
   nombre: string
 }
 
+export interface ReporteClientesItem {
+  id: number
+  numeroCliente: string | null
+  nombreCompleto: string
+  celular: string
+  curp: string
+  negocioNombre: string | null
+  negocioGiro: string | null
+  asesorNombre: string
+  estadoCliente: string
+  fechaAlta: string
+}
+
+export interface ReporteClientes {
+  clientes: ReporteClientesItem[]
+  total: number
+  totalActivos: number
+  totalEnMora: number
+  totalSinCredito: number
+  totalInactivos: number
+}
+
 function norm(raw: any): any {
   if (Array.isArray(raw)) return raw.map(norm)
   if (raw && typeof raw === 'object') {
@@ -187,4 +209,14 @@ export const reporteService = {
   exportPorAsesorExcel: (sucursalId: number, desde: string, hasta: string, asesorId?: number) =>
     downloadExcel('/reportes/por-asesor/excel', { sucursalId, desde, hasta, asesorId },
       `por-asesor-${desde}-${hasta}.xlsx`),
+
+  getClientes: (sucursalId: number, asesorId?: number, estado = 'TODOS'): Promise<ReporteClientes> =>
+    api.get<any>('/reportes/clientes', { params: { sucursalId, asesorId, estado } })
+      .then(r => norm(r.data) as ReporteClientes),
+
+  exportClientesPdf: (sucursalId: number, asesorId?: number, estado = 'TODOS') =>
+    downloadPdf('/reportes/clientes/pdf', { sucursalId, asesorId, estado }, 'clientes.pdf'),
+
+  exportClientesExcel: (sucursalId: number, asesorId?: number, estado = 'TODOS') =>
+    downloadExcel('/reportes/clientes/excel', { sucursalId, asesorId, estado }, 'clientes.xlsx'),
 }

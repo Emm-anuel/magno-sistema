@@ -7,13 +7,16 @@ import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
+import com.magno.service.ClientePdfService;
 import com.magno.service.ClienteService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -27,11 +30,15 @@ import java.util.Map;
 public class ClienteController {
 
     private final ClienteService clienteService;
+    private final ClientePdfService clientePdfService;
     private final CajaGuard cajaGuard;
 
-    public ClienteController(ClienteService clienteService, CajaGuard cajaGuard) {
-        this.clienteService = clienteService;
-        this.cajaGuard = cajaGuard;
+    public ClienteController(ClienteService clienteService,
+                             ClientePdfService clientePdfService,
+                             CajaGuard cajaGuard) {
+        this.clienteService    = clienteService;
+        this.clientePdfService = clientePdfService;
+        this.cajaGuard         = cajaGuard;
     }
 
     /**
@@ -237,6 +244,49 @@ public class ClienteController {
                     p.sucursalId() // sucursalId forzado
                 );
             default -> req; // ADMINISTRADOR sin cambios
+        };
+    }
+
+    // ── Exportar ficha ────────────────────────────────────────────────
+
+    /** GET /api/clientes/{id}/pdf */
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> exportarPdf(@PathVariable Long id, Authentication auth) {
+        ClienteDetalleDTO dto = obtenerConAcceso(id, auth);
+        if (dto == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        byte[] bytes = clientePdfService.generarFichaPdf(dto);
+        String nombre = "ficha-cliente-" + (dto.numeroCliente() != null ? dto.numeroCliente() : id) + ".pdf";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(bytes);
+    }
+
+    /** GET /api/clientes/{id}/excel */
+    @GetMapping("/{id}/excel")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<byte[]> exportarExcel(@PathVariable Long id, Authentication auth) throws Exception {
+        ClienteDetalleDTO dto = obtenerConAcceso(id, auth);
+        if (dto == null) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        byte[] bytes = clientePdfService.generarFichaExcel(dto);
+        String nombre = "ficha-cliente-" + (dto.numeroCliente() != null ? dto.numeroCliente() : id) + ".xlsx";
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + nombre + "\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(bytes);
+    }
+
+    private ClienteDetalleDTO obtenerConAcceso(Long id, Authentication auth) {
+        ClienteDetalleDTO dto = clienteService.obtenerDetalle(id);
+        JwtPrincipal p = getPrincipal(auth);
+        return switch (p.rol()) {
+            case "ASESOR_COBRADOR" ->
+                    (dto.asesor() != null && dto.asesor().id().equals(p.userId())) ? dto : null;
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" ->
+                    dto.sucursal().id().equals(p.sucursalId()) ? dto : null;
+            default -> dto;
         };
     }
 

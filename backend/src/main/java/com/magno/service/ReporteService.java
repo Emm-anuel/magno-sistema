@@ -56,6 +56,7 @@ public class ReporteService {
     private final UsuarioRepository usuarioRepo;
     private final SucursalRepository sucursalRepo;
     private final GastoRepository gastoRepo;
+    private final ClienteRepository clienteRepo;
 
     public ReporteService(CajaDiaRepository cajaDiaRepo,
             CajaMovimientoInversionRepository movimientoRepo,
@@ -66,7 +67,8 @@ public class ReporteService {
             RenovacionRepository renovacionRepo,
             UsuarioRepository usuarioRepo,
             SucursalRepository sucursalRepo,
-            GastoRepository gastoRepo) {
+            GastoRepository gastoRepo,
+            ClienteRepository clienteRepo) {
         this.cajaDiaRepo = cajaDiaRepo;
         this.movimientoRepo = movimientoRepo;
         this.creditoRepo = creditoRepo;
@@ -77,6 +79,7 @@ public class ReporteService {
         this.usuarioRepo = usuarioRepo;
         this.sucursalRepo = sucursalRepo;
         this.gastoRepo = gastoRepo;
+        this.clienteRepo = clienteRepo;
     }
 
     // ── Ingresos/Egresos ─────────────────────────────────────────────────
@@ -337,6 +340,175 @@ public class ReporteService {
                 totalClientesActivos,
                 totalMontoColocado,
                 totalClientesEnMora);
+    }
+
+    // ── Clientes ─────────────────────────────────────────────────────────
+
+    public ReporteClientesDTO getClientes(Long sucursalId, Long asesorId, String estado) {
+        List<Cliente> todos = asesorId != null
+                ? clienteRepo.findBySucursalIdAndAsesorIdOrderByApellidoPaternoAscNombreAsc(sucursalId, asesorId)
+                : clienteRepo.findBySucursalIdOrderByApellidoPaternoAscNombreAsc(sucursalId);
+
+        // Mapa clienteId → crédito activo (evita N+1 para lookup de crédito)
+        Map<Long, Credito> creditoPorCliente = creditoRepo
+                .findActivosBySucursalAndAsesor(sucursalId, null).stream()
+                .collect(Collectors.toMap(c -> c.getCliente().getId(),
+                        Function.identity(), (a, b) -> a));
+
+        LocalDate hoy = DateTimeUtils.hoyEnMagno();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
+        int totalActivos = 0, totalEnMora = 0, totalSinCredito = 0, totalInactivos = 0;
+        List<ReporteClientesDTO.ClienteItemDTO> items = new ArrayList<>();
+
+        for (Cliente c : todos) {
+            boolean activo = Boolean.TRUE.equals(c.getActivo());
+            String estadoCliente;
+
+            if (!activo) {
+                estadoCliente = "INACTIVO";
+                totalInactivos++;
+            } else if (!creditoPorCliente.containsKey(c.getId())) {
+                estadoCliente = "SIN_CREDITO";
+                totalSinCredito++;
+            } else {
+                long atrasados = calendarioRepo.countAtrasadosByCreditoId(
+                        creditoPorCliente.get(c.getId()).getId(), hoy);
+                if (atrasados > 0) {
+                    estadoCliente = "EN_MORA";
+                    totalEnMora++;
+                } else {
+                    estadoCliente = "ACTIVO";
+                    totalActivos++;
+                }
+            }
+
+            if (!"TODOS".equals(estado) && !estadoCliente.equals(estado)) continue;
+
+            items.add(new ReporteClientesDTO.ClienteItemDTO(
+                    c.getId(),
+                    c.getNumeroCliente(),
+                    c.getNombreCompleto(),
+                    c.getCelular(),
+                    c.getCurp(),
+                    c.getNegocioNombre(),
+                    c.getNegocioGiro(),
+                    c.getAsesor() != null ? c.getAsesor().getNombreCompleto() : "—",
+                    estadoCliente,
+                    c.getCreatedAt() != null ? c.getCreatedAt().toLocalDate().format(fmt) : "—"
+            ));
+        }
+
+        return new ReporteClientesDTO(items, todos.size(),
+                totalActivos, totalEnMora, totalSinCredito, totalInactivos);
+    }
+
+    // ── PDF Clientes ──────────────────────────────────────────────────────
+
+    public byte[] exportarClientesPdf(Long sucursalId, Long asesorId, String estado) {
+        ReporteClientesDTO datos = getClientes(sucursalId, asesorId, estado);
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        Document doc = new Document(new PdfDocument(new PdfWriter(baos)));
+
+        doc.add(pdfHeader("MAGNO — Reporte de Clientes"));
+        doc.add(pdfSubtitle(resolveSucursalLabel(sucursalId)));
+        doc.add(pdfSubtitle("Filtro asesor: " + resolveAsesorLabel(asesorId)));
+        doc.add(pdfSubtitle("Estado: " + estado));
+        doc.add(pdfSubtitle("Generado: " + ahoraFmt()));
+        doc.add(new Paragraph(" "));
+
+        doc.add(new Paragraph("Total clientes: " + datos.total()).setFontSize(10));
+        doc.add(new Paragraph("Activos: " + datos.totalActivos()
+                + "  |  En mora: " + datos.totalEnMora()
+                + "  |  Sin crédito: " + datos.totalSinCredito()
+                + "  |  Inactivos: " + datos.totalInactivos()).setFontSize(9));
+        doc.add(new Paragraph(" "));
+
+        float[] cols = {30, 100, 65, 90, 85, 75, 55, 45};
+        Table t = new Table(UnitValue.createPercentArray(cols))
+                .setWidth(UnitValue.createPercentValue(100));
+
+        t.addHeaderCell(hCell("No."));
+        t.addHeaderCell(hCell("Nombre"));
+        t.addHeaderCell(hCell("Celular"));
+        t.addHeaderCell(hCell("CURP"));
+        t.addHeaderCell(hCell("Negocio"));
+        t.addHeaderCell(hCell("Asesor"));
+        t.addHeaderCell(hCell("Estado"));
+        t.addHeaderCell(hCell("Alta"));
+
+        for (ReporteClientesDTO.ClienteItemDTO item : datos.clientes()) {
+            t.addCell(cell(item.numeroCliente()));
+            t.addCell(cell(item.nombreCompleto()));
+            t.addCell(cell(item.celular()));
+            t.addCell(cell(item.curp()));
+            t.addCell(cell(item.negocioNombre()));
+            t.addCell(cell(item.asesorNombre()));
+            t.addCell(cell(fmtEstadoCliente(item.estadoCliente())));
+            t.addCell(cell(item.fechaAlta()));
+        }
+
+        doc.add(t);
+        doc.close();
+        return baos.toByteArray();
+    }
+
+    // ── Excel Clientes ────────────────────────────────────────────────────
+
+    public byte[] exportarClientesExcel(Long sucursalId, Long asesorId, String estado) {
+        ReporteClientesDTO datos = getClientes(sucursalId, asesorId, estado);
+
+        try (Workbook wb = new XSSFWorkbook()) {
+            Sheet sh = wb.createSheet("Clientes");
+
+            CellStyle title = xlTitle(wb);
+            CellStyle hdr   = xlHeader(wb);
+
+            int[] widths = {3000, 8000, 5000, 8000, 7000, 5500, 7000, 4500, 4500};
+            for (int i = 0; i < widths.length; i++) sh.setColumnWidth(i, widths[i]);
+
+            int r = 0;
+            r = xlInfo(sh, r, title, "MAGNO — Reporte de Clientes");
+            r = xlInfo(sh, r, null, resolveSucursalLabel(sucursalId));
+            r = xlInfo(sh, r, null, "Filtro asesor: " + resolveAsesorLabel(asesorId) + "  |  Estado: " + estado);
+            r = xlInfo(sh, r, null, "Total: " + datos.total()
+                    + "  Activos: " + datos.totalActivos()
+                    + "  En mora: " + datos.totalEnMora()
+                    + "  Sin crédito: " + datos.totalSinCredito()
+                    + "  Inactivos: " + datos.totalInactivos());
+            r++;
+            r = xlHRow(sh, r, hdr, "No.", "Nombre", "Celular", "CURP", "Negocio", "Giro", "Asesor", "Estado", "Alta");
+
+            for (ReporteClientesDTO.ClienteItemDTO item : datos.clientes()) {
+                Row row = sh.createRow(r++);
+                xlText(row, 0, item.numeroCliente());
+                xlText(row, 1, item.nombreCompleto());
+                xlText(row, 2, item.celular());
+                xlText(row, 3, item.curp());
+                xlText(row, 4, item.negocioNombre());
+                xlText(row, 5, item.negocioGiro());
+                xlText(row, 6, item.asesorNombre());
+                xlText(row, 7, fmtEstadoCliente(item.estadoCliente()));
+                xlText(row, 8, item.fechaAlta());
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            wb.write(baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error generando Excel de clientes", e);
+        }
+    }
+
+    private String fmtEstadoCliente(String e) {
+        return switch (e) {
+            case "ACTIVO"      -> "Activo";
+            case "EN_MORA"     -> "En mora";
+            case "SIN_CREDITO" -> "Sin crédito";
+            case "INACTIVO"    -> "Inactivo";
+            default            -> e;
+        };
     }
 
     // ── PDF Ingresos/Egresos ─────────────────────────────────────────────
