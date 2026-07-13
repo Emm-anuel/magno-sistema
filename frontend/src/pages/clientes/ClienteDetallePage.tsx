@@ -250,6 +250,7 @@ export default function ClienteDetallePage() {
   const [editOpen, setEditOpen] = useState(false)
   const [pagoModalOpen, setPagoModalOpen] = useState(false)
   const [adeudoModalOpen, setAdeudoModalOpen] = useState(false)
+  const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const esAsesor = usuario?.rol === 'ASESOR_COBRADOR'
@@ -343,8 +344,6 @@ export default function ClienteDetallePage() {
   }
 
   const puedeEditar = !esAsesor || cliente.estado_cliente === 'SIN_CREDITO'
-
-  const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
 
   const descargar = async (formato: 'pdf' | 'excel') => {
     setExportando(formato)

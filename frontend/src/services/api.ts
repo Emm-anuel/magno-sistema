@@ -80,6 +80,7 @@ function normalizeClienteSucursal(raw: any): import('@/types').SucursalInfo {
 function normalizeClienteResumen(raw: any): import('@/types').ClienteResumen {
   return {
     id: raw?.id,
+    numero_cliente: raw?.numero_cliente ?? raw?.numeroCliente,
     nombre: raw?.nombre ?? '',
     apellido_paterno: raw?.apellido_paterno ?? raw?.apellidoPaterno ?? '',
     apellido_materno: raw?.apellido_materno ?? raw?.apellidoMaterno,
@@ -101,6 +102,7 @@ function normalizeClienteResumen(raw: any): import('@/types').ClienteResumen {
 function normalizeClienteDetalle(raw: any): import('@/types').ClienteDetalle {
   return {
     id: raw?.id,
+    numero_cliente: raw?.numero_cliente ?? raw?.numeroCliente,
     nombre: raw?.nombre ?? '',
     apellido_paterno: raw?.apellido_paterno ?? raw?.apellidoPaterno ?? '',
     apellido_materno: raw?.apellido_materno ?? raw?.apellidoMaterno,
