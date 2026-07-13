@@ -9,10 +9,8 @@ import {
   Calendar,
   TrendingUp,
   AlertTriangle,
-  Video,
 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
-import FileUpload from '@/components/FileUpload'
 import type { RenovacionDetalle } from '@/types'
 
 function fmt(n: number | null | undefined): string {
@@ -30,12 +28,11 @@ function fmtDateTime(s: string | null | undefined): string {
 interface TarjetaDesembolsoProps {
   renovacion: RenovacionDetalle
   dismissing: boolean
-  onConfirmar: (videoUrl: string | undefined) => void
+  onConfirmar: () => void
   loading: boolean
 }
 
 function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: TarjetaDesembolsoProps) {
-  const [videoUrl, setVideoUrl] = useState<string | undefined>(undefined)
   const montoAprobado = r.montoAprobado ?? r.montoNuevo
   const montoModificado = r.montoAprobado != null && Number(r.montoAprobado) !== Number(r.montoNuevo)
 
@@ -72,7 +69,7 @@ function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: 
 
       {/* Cuerpo */}
       <div className="px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-5">
-        {/* Izquierda: multas y video */}
+        {/* Izquierda: multas */}
         <div className="space-y-4">
           {(() => {
             const pendientes = Number(r.multasPendientes)
@@ -116,33 +113,6 @@ function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: 
               </div>
             )
           })()}
-
-          <div>
-            <p className="text-xs font-medium text-gray-600 mb-1.5 flex items-center gap-1.5">
-              <Video className="w-3.5 h-3.5" />
-              Video de entrega <span className="font-normal text-gray-400">(opcional)</span>
-            </p>
-            {videoUrl ? (
-              <div className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 px-3 py-2">
-                <span className="text-green-700 text-xs font-medium">✓ Video listo</span>
-                <button
-                  type="button"
-                  onClick={() => setVideoUrl(undefined)}
-                  className="ml-auto text-xs text-gray-400 underline hover:text-gray-600"
-                >
-                  Quitar
-                </button>
-              </div>
-            ) : (
-              <FileUpload
-                accept="video/mp4,video/quicktime,video/mov"
-                compress={false}
-                folder={`video-entrega/renovaciones/${r.id}`}
-                label="Video de entrega (opcional)"
-                onUploadComplete={(url) => setVideoUrl(url)}
-              />
-            )}
-          </div>
         </div>
 
         {/* Derecha: montos */}
@@ -171,6 +141,11 @@ function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: 
             </span>
           </div>
 
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-500">Pago adelantado (último pago)</span>
+            <span className="font-medium text-orange-600">{fmt(r.pagoAdelantado)}</span>
+          </div>
+
           <div className="rounded-xl bg-white border-2 border-[#3d6b35]/30 px-4 py-3 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-600">A entregar al cliente</span>
             <span className={`text-xl font-extrabold tabular-nums ${
@@ -186,7 +161,7 @@ function TarjetaDesembolso({ renovacion: r, dismissing, onConfirmar, loading }: 
       <div className="px-5 py-3 border-t border-gray-100 bg-amber-50/40">
         <button
           type="button"
-          onClick={() => onConfirmar(videoUrl)}
+          onClick={() => onConfirmar()}
           disabled={loading}
           className="btn-primary flex items-center gap-2 px-5 py-2.5 text-sm disabled:opacity-50"
         >
@@ -223,9 +198,9 @@ export default function TabPendientesDesembolso() {
   }
 
   const confirmarMutation = useMutation({
-    mutationFn: ({ id, videoUrl }: { id: number; videoUrl?: string }) =>
-      renovacionService.confirmarDesembolso(id, videoUrl),
-    onSuccess: (data, { id }) => {
+    mutationFn: (id: number) =>
+      renovacionService.confirmarDesembolso(id, undefined),
+    onSuccess: (data, id) => {
       toast.success('Desembolso confirmado — nuevo crédito activado')
       dismissAndRefresh(id, () => {
         if (data.creditoNuevo) navigate(`/creditos/${data.creditoNuevo.id}`)
@@ -260,7 +235,7 @@ export default function TabPendientesDesembolso() {
             key={r.id}
             renovacion={r}
             dismissing={dismissingIds.has(r.id)}
-            onConfirmar={(videoUrl) => confirmarMutation.mutate({ id: r.id, videoUrl })}
+            onConfirmar={() => confirmarMutation.mutate(r.id)}
             loading={confirmarMutation.isPending}
           />
         ))}

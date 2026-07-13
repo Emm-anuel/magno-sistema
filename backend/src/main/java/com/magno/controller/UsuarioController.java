@@ -1,5 +1,6 @@
 package com.magno.controller;
 
+import com.magno.dto.usuario.PasswordChangeRequest;
 import com.magno.dto.usuario.UsuarioCreateRequest;
 import com.magno.dto.usuario.UsuarioDTO;
 import com.magno.dto.usuario.UsuarioUpdateRequest;
@@ -65,6 +66,19 @@ public class UsuarioController {
             @PathVariable Long id,
             @Valid @RequestBody UsuarioUpdateRequest req) {
         return ResponseEntity.ok(usuarioService.actualizar(id, req));
+    }
+
+    /** PATCH /api/usuarios/me/password — cualquier usuario autenticado puede cambiar su propia contraseña */
+    @PatchMapping("/me/password")
+    public ResponseEntity<Void> cambiarMiPassword(
+            @Valid @RequestBody PasswordChangeRequest req,
+            Authentication auth) {
+        try {
+            usuarioService.cambiarMiPassword(auth.getName(), req);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
     /** PATCH /api/usuarios/{id}/estado  body: { "activo": true/false } */

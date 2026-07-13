@@ -255,4 +255,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V32-seed-solicitudes-aprobadas" author="magno">
+        <sqlFile
+            path="db/changelog/V32__seed_solicitudes_aprobadas.sql"
+            relativeToChangelogFile="false"
+            splitStatements="false"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

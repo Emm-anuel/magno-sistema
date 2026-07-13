@@ -3,6 +3,7 @@ package com.magno.service;
 import com.magno.dto.gasto.*;
 import com.magno.model.*;
 import com.magno.repository.*;
+import com.magno.security.JwtPrincipal;
 import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -35,10 +36,10 @@ public class GastoService {
 
     // ── Consulta ──────────────────────────────────────────────────────────
 
-    public GastosDelDiaDTO getGastos(Long cajaId) {
-        if (!cajaDiaRepo.existsById(cajaId)) {
-            throw new EntityNotFoundException("Caja no encontrada: " + cajaId);
-        }
+    public GastosDelDiaDTO getGastos(Long cajaId, JwtPrincipal principal) {
+        CajaDia cajaDia = cajaDiaRepo.findById(cajaId)
+                .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
+        assertSucursalOwnership(cajaDia, principal);
 
         List<Gasto> gastos = gastoRepo.findByCajaDiaIdAndDeletedAtIsNullOrderByCreatedAtAsc(cajaId);
 
@@ -66,9 +67,10 @@ public class GastoService {
     // ── Registro ──────────────────────────────────────────────────────────
 
     @Transactional
-    public GastoDTO registrarGasto(Long cajaId, GastoCreateRequest req, Long userId) {
+    public GastoDTO registrarGasto(Long cajaId, GastoCreateRequest req, JwtPrincipal principal) {
         CajaDia caja = cajaDiaRepo.findById(cajaId)
                 .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
+        assertSucursalOwnership(caja, principal);
 
         if (caja.getEstado() != EstadoCaja.ABIERTA) {
             throw new IllegalArgumentException(
@@ -90,7 +92,7 @@ public class GastoService {
                 .categoriaGasto(categoria)
                 .concepto(req.concepto())
                 .monto(req.monto())
-                .registradoPor(usuarioRepo.getReferenceById(userId))
+                .registradoPor(usuarioRepo.getReferenceById(principal.userId()))
                 .build();
 
         return toDTO(gastoRepo.save(gasto));
@@ -191,7 +193,14 @@ public class GastoService {
         categoriaGastoRepo.save(cat);
     }
 
-    // ── Helper ────────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    private static void assertSucursalOwnership(CajaDia caja, JwtPrincipal principal) {
+        if ("ADMINISTRADOR".equals(principal.rol())) return;
+        if (!caja.getSucursal().getId().equals(principal.sucursalId())) {
+            throw new IllegalArgumentException("No tienes acceso a la caja de otra sucursal");
+        }
+    }
 
     private CategoriaGastoDTO toCategoria(CategoriaGasto c) {
         return new CategoriaGastoDTO(c.getId(), c.getSucursalId(), c.getNombre(), c.getDescripcion());

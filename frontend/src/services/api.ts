@@ -364,6 +364,9 @@ export const usuarioService = {
 
   cambiarEstado: (id: number, activo: boolean) =>
     api.patch<any>(`/usuarios/${id}/estado`, { activo }).then((r) => normalizeUsuario(r.data)),
+
+  cambiarMiPassword: (passwordActual: string, passwordNuevo: string) =>
+    api.patch('/usuarios/me/password', { passwordActual, passwordNuevo }),
 }
 
 // ── Sucursales ───────────────────────────────────────────────────

@@ -110,8 +110,10 @@ public class CajaController {
 
     @GetMapping("/{cajaId}/pdf")
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
-    public ResponseEntity<byte[]> exportarPdf(@PathVariable Long cajaId) {
-        byte[] pdf = cajaService.exportarPdf(cajaId);
+    public ResponseEntity<byte[]> exportarPdf(
+            @PathVariable Long cajaId,
+            Authentication auth) {
+        byte[] pdf = cajaService.exportarPdf(cajaId, principal(auth));
         String filename = "corte-caja-" + cajaId + ".pdf";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);

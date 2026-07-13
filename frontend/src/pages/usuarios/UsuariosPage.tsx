@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
-import { Plus, Pencil, Power, X, Upload, Eye, EyeOff, Maximize2, UserSearch } from 'lucide-react'
+import { Plus, Pencil, Power, X, Upload, Maximize2, UserSearch } from 'lucide-react'
 import { api, usuarioService, fileService } from '@/services/api'
 import { ROL_LABELS } from '@/types'
 import type { Rol, Usuario, UsuarioCreateRequest, UsuarioUpdateRequest } from '@/types'
@@ -534,31 +534,37 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                 </Field>
 
                 <Field label={isEdit ? 'Nueva contraseña (dejar vacío para no cambiar)' : 'Contraseña *'} error={errors.password?.message}>
-                  <div className="relative">
+                  <input
+                    {...register('password')}
+                    type={showPass ? 'text' : 'password'}
+                    className={`input ${errors.password ? 'input-error' : ''}`}
+                    placeholder={isEdit ? PASSWORD_MASK : 'Mínimo 6 caracteres'}
+                    onFocus={() => {
+                      if (isEdit && getValues('password') === PASSWORD_MASK) {
+                        setValue('password', '', { shouldDirty: true, shouldValidate: false })
+                        setPasswordModified(false)
+                      }
+                    }}
+                    onChange={(e) => {
+                      setPasswordModified(true)
+                      register('password').onChange(e)
+                    }}
+                  />
+                  <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer w-fit">
                     <input
-                      {...register('password')}
-                      type={showPass ? 'text' : 'password'}
-                      className={`input pr-9 ${errors.password ? 'input-error' : ''}`}
-                      placeholder={isEdit ? PASSWORD_MASK : 'Mínimo 6 caracteres'}
-                      onFocus={() => {
-                        if (isEdit && getValues('password') === PASSWORD_MASK) {
+                      type="checkbox"
+                      checked={showPass}
+                      onChange={(e) => {
+                        if (e.target.checked && isEdit && getValues('password') === PASSWORD_MASK) {
                           setValue('password', '', { shouldDirty: true, shouldValidate: false })
                           setPasswordModified(false)
                         }
+                        setShowPass(e.target.checked)
                       }}
-                      onChange={(e) => {
-                        setPasswordModified(true)
-                        register('password').onChange(e)
-                      }}
+                      className="w-3.5 h-3.5 accent-[#2196F3] cursor-pointer"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass((v) => !v)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#adb5bd] hover:text-[#495057]"
-                    >
-                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+                    <span className="text-xs text-[#6c757d] select-none">Mostrar contraseña</span>
+                  </label>
                 </Field>
 
                 <Field label="Teléfono *" error={errors.telefono?.message}>

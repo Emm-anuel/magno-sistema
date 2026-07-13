@@ -26,8 +26,9 @@ public class GastoController {
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
     public ResponseEntity<GastosDelDiaDTO> getGastos(
-            @RequestParam Long cajaId) {
-        return ResponseEntity.ok(gastoService.getGastos(cajaId));
+            @RequestParam Long cajaId,
+            Authentication auth) {
+        return ResponseEntity.ok(gastoService.getGastos(cajaId, principal(auth)));
     }
 
     // POST /api/gastos?cajaId=
@@ -38,7 +39,7 @@ public class GastoController {
             @Valid @RequestBody GastoCreateRequest req,
             Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(gastoService.registrarGasto(cajaId, req, principal(auth).userId()));
+                .body(gastoService.registrarGasto(cajaId, req, principal(auth)));
     }
 
     // PUT /api/gastos/{id}

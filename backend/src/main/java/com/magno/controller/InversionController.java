@@ -25,8 +25,10 @@ public class InversionController {
     }
 
     @GetMapping
-    public ResponseEntity<List<MovimientoInversionDTO>> getInversiones(@RequestParam Long cajaId) {
-        return ResponseEntity.ok(inversionService.getByDia(cajaId));
+    public ResponseEntity<List<MovimientoInversionDTO>> getInversiones(
+            @RequestParam Long cajaId,
+            Authentication auth) {
+        return ResponseEntity.ok(inversionService.getByDia(cajaId, principal(auth)));
     }
 
     @PostMapping
@@ -35,14 +37,15 @@ public class InversionController {
             @Valid @RequestBody MovimientoInversionRequest req,
             Authentication auth) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(inversionService.registrar(cajaId, req, principal(auth).userId()));
+                .body(inversionService.registrar(cajaId, req, principal(auth)));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminar(
             @RequestParam Long cajaId,
-            @PathVariable Long id) {
-        inversionService.eliminar(cajaId, id);
+            @PathVariable Long id,
+            Authentication auth) {
+        inversionService.eliminar(cajaId, id, principal(auth));
         return ResponseEntity.noContent().build();
     }
 

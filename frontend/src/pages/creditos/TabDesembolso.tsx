@@ -5,7 +5,6 @@ import toast from 'react-hot-toast'
 import { Calendar, X, AlertTriangle } from 'lucide-react'
 import { creditoService } from '@/services/creditoService'
 import { useAuthStore } from '@/hooks/useAuthStore'
-import FileUpload from '@/components/FileUpload'
 import type { CreditoResumen, CreditoDetalle } from '@/types'
 import type { ApiError } from '@/types'
 
@@ -265,7 +264,6 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
 
   // ── State ──────────────────────────────────────────────────────
   const [selectedId, setSelectedId] = useState<number | null>(initialCreditoId ?? null)
-  const [videoUrl, setVideoUrl] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
 
   // ── Queries ────────────────────────────────────────────────────
@@ -285,13 +283,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
 
   // ── Mutation ───────────────────────────────────────────────────
   const activarMutation = useMutation({
-    mutationFn: async () => {
-      const result = await creditoService.activarCredito(selectedId!)
-      if (videoUrl) {
-        await creditoService.subirVideoEntrega(result.id, videoUrl)
-      }
-      return result
-    },
+    mutationFn: () => creditoService.activarCredito(selectedId!),
     onSuccess: (result) => {
       toast.success('Crédito activado correctamente')
       queryClient.invalidateQueries({ queryKey: ['creditos-aprobados'] })
@@ -342,10 +334,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
               key={c.id}
               credito={c}
               isSelected={selectedId === c.id}
-              onSelect={() => {
-                setSelectedId(c.id)
-                setVideoUrl(null)
-              }}
+              onSelect={() => setSelectedId(c.id)}
             />
           ))}
         </div>
@@ -430,39 +419,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
                   pagoAdelantado={detalle.pagoAdelantado}
                 />
 
-                {/* 3. Video upload (optional) */}
-                <div className="card p-5 space-y-3">
-                  <h3 className="font-semibold text-gray-800">Video de entrega de dinero</h3>
-                  <p className="text-sm text-gray-600">
-                    Puedes grabar un video al momento de entregar el efectivo al cliente.
-                    También puedes subirlo después desde la ficha del crédito.
-                  </p>
-
-                  {videoUrl ? (
-                    <div className="flex items-center gap-3 rounded-lg bg-green-50 border border-green-200 px-4 py-3">
-                      <span className="text-green-700 text-sm font-medium">
-                        ✓ Video listo para adjuntar
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setVideoUrl(null)}
-                        className="ml-auto text-xs text-gray-500 underline hover:text-gray-700"
-                      >
-                        Quitar
-                      </button>
-                    </div>
-                  ) : (
-                    <FileUpload
-                      accept="video/mp4,video/quicktime,video/mov"
-                      compress={true}
-                      folder={`video-entrega/creditos/${selectedId}`}
-                      label="Video de entrega (opcional)"
-                      onUploadComplete={(url) => setVideoUrl(url)}
-                    />
-                  )}
-                </div>
-
-                {/* 4. Activate button */}
+                {/* 3. Activate button */}
                 <button
                   type="button"
                   onClick={() => setShowModal(true)}

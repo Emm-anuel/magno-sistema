@@ -395,9 +395,13 @@ public class CajaService {
 
         // ── PDF de cierre ─────────────────────────────────────────────────────
 
-        public byte[] exportarPdf(Long cajaId) {
+        public byte[] exportarPdf(Long cajaId, JwtPrincipal principal) {
                 CajaDia caja = cajaDiaRepo.findById(cajaId)
                                 .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaId));
+                if (!"ADMINISTRADOR".equals(principal.rol())
+                                && !caja.getSucursal().getId().equals(principal.sucursalId())) {
+                        throw new IllegalArgumentException("No tienes acceso a la caja de otra sucursal");
+                }
                 if (caja.getEstado() != EstadoCaja.CERRADA) {
                         throw new IllegalArgumentException("Solo se puede exportar el PDF de una caja cerrada");
                 }

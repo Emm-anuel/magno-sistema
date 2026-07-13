@@ -424,7 +424,9 @@ export default function CreditoDetallePage() {
               { key: 'informacion', label: 'Información' },
               { key: 'calendario', label: 'Calendario' },
               { key: 'evidencia', label: 'Evidencia' },
-              { key: 'video', label: 'Video de entrega' },
+              ...(['SOLICITADO', 'APROBADO'].includes(credito.estado)
+                ? []
+                : [{ key: 'video' as Tab, label: 'Video de entrega' }]),
             ] as { key: Tab; label: string }[]
           ).map(({ key, label }) => (
             <button

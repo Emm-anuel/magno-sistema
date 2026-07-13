@@ -1,5 +1,6 @@
 package com.magno.service;
 
+import com.magno.dto.usuario.PasswordChangeRequest;
 import com.magno.dto.usuario.UsuarioCreateRequest;
 import com.magno.dto.usuario.UsuarioDTO;
 import com.magno.dto.usuario.UsuarioUpdateRequest;
@@ -164,6 +165,20 @@ public class UsuarioService {
         }
 
         return UsuarioDTO.from(usuarioRepo.save(u));
+    }
+
+    /** Permite a cualquier usuario autenticado cambiar su propia contraseña. */
+    @Transactional
+    public void cambiarMiPassword(String email, PasswordChangeRequest req) {
+        Usuario u = usuarioRepo.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+
+        if (!passwordEncoder.matches(req.passwordActual(), u.getPasswordHash())) {
+            throw new IllegalArgumentException("La contraseña actual es incorrecta");
+        }
+
+        u.setPasswordHash(passwordEncoder.encode(req.passwordNuevo()));
+        usuarioRepo.save(u);
     }
 
     /** Activa o desactiva un usuario. */

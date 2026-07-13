@@ -22,8 +22,11 @@ public class NominaCajaController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
-    public ResponseEntity<NominaEstadoDTO> getEstado(@PathVariable Long cajaDiaId) {
-        return ResponseEntity.ok(nominaService.getEstado(cajaDiaId));
+    public ResponseEntity<NominaEstadoDTO> getEstado(
+            @PathVariable Long cajaDiaId,
+            Authentication auth) {
+        JwtPrincipal p = (JwtPrincipal) auth.getPrincipal();
+        return ResponseEntity.ok(nominaService.getEstado(cajaDiaId, p));
     }
 
     @PostMapping

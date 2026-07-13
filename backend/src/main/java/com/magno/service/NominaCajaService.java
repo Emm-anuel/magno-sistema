@@ -5,6 +5,7 @@ import com.magno.dto.caja.NominaEstadoDTO;
 import com.magno.dto.caja.NominaPagoDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
+import com.magno.security.JwtPrincipal;
 import com.magno.util.DateTimeUtils;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.stereotype.Service;
@@ -45,9 +46,10 @@ public class NominaCajaService {
 
     // ── Consulta ──────────────────────────────────────────────────────────
 
-    public NominaEstadoDTO getEstado(Long cajaDiaId) {
+    public NominaEstadoDTO getEstado(Long cajaDiaId, JwtPrincipal principal) {
         CajaDia caja = cajaDiaRepo.findById(cajaDiaId)
                 .orElseThrow(() -> new EntityNotFoundException("Caja no encontrada: " + cajaDiaId));
+        assertSucursalOwnership(caja, principal);
 
         Long sucursalId = caja.getSucursal().getId();
         LocalDate diaEfectivo = calcularDiaEfectivo(sucursalId);
@@ -131,6 +133,15 @@ public class NominaCajaService {
 
         pago.setDeletedAt(DateTimeUtils.ahoraEnMagno());
         nominaPagoRepo.save(pago);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+
+    private static void assertSucursalOwnership(CajaDia caja, JwtPrincipal principal) {
+        if ("ADMINISTRADOR".equals(principal.rol())) return;
+        if (!caja.getSucursal().getId().equals(principal.sucursalId())) {
+            throw new IllegalArgumentException("No tienes acceso a la caja de otra sucursal");
+        }
     }
 
     // ── Cálculo del día efectivo ──────────────────────────────────────────
