@@ -424,14 +424,15 @@ public class RenovacionService {
                                 .build();
                 creditoRepo.save(creditoNuevo);
 
-                // 5. Generar calendario de pagos según tipo de crédito
+                // 5. Generar calendario desde el día siguiente al desembolso
+                LocalDate inicioPagos = hoy.plusDays(1);
                 if (creditoNuevo.getTipoPago() == TipoPago.SEMANAL) {
                         calculoService.generarCalendarioSemanal(
-                                        creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
+                                        creditoNuevo, inicioPagos, calculoNuevo.plazo(), calculoNuevo,
                                         creditoAnterior.getSucursal().getId());
                 } else {
                         calculoService.generarCalendario(
-                                        creditoNuevo, hoy, calculoNuevo.plazo(), calculoNuevo,
+                                        creditoNuevo, inicioPagos, calculoNuevo.plazo(), calculoNuevo,
                                         creditoAnterior.getSucursal().getId());
                 }
                 creditoRepo.save(creditoNuevo);

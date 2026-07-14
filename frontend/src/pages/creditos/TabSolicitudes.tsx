@@ -33,6 +33,7 @@ function fmtDate(s: string | null | undefined) {
   const date = new Date(s)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('es-MX', {
+    timeZone: 'America/Mexico_City',
     day: '2-digit',
     month: 'short',
     year: 'numeric',

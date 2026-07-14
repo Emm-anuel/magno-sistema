@@ -40,7 +40,7 @@ function fmtMoney(v?: number | null) {
 
 function fmtDate(v?: string) {
   if (!v) return '—'
-  return new Date(v).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
+  return new Date(v).toLocaleDateString('es-MX', { timeZone: 'America/Mexico_City', day: '2-digit', month: 'long', year: 'numeric' })
 }
 
 function Row({ label, value }: { label: string; value?: string | number | null }) {

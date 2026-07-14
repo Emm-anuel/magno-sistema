@@ -271,4 +271,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V34-fix-calendario-inicio-dia-siguiente" author="magno">
+        <sqlFile
+            path="db/changelog/V34__fix_calendario_inicio_dia_siguiente.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

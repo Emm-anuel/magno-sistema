@@ -42,6 +42,7 @@ function todayLocalIso(): string {
 function fmtDate(v?: string | null): string {
   if (!v) return '—'
   return new Date(toLocalDateInput(v)).toLocaleDateString('es-MX', {
+    timeZone: 'America/Mexico_City',
     day: '2-digit',
     month: 'long',
     year: 'numeric',

@@ -108,6 +108,8 @@ interface ConfirmModalProps {
 
 function ConfirmModal({ detalle, fechas, onClose, onConfirm, loading }: ConfirmModalProps) {
   const monto = safeN(detalle.montoAprobado ?? detalle.montoCapital)
+  const pagoAdelantado = safeN(detalle.pagoAdelantado)
+  const montoAEntregar = monto - pagoAdelantado
   const primerPago = fechas[0]
   const ultimoPago = fechas[fechas.length - 1]
 
@@ -139,11 +141,21 @@ function ConfirmModal({ detalle, fechas, onClose, onConfirm, loading }: ConfirmM
               <span className="text-gray-500">Cliente</span>
               <div className="font-semibold text-gray-800">{detalle.cliente.nombreCompleto}</div>
             </div>
-            <div>
-              <span className="text-gray-500">Monto</span>
-              <div className="font-bold text-[#3d6b35] text-base">{fmt(monto)}</div>
-            </div>
             <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-gray-500">Monto aprobado</span>
+                <div className="font-bold text-[#3d6b35] text-base">{fmt(monto)}</div>
+              </div>
+              <div>
+                <span className="text-gray-500">Pago adelantado</span>
+                <div className="font-medium text-orange-600">− {fmt(pagoAdelantado)}</div>
+              </div>
+            </div>
+            <div className="border-t border-green-200 pt-2">
+              <span className="text-gray-500">A entregar al cliente</span>
+              <div className="font-extrabold text-[#3d6b35] text-xl">{fmt(montoAEntregar)}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-t border-green-200 pt-2">
               <div>
                 <span className="text-gray-500">Primer pago</span>
                 <div className="font-medium">{primerPago ? fmtDate(primerPago) : '—'}</div>

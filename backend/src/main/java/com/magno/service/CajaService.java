@@ -273,6 +273,58 @@ public class CajaService {
                 List<MovimientoInversionDTO> inversiones = movimientoRepo
                                 .findByCajaDiaIdOrderByCreatedAtAsc(caja.getId())
                                 .stream().map(this::toMovimientoDTO).toList();
+
+                // Para cajas aún abiertas los totales no están persistidos; calcularlos en vivo.
+                if (caja.getEstado() == EstadoCaja.ABIERTA) {
+                        OffsetDateTime inicioTs = fecha.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
+                        OffsetDateTime finTs = fecha.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
+
+                        BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(effectiveId, fecha);
+                        BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosBySucursalAndFecha(effectiveId, inicioTs, finTs);
+                        BigDecimal desembolsosRenov = renovacionRepo.sumDesembolsosByScopeAndFecha(effectiveId, null, fecha, fecha);
+                        BigDecimal desembolsos = desembolsosNuevos.add(desembolsosRenov);
+                        BigDecimal sumInversiones = movimientoRepo.sumMontoByCajaDiaId(caja.getId());
+                        BigDecimal subtotalCaja = caja.getMontoApertura()
+                                        .add(ingresoCarteras)
+                                        .subtract(desembolsos)
+                                        .add(sumInversiones);
+
+                        ConfigSucursal config = configSucursalRepo.findBySucursalId(effectiveId).orElse(null);
+                        BigDecimal montoLibres = config != null
+                                        ? config.getPorcentajeAhorro().multiply(ingresoCarteras).setScale(2, RoundingMode.HALF_UP)
+                                        : BigDecimal.ZERO;
+                        BigDecimal ahorroFijo = config != null ? config.getMontoAhorroFijo() : BigDecimal.ZERO;
+                        BigDecimal totalGastos = Optional.ofNullable(gastoRepo.sumMontoByCajaDiaId(caja.getId()))
+                                        .orElse(BigDecimal.ZERO);
+                        BigDecimal totalNomina = nominaPagoRepo.findByCajaDiaIdAndDeletedAtIsNull(caja.getId())
+                                        .map(com.magno.model.NominaPago::getTotalPagado)
+                                        .orElse(BigDecimal.ZERO);
+                        BigDecimal totalRealLibres = montoLibres.subtract(ahorroFijo).subtract(totalGastos).subtract(totalNomina);
+
+                        return new CajaDiaDetalleDTO(
+                                        caja.getId(),
+                                        caja.getSucursal().getId(),
+                                        caja.getSucursal().getNombre(),
+                                        caja.getFecha(),
+                                        caja.getEstado().name(),
+                                        caja.getMontoApertura(),
+                                        caja.getConceptoApertura(),
+                                        caja.getAbiertaPor().getId(),
+                                        caja.getAbiertaPor().getNombreCompleto(),
+                                        caja.getFechaHoraApertura(),
+                                        null, null, null,
+                                        ingresoCarteras,
+                                        desembolsos,
+                                        subtotalCaja,
+                                        montoLibres,
+                                        calcularTotal(subtotalCaja, montoLibres),
+                                        ahorroFijo,
+                                        totalGastos,
+                                        totalNomina,
+                                        totalRealLibres,
+                                        inversiones);
+                }
+
                 return toDetalleDTO(caja, inversiones);
         }
 
