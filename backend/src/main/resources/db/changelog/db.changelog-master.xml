@@ -279,4 +279,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V35-revertir-no-pago-automatico-dia-desembolso" author="magno">
+        <sqlFile
+            path="db/changelog/V35__revertir_no_pago_automatico_dia_desembolso.sql"
+            relativeToChangelogFile="false"
+            splitStatements="false"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

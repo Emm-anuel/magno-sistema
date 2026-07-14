@@ -547,6 +547,7 @@ public class RenovacionService {
                                                 r.getCreditoNuevo().getMontoCapital(),
                                                 r.getMontoDesembolso(),
                                                 r.getAsesor().getNombreCompleto(),
+                                                r.getCreditoNuevo().getSucursal().getNombre(),
                                                 r.getCreditoNuevo().getTipoPago().toString(),
                                                 "RENOVACION",
                                                 r.getId())));
@@ -558,13 +559,14 @@ public class RenovacionService {
                                 .toOffsetDateTime();
                 creditoRepo.findColocacionesNuevos(inicioTs, finTs, asesorId, sucursalId)
                                 .forEach(c -> items.add(new ColocacionItemDTO(
-                                                c.getFechaDesembolso().toLocalDate(),
+                                                DateTimeUtils.toLocalDateEnMagno(c.getFechaDesembolso()),
                                                 c.getCliente().getNombreCompleto(),
                                                 c.getCliente().getId(),
                                                 null,
                                                 c.getMontoCapital(),
                                                 c.getMontoCapital().subtract(c.getPagoAdelantado()),
                                                 c.getAsesor().getNombreCompleto(),
+                                                c.getSucursal().getNombre(),
                                                 c.getTipoPago().toString(),
                                                 "NUEVO",
                                                 c.getId())));

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Download, ChevronLeft, ChevronRight } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
+import { reporteService } from '@/services/reporteService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { api } from '@/services/api'
 import TipoPagoBadge from '@/components/TipoPagoBadge'
@@ -48,11 +49,20 @@ function TipoBadge({ tipo }: { tipo: ColocacionItem['tipo'] }) {
 
 export default function TabColocacionesSemanales() {
   const { usuario } = useAuthStore()
+  const isAdmin = usuario?.rol === 'ADMINISTRADOR'
   const [semana, setSemana] = useState(() => toIso(lunesDe(new Date())))
+  const [sucursalId, setSucursalId] = useState<number | undefined>()
+
+  const { data: sucursales = [] } = useQuery({
+    queryKey: ['sucursales-colocaciones'],
+    queryFn: () => reporteService.getSucursales(),
+    staleTime: 300_000,
+    enabled: isAdmin,
+  })
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['colocaciones', semana, usuario?.id],
-    queryFn: () => renovacionService.getColocaciones({ semanaInicio: semana }),
+    queryKey: ['colocaciones', semana, usuario?.id, sucursalId],
+    queryFn: () => renovacionService.getColocaciones({ semanaInicio: semana, sucursalId }),
     staleTime: 60_000,
   })
 
@@ -64,7 +74,7 @@ export default function TabColocacionesSemanales() {
   async function handleExportPdf() {
     try {
       const response = await api.get('/renovaciones/colocaciones/pdf', {
-        params: { semanaInicio: semana },
+        params: { semanaInicio: semana, sucursalId },
         responseType: 'blob',
       })
       const url = URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }))
@@ -105,6 +115,23 @@ export default function TabColocacionesSemanales() {
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Filtro de sucursal — solo Gerente General, los demás roles ya están acotados a su sucursal */}
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700">Sucursal:</label>
+            <select
+              value={sucursalId ?? ''}
+              onChange={(e) => setSucursalId(e.target.value ? Number(e.target.value) : undefined)}
+              className="border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="">Todas las sucursales</option>
+              {sucursales.map((s) => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Export */}
         <button
@@ -153,6 +180,7 @@ export default function TabColocacionesSemanales() {
                       <th className="py-3 pr-4 font-medium text-right">Desembolso</th>
                       <th className="py-3 pr-4 font-medium">Forma de Pago</th>
                       <th className="py-3 pr-4 font-medium">Asesor</th>
+                      <th className="py-3 pr-4 font-medium">Sucursal</th>
                       <th className="py-3 font-medium">Tipo</th>
                     </tr>
                   </thead>
@@ -172,6 +200,7 @@ export default function TabColocacionesSemanales() {
                           <TipoPagoBadge tipo={item.tipoPago as TipoPago} size="sm" />
                         </td>
                         <td className="py-3 pr-4 text-gray-600">{item.asesorNombre}</td>
+                        <td className="py-3 pr-4 text-gray-600">{item.sucursalNombre}</td>
                         <td className="py-3">
                           <TipoBadge tipo={item.tipo} />
                         </td>
@@ -186,7 +215,7 @@ export default function TabColocacionesSemanales() {
                       <td className="py-3 pr-4 text-right text-sm font-bold text-[#3d6b35]">
                         {fmt(data.totalDesembolsos)}
                       </td>
-                      <td colSpan={2} />
+                      <td colSpan={3} />
                     </tr>
                   </tfoot>
                 </table>
@@ -224,6 +253,8 @@ export default function TabColocacionesSemanales() {
                       </span>
                       <span className="text-gray-500">Asesor</span>
                       <span className="text-right text-gray-700">{item.asesorNombre}</span>
+                      <span className="text-gray-500">Sucursal</span>
+                      <span className="text-right text-gray-700">{item.sucursalNombre}</span>
                     </div>
                   </div>
                 ))}

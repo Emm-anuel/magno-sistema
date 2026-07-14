@@ -15,6 +15,7 @@ public record ColocacionItemDTO(
         BigDecimal creditoNuevo,
         BigDecimal desembolso,
         String asesorNombre,
+        String sucursalNombre,
         String tipoPago, // DIARIO | SEMANAL
         String tipo, // NUEVO | RENOVACION
         Long refId // creditoId o renovacionId según tipo

@@ -26,6 +26,17 @@ public class DateTimeUtils {
         return java.time.OffsetDateTime.now(MAGNO_ZONE);
     }
 
+    /**
+     * Convierte un instante (p. ej. lo que devuelve JPA/pgjdbc para una
+     * columna timestamptz, normalizado al offset de la sesión) a la fecha
+     * calendario correspondiente en zona horaria de MAGNO. Nunca usar
+     * OffsetDateTime.toLocalDate() directamente sobre un valor leído de BD:
+     * el offset que trae no es necesariamente -06:00.
+     */
+    public static java.time.LocalDate toLocalDateEnMagno(java.time.OffsetDateTime instante) {
+        return instante.atZoneSameInstant(MAGNO_ZONE).toLocalDate();
+    }
+
     private DateTimeUtils() {
         // Utility class
     }

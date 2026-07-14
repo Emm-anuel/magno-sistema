@@ -174,7 +174,7 @@ public class ReporteService {
 
         for (Credito c : nuevos) {
             LocalDate fecha = c.getFechaDesembolso() != null
-                    ? c.getFechaDesembolso().toLocalDate()
+                    ? DateTimeUtils.toLocalDateEnMagno(c.getFechaDesembolso())
                     : c.getFechaInicio();
             items.add(new ColocacionItemDTO(
                     fecha,
@@ -184,6 +184,7 @@ public class ReporteService {
                     c.getMontoCapital(),
                     c.getMontoCapital(),
                     c.getAsesor().getNombreCompleto(),
+                    c.getSucursal().getNombre(),
                     c.getTipoPago().name(),
                     "NUEVO",
                     c.getId()));
@@ -200,6 +201,7 @@ public class ReporteService {
                     r.getCreditoNuevo().getMontoCapital(),
                     coalesce(r.getMontoDesembolso()),
                     r.getAsesor().getNombreCompleto(),
+                    r.getCreditoNuevo().getSucursal().getNombre(),
                     r.getTipoPago().name(),
                     "RENOVACION",
                     r.getId()));

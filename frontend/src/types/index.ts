@@ -704,6 +704,7 @@ export interface ColocacionItem {
   creditoNuevo: number
   desembolso: number
   asesorNombre: string
+  sucursalNombre: string
   tipoPago: TipoPago
   tipo: 'NUEVO' | 'RENOVACION'
   refId: number

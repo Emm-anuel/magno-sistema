@@ -83,6 +83,7 @@ function normalizeColocaciones(raw: any): ColocacionesSemana {
       creditoNuevo: item.creditoNuevo ?? item.credito_nuevo,
       desembolso: item.desembolso,
       asesorNombre: item.asesorNombre ?? item.asesor_nombre,
+      sucursalNombre: item.sucursalNombre ?? item.sucursal_nombre,
       tipoPago: item.tipoPago ?? item.tipo_pago ?? 'DIARIO',
       tipo: item.tipo,
       refId: item.refId ?? item.ref_id,
