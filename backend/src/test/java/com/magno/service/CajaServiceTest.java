@@ -29,6 +29,7 @@ class CajaServiceTest {
     private CajaMovimientoInversionRepository movimientoRepo;
     private ConfigSucursalRepository configSucursalRepo;
     private PagoRepository pagoRepo;
+    private AbonoCorrienteRepository abonoCorrienteRepo;
     private CreditoRepository creditoRepo;
     private RenovacionRepository renovacionRepo;
     private UsuarioRepository usuarioRepo;
@@ -53,6 +54,7 @@ class CajaServiceTest {
         movimientoRepo = mock(CajaMovimientoInversionRepository.class);
         configSucursalRepo = mock(ConfigSucursalRepository.class);
         pagoRepo = mock(PagoRepository.class);
+        abonoCorrienteRepo = mock(AbonoCorrienteRepository.class);
         creditoRepo = mock(CreditoRepository.class);
         renovacionRepo = mock(RenovacionRepository.class);
         usuarioRepo = mock(UsuarioRepository.class);
@@ -62,7 +64,7 @@ class CajaServiceTest {
         multaRepo = mock(MultaRepository.class);
         cobrosService = mock(CobrosService.class);
 
-        service = new CajaService(cajaDiaRepo, movimientoRepo, configSucursalRepo, pagoRepo,
+        service = new CajaService(cajaDiaRepo, movimientoRepo, configSucursalRepo, pagoRepo, abonoCorrienteRepo,
                 creditoRepo, renovacionRepo, usuarioRepo, sucursalRepo, gastoRepo, nominaPagoRepo,
                 multaRepo, cobrosService);
 
@@ -123,8 +125,15 @@ class CajaServiceTest {
         when(cajaDiaRepo.findBySucursalIdAndFechaAndEstado(1L, hoy, EstadoCaja.ABIERTA))
                 .thenReturn(Optional.of(caja));
         when(movimientoRepo.sumMontoByCajaDiaId(500L)).thenReturn(BigDecimal.ZERO);
-        when(pagoRepo.sumIngresoBySucursalAndFecha(1L, hoy)).thenReturn(BigDecimal.ZERO);
-        when(pagoRepo.findCobrosPorAsesorBySucursalAndFecha(1L, hoy)).thenReturn(List.of());
+        when(pagoRepo.sumIngresoBySucursalAndFecha(1L, hoy)).thenReturn(new BigDecimal("100.00"));
+        when(abonoCorrienteRepo.sumMontoTotalBySucursalAndFecha(1L, hoy))
+                .thenReturn(new BigDecimal("75.00"));
+        when(pagoRepo.findCobrosPorAsesorBySucursalAndFecha(1L, hoy))
+                .thenReturn(java.util.Collections.singletonList(
+                        new Object[] { "Ana Asesora", 2L, new BigDecimal("100.00") }));
+        when(abonoCorrienteRepo.findCobrosPorAsesorBySucursalAndFecha(1L, hoy))
+                .thenReturn(java.util.Collections.singletonList(
+                        new Object[] { "Ana Asesora", 1L, new BigDecimal("75.00") }));
         when(creditoRepo.sumDesembolsosByTipoAndSucursalAndFecha(eq(1L), eq(TipoCredito.NUEVO), any(), any()))
                 .thenReturn(BigDecimal.ZERO);
         when(renovacionRepo.sumDesembolsosByScopeAndFecha(1L, null, hoy, hoy)).thenReturn(BigDecimal.ZERO);
@@ -142,6 +151,11 @@ class CajaServiceTest {
         CajaCierrePreviewDTO preview = service.getPreviewCierre(1L, principal);
 
         assertThat(preview.clientesSinRegistro()).isEqualTo(esperado);
+        assertThat(preview.totalIngresoCarteras()).isEqualByComparingTo("175.00");
+        assertThat(preview.cobrosPorAsesor()).singleElement().satisfies(cobro -> {
+            assertThat(cobro.cantidadCobros()).isEqualTo(3);
+            assertThat(cobro.montoCobrado()).isEqualByComparingTo("175.00");
+        });
     }
 
     @Test

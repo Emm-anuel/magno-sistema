@@ -29,6 +29,8 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -39,6 +41,7 @@ public class CajaService {
         private final CajaMovimientoInversionRepository movimientoRepo;
         private final ConfigSucursalRepository configSucursalRepo;
         private final PagoRepository pagoRepo;
+        private final AbonoCorrienteRepository abonoCorrienteRepo;
         private final CreditoRepository creditoRepo;
         private final RenovacionRepository renovacionRepo;
         private final UsuarioRepository usuarioRepo;
@@ -52,6 +55,7 @@ public class CajaService {
                         CajaMovimientoInversionRepository movimientoRepo,
                         ConfigSucursalRepository configSucursalRepo,
                         PagoRepository pagoRepo,
+                        AbonoCorrienteRepository abonoCorrienteRepo,
                         CreditoRepository creditoRepo,
                         RenovacionRepository renovacionRepo,
                         UsuarioRepository usuarioRepo,
@@ -64,6 +68,7 @@ public class CajaService {
                 this.movimientoRepo = movimientoRepo;
                 this.configSucursalRepo = configSucursalRepo;
                 this.pagoRepo = pagoRepo;
+                this.abonoCorrienteRepo = abonoCorrienteRepo;
                 this.creditoRepo = creditoRepo;
                 this.renovacionRepo = renovacionRepo;
                 this.usuarioRepo = usuarioRepo;
@@ -154,7 +159,7 @@ public class CajaService {
 
                 cobrosService.marcarNoPagoAutomatico(sucursalId, fechaCaja, principal.userId());
 
-                BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fechaCaja);
+                BigDecimal ingresoCarteras = getIngresoCarteras(sucursalId, fechaCaja);
                 BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosBySucursalAndFecha(sucursalId, inicioTs, finTs);
                 BigDecimal desembolsosRenov = renovacionRepo.sumDesembolsosByScopeAndFecha(
                                 sucursalId, null, fechaCaja, fechaCaja);
@@ -294,7 +299,7 @@ public class CajaService {
                         OffsetDateTime inicioTs = fecha.atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
                         OffsetDateTime finTs = fecha.plusDays(1).atStartOfDay(DateTimeUtils.MAGNO_ZONE).toOffsetDateTime();
 
-                        BigDecimal ingresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(effectiveId, fecha);
+                        BigDecimal ingresoCarteras = getIngresoCarteras(effectiveId, fecha);
                         BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosBySucursalAndFecha(effectiveId, inicioTs, finTs);
                         BigDecimal desembolsosRenov = renovacionRepo.sumDesembolsosByScopeAndFecha(effectiveId, null, fecha, fecha);
                         BigDecimal desembolsos = desembolsosNuevos.add(desembolsosRenov);
@@ -381,16 +386,9 @@ public class CajaService {
 
                 BigDecimal subtotalInversiones = movimientoRepo.sumMontoByCajaDiaId(caja.getId());
 
-                BigDecimal totalIngresoCarteras = pagoRepo.sumIngresoBySucursalAndFecha(effectiveId, hoy);
+                BigDecimal totalIngresoCarteras = getIngresoCarteras(effectiveId, hoy);
 
-                List<CobroAsesorItemDTO> cobrosPorAsesor = pagoRepo
-                                .findCobrosPorAsesorBySucursalAndFecha(effectiveId, hoy)
-                                .stream()
-                                .map(row -> new CobroAsesorItemDTO(
-                                                (String) row[0],
-                                                ((Number) row[1]).intValue(),
-                                                (BigDecimal) row[2]))
-                                .toList();
+                List<CobroAsesorItemDTO> cobrosPorAsesor = getCobrosPorAsesor(effectiveId, hoy);
 
                 BigDecimal desembolsosNuevos = creditoRepo.sumDesembolsosByTipoAndSucursalAndFecha(
                                 effectiveId, TipoCredito.NUEVO, inicioTs, finTs);
@@ -627,6 +625,41 @@ public class CajaService {
                         return requestId;
                 }
                 return principal.sucursalId();
+        }
+
+        private BigDecimal getIngresoCarteras(Long sucursalId, LocalDate fecha) {
+                BigDecimal pagos = Optional.ofNullable(
+                                pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fecha))
+                                .orElse(BigDecimal.ZERO);
+                BigDecimal abonos = Optional.ofNullable(
+                                abonoCorrienteRepo.sumMontoTotalBySucursalAndFecha(sucursalId, fecha))
+                                .orElse(BigDecimal.ZERO);
+                return pagos.add(abonos);
+        }
+
+        private List<CobroAsesorItemDTO> getCobrosPorAsesor(Long sucursalId, LocalDate fecha) {
+                Map<String, CobroAsesorItemDTO> totales = new LinkedHashMap<>();
+                agregarCobrosPorAsesor(totales,
+                                pagoRepo.findCobrosPorAsesorBySucursalAndFecha(sucursalId, fecha));
+                agregarCobrosPorAsesor(totales,
+                                abonoCorrienteRepo.findCobrosPorAsesorBySucursalAndFecha(sucursalId, fecha));
+                return List.copyOf(totales.values());
+        }
+
+        private static void agregarCobrosPorAsesor(Map<String, CobroAsesorItemDTO> totales,
+                        List<Object[]> filas) {
+                if (filas == null) return;
+                for (Object[] fila : filas) {
+                        String nombre = (String) fila[0];
+                        int cantidad = ((Number) fila[1]).intValue();
+                        BigDecimal monto = (BigDecimal) fila[2];
+                        totales.merge(nombre,
+                                        new CobroAsesorItemDTO(nombre, cantidad, monto),
+                                        (actual, adicional) -> new CobroAsesorItemDTO(
+                                                        nombre,
+                                                        actual.cantidadCobros() + adicional.cantidadCobros(),
+                                                        actual.montoCobrado().add(adicional.montoCobrado())));
+                }
         }
 
         private CajaDiaDetalleDTO toDetalleDTO(CajaDia c, List<MovimientoInversionDTO> inversiones) {

@@ -81,9 +81,15 @@ export default function TabSolicitudes({
   const [page, setPage] = useState(0)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['creditos', { estado, asesorId, page }],
+    queryKey: ['creditos', { estado, asesorId, buscar, page }],
     queryFn: () =>
-      creditoService.listar({ estado: estado || undefined, asesorId, page, size: 20 }),
+      creditoService.listar({
+        estado: estado || undefined,
+        asesorId,
+        buscar: buscar.trim() || undefined,
+        page,
+        size: 20,
+      }),
   })
 
   const { data: asesores } = useQuery({
@@ -94,12 +100,8 @@ export default function TabSolicitudes({
 
   const creditos = data?.content ?? []
 
-  // Client-side filter by name and tipo
+  // El nombre se filtra en backend antes de paginar; el tipo sigue siendo local.
   const filtered = creditos.filter((c) => {
-    if (buscar.trim()) {
-      const nombre = c.cliente.nombreCompleto ?? (c.cliente as { nombre_completo?: string }).nombre_completo ?? ''
-      if (!nombre.toLowerCase().includes(buscar.toLowerCase())) return false
-    }
     if (tipoFilter && (c.tipo ?? 'NUEVO') !== tipoFilter) return false
     return true
   })
@@ -140,7 +142,7 @@ export default function TabSolicitudes({
               type="text"
               placeholder="Buscar por nombre de cliente..."
               value={buscar}
-              onChange={(e) => setBuscar(e.target.value)}
+              onChange={(e) => { setBuscar(e.target.value); setPage(0) }}
               className="input pl-9 w-full"
             />
           </div>

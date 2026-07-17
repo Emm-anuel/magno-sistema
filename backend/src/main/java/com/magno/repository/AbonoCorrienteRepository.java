@@ -35,6 +35,18 @@ public interface AbonoCorrienteRepository extends JpaRepository<AbonoCorriente, 
             @Param("desde") LocalDate desde,
             @Param("hasta") LocalDate hasta);
 
+    @Query("SELECT COALESCE(SUM(a.montoTotal), 0) FROM AbonoCorriente a " +
+            "WHERE a.credito.sucursal.id = :sucursalId AND a.fecha = :fecha")
+    BigDecimal sumMontoTotalBySucursalAndFecha(@Param("sucursalId") Long sucursalId,
+            @Param("fecha") LocalDate fecha);
+
+    @Query("SELECT a.credito.asesor.nombreCompleto, COUNT(a), COALESCE(SUM(a.montoTotal), 0) " +
+            "FROM AbonoCorriente a " +
+            "WHERE a.credito.sucursal.id = :sucursalId AND a.fecha = :fecha " +
+            "GROUP BY a.credito.asesor.id, a.credito.asesor.nombreCompleto")
+    List<Object[]> findCobrosPorAsesorBySucursalAndFecha(@Param("sucursalId") Long sucursalId,
+            @Param("fecha") LocalDate fecha);
+
     @Query("SELECT a.credito.asesor.id, a.credito.asesor.nombreCompleto, COUNT(a), " +
             "COALESCE(SUM(a.montoDistribuido), 0) " +
             "FROM AbonoCorriente a " +

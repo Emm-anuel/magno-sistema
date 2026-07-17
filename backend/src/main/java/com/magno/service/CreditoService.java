@@ -73,6 +73,7 @@ public class CreditoService {
                         Long asesorId,
                         Long sucursalId,
                         EstadoCredito estado,
+                        String buscar,
                         Pageable pageable) {
                 Specification<Credito> spec = Specification.where(null);
 
@@ -87,6 +88,11 @@ public class CreditoService {
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("sucursal").get("id"), sucursalId));
                 if (estado != null)
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("estado"), estado));
+                if (buscar != null && !buscar.isBlank()) {
+                        String patron = "%" + buscar.trim().toLowerCase() + "%";
+                        spec = spec.and((r, q, cb) ->
+                                        cb.like(cb.lower(r.get("cliente").get("nombreCompleto")), patron));
+                }
 
                 // Un crédito APROBADO pendiente de desembolso no debe tener fechaDesembolso.
                 // Esto evita listar registros inconsistentes para la pestaña de desembolso.

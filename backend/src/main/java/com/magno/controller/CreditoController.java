@@ -62,6 +62,7 @@ public class CreditoController {
             @RequestParam(required = false) Long asesorId,
             @RequestParam(required = false) Long sucursalId,
             @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String buscar,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             Authentication auth) {
@@ -77,7 +78,7 @@ public class CreditoController {
         }
 
         return ResponseEntity.ok(
-                creditoService.listar(clienteId, asesorId, sucursalId, estadoEnum, pageable));
+                creditoService.listar(clienteId, asesorId, sucursalId, estadoEnum, buscar, pageable));
     }
 
     // ────────────────────────────────────────────────────────────────────

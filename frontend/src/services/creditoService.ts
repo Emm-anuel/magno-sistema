@@ -160,6 +160,7 @@ export const creditoService = {
     asesorId?: number
     sucursalId?: number
     estado?: string
+    buscar?: string
     page?: number
     size?: number
   }): Promise<Page<CreditoResumen>> =>
