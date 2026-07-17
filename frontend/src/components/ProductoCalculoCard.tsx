@@ -85,7 +85,11 @@ export default function ProductoCalculoCard({ calculo, loading }: Props) {
       <Row label="Intereses:" value={fmt(safeNumber(getCalculoValue(calculo, 'cargoFinanciero', 'cargo_financiero')))} />
       <Row label="Total a pagar:" value={fmt(getTotalAPagar(calculo))} />
       <hr className="border-green-200 my-1" />
-      <Row label="Pago diario:" value={fmt(safeNumber(getCalculoValue(calculo, 'pagoPeriodico', 'pago_periodico')))} bold />
+      <Row
+        label={`Pago ${calculo.tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}:`}
+        value={fmt(safeNumber(getCalculoValue(calculo, 'pagoPeriodico', 'pago_periodico')))}
+        bold
+      />
       <Row label="Pago adelantado:" value={fmt(safeNumber(getCalculoValue(calculo, 'pagoAdelantado', 'pago_adelantado')))} />
     </div>
   )

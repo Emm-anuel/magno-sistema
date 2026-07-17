@@ -108,6 +108,7 @@ function normalizeListoItem(raw: any): ListoRenovarItem {
     pagosRealizados: raw.pagosRealizados ?? raw.pagos_realizados,
     pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
     multasPendientes: raw.multasPendientes ?? raw.multas_pendientes ?? 0,
+    pagosVencidos: raw.pagosVencidos ?? raw.pagos_vencidos ?? 0,
   }
 }
 

@@ -49,6 +49,7 @@ const abrirSchema = z.object({
 })
 
 type AbrirForm = z.infer<typeof abrirSchema>
+type TipoApertura = 'ANTERIOR' | 'MANUAL'
 
 // ── Collapsible section ────────────────────────────────────────────────
 
@@ -436,6 +437,7 @@ export default function CajaPage() {
   const queryClient = useQueryClient()
   const isAdmin     = usuario?.rol === 'ADMINISTRADOR'
   const puedeReabrirCaja = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  const [tipoApertura, setTipoApertura] = useState<TipoApertura>('MANUAL')
 
   // Sucursal efectiva
   const [adminSucursalId, setAdminSucursalId] = useState<number | null>(null)
@@ -531,7 +533,9 @@ export default function CajaPage() {
     mutationFn: (data: AbrirForm) =>
       cajaService.abrir({
         montoApertura:    data.montoApertura,
-        conceptoApertura: data.conceptoApertura || undefined,
+        conceptoApertura: tipoApertura === 'ANTERIOR'
+          ? `Saldo a favor del corte anterior (${saldoAnterior?.fecha ?? ''})`
+          : data.conceptoApertura || undefined,
         sucursalId:       efectivaSucursalId,
       }),
     onSuccess: () => {
@@ -596,6 +600,18 @@ export default function CajaPage() {
   // ── Forms ─────────────────────────────────────────────────────────────
 
   const abrirForm = useForm<AbrirForm>({ resolver: zodResolver(abrirSchema) })
+  const { data: saldoAnterior } = useQuery({
+    queryKey: ['caja-saldo-anterior', efectivaSucursalId],
+    queryFn: () => cajaService.getSaldoAnterior(efectivaSucursalId),
+    enabled: Boolean(usuario && puedeReabrirCaja && efectivaSucursalId !== undefined),
+  })
+
+  useEffect(() => {
+    if (saldoAnterior?.disponible) {
+      setTipoApertura('ANTERIOR')
+      abrirForm.setValue('montoApertura', saldoAnterior.monto, { shouldValidate: true })
+    }
+  }, [saldoAnterior, abrirForm])
 
   // ── Handlers ─────────────────────────────────────────────────────────
 
@@ -979,12 +995,52 @@ export default function CajaPage() {
                     className="space-y-4"
                   >
                     <div>
+                      <p className="block text-[12px] font-medium text-[#495057] mb-2">
+                        Fondo para abrir la caja
+                      </p>
+                      <div className="space-y-2">
+                        <label className={`flex items-start gap-2 rounded border p-3 ${saldoAnterior?.disponible ? 'cursor-pointer' : 'opacity-60'}`}>
+                          <input
+                            type="radio"
+                            name="tipoApertura"
+                            checked={tipoApertura === 'ANTERIOR'}
+                            disabled={!saldoAnterior?.disponible}
+                            onChange={() => {
+                              setTipoApertura('ANTERIOR')
+                              abrirForm.setValue('montoApertura', saldoAnterior?.monto ?? 0, { shouldValidate: true })
+                            }}
+                          />
+                          <span className="text-[12px]">
+                            <span className="block font-medium">Usar saldo a favor anterior</span>
+                            <span className="text-[#6c757d]">
+                              {saldoAnterior?.disponible
+                                ? `${fmtMoney(saldoAnterior.monto)} del ${saldoAnterior.fecha}`
+                                : 'No hay un saldo positivo de un corte anterior.'}
+                            </span>
+                          </span>
+                        </label>
+                        <label className="flex cursor-pointer items-start gap-2 rounded border p-3">
+                          <input
+                            type="radio"
+                            name="tipoApertura"
+                            checked={tipoApertura === 'MANUAL'}
+                            onChange={() => {
+                              setTipoApertura('MANUAL')
+                              abrirForm.setValue('montoApertura', 0, { shouldValidate: true })
+                            }}
+                          />
+                          <span className="text-[12px] font-medium">Ingresar monto manualmente</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div>
                       <label className="block text-[12px] font-medium text-[#495057] mb-1">
                         Monto de apertura <span className="text-[#dc2626]">*</span>
                       </label>
                       <input
                         {...abrirForm.register('montoApertura')}
                         type="number" step="0.01" min="0" placeholder="0.00"
+                        readOnly={tipoApertura === 'ANTERIOR'}
                         className="input"
                       />
                       {abrirForm.formState.errors.montoApertura && (
@@ -993,7 +1049,7 @@ export default function CajaPage() {
                         </p>
                       )}
                     </div>
-                    <div>
+                    {tipoApertura === 'MANUAL' && <div>
                       <label className="block text-[12px] font-medium text-[#495057] mb-1">Concepto</label>
                       <input
                         {...abrirForm.register('conceptoApertura')}
@@ -1001,7 +1057,7 @@ export default function CajaPage() {
                         placeholder="Ej. Fondo inicial, efectivo en caja…"
                         className="input"
                       />
-                    </div>
+                    </div>}
                     <button
                       type="submit"
                       className="btn-primary w-full"

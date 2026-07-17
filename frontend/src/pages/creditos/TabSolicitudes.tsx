@@ -8,6 +8,7 @@ import { useAuthStore } from '@/hooks/useAuthStore'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import TipoCreditoBadge from '@/components/TipoCreditoBadge'
 import TipoPagoBadge from '@/components/TipoPagoBadge'
+import PagoStatusBadge from '@/components/PagoStatusBadge'
 import type { CreditoResumen, EstadoCredito, TipoCredito, TipoPago } from '@/types'
 
 const ESTADOS: { value: string; label: string }[] = [
@@ -224,6 +225,7 @@ export default function TabSolicitudes({
                   <th>Forma de Pago</th>
                   <th>Tipo Crédito</th>
                   <th>Estado</th>
+                  <th>Estado de Pago</th>
                   <th>Asesor</th>
                   <th>Fecha de solicitud</th>
                   <th>Acciones</th>
@@ -232,7 +234,7 @@ export default function TabSolicitudes({
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center text-gray-400 py-8">
+                    <td colSpan={11} className="text-center text-gray-400 py-8">
                       Sin registros
                     </td>
                   </tr>
@@ -301,6 +303,13 @@ export default function TabSolicitudes({
                         <CreditoEstadoBadge
                           estado={c.estado as EstadoCredito}
                           size="sm"
+                        />
+                      </td>
+                      <td>
+                        <PagoStatusBadge
+                          estado={c.estado}
+                          pagosVencidos={c.pagosVencidos ?? 0}
+                          multasPendientes={c.multasPendientes ?? 0}
                         />
                       </td>
                       <td className="text-sm">
@@ -450,6 +459,11 @@ function MobileCard({
         <div className="flex flex-col items-end gap-1">
           <TipoCreditoBadge tipo={(c.tipo ?? 'NUEVO') as TipoCredito} size="sm" />
           <CreditoEstadoBadge estado={c.estado as EstadoCredito} size="sm" />
+          <PagoStatusBadge
+            estado={c.estado}
+            pagosVencidos={c.pagosVencidos ?? 0}
+            multasPendientes={c.multasPendientes ?? 0}
+          />
         </div>
       </div>
 

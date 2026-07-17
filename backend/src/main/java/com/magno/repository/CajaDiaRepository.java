@@ -23,6 +23,11 @@ public interface CajaDiaRepository extends JpaRepository<CajaDia, Long> {
                      EstadoCaja estado,
                      LocalDate fecha);
 
+       Optional<CajaDia> findFirstBySucursalIdAndEstadoAndFechaBeforeOrderByFechaDesc(
+                     Long sucursalId,
+                     EstadoCaja estado,
+                     LocalDate fecha);
+
        boolean existsBySucursalIdAndFechaAndEstado(Long sucursalId, LocalDate fecha, EstadoCaja estado);
 
        @Query("SELECT cd FROM CajaDia cd WHERE cd.sucursal.id = :sucursalId " +

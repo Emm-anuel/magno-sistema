@@ -245,7 +245,11 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
   const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
   const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
   const montoValido = !isNaN(monto) && monto >= rangoMin && monto <= rangoMax
-  const tieneCredito = isEditMode ? false : (clienteSeleccionado?.tiene_credito_activo ?? false)
+  const tieneCredito = isEditMode ? false : (
+    tipoPago === 'DIARIO'
+      ? (clienteSeleccionado?.tiene_credito_diario_en_proceso ?? false)
+      : (clienteSeleccionado?.tiene_credito_semanal_en_proceso ?? false)
+  )
   const clienteIdSeleccionado = isEditMode ? (creditoInicial?.cliente?.id ?? creditoInicialRaw?.cliente?.id) : clienteSeleccionado?.id
   const nombreCliente = isEditMode
     ? (creditoInicial?.cliente?.nombreCompleto ?? creditoInicialRaw?.cliente?.nombre_completo)
@@ -420,8 +424,8 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
               <div className="mt-2 flex items-start gap-2 rounded-lg bg-red-50 border border-red-200 p-3">
                 <AlertTriangle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-red-700">
-                  Este cliente ya tiene un crédito activo o en proceso. No puede solicitar uno
-                  nuevo hasta completarlo.
+                  Este cliente ya tiene un crédito {tipoPago === 'DIARIO' ? 'diario' : 'semanal'} activo
+                  o en proceso. Debe completarlo antes de solicitar otro del mismo tipo.
                 </p>
               </div>
             )}
@@ -601,14 +605,14 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
             <div className="space-y-1.5 text-sm">
               {[
                 ['Monto solicitado', `$${monto.toLocaleString('es-MX')}`],
-                ['Plazo', `${safeNumber(calculo.plazo ?? (calculo as { plazo_dias?: number | string }).plazo_dias)} días`],
+                ['Plazo', `${safeNumber(calculo.plazo ?? (calculo as { plazo_dias?: number | string }).plazo_dias)} ${tipoPago === 'SEMANAL' ? 'semanas' : 'días'}`],
                 ['Tasa de interés', `${(safeNumber(calculo.tasa ?? (calculo as { tasa_interes?: number | string }).tasa_interes) * 100).toFixed(0)}%`],
                 [
                   'Cargo financiero',
                   `$${safeNumber(calculo.cargoFinanciero ?? (calculo as { cargo_financiero?: number | string }).cargo_financiero).toLocaleString('es-MX')}`,
                 ],
                 ['Total a pagar', `$${safeNumber(calculo.totalAPagar ?? (calculo as { total_apagar?: number | string }).total_apagar).toLocaleString('es-MX')}`],
-                ['Pago diario', `$${safeNumber(calculo.pagoPeriodico ?? (calculo as { pago_periodico?: number | string }).pago_periodico).toLocaleString('es-MX')}`],
+                [`Pago ${tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}`, `$${safeNumber(calculo.pagoPeriodico ?? (calculo as { pago_periodico?: number | string }).pago_periodico).toLocaleString('es-MX')}`],
                 [
                   'Pago adelantado',
                   `$${safeNumber(calculo.pagoAdelantado ?? (calculo as { pago_adelantado?: number | string }).pago_adelantado).toLocaleString('es-MX')} (se cobra al desembolsar)`,

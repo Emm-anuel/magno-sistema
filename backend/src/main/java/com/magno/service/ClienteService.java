@@ -84,7 +84,12 @@ public class ClienteService {
         }
 
         return clienteRepo.findAll(spec, pageable)
-                .map(c -> ClienteResumenDTO.from(c, clienteRepo.tieneCredito(c.getId())));
+                .map(c -> {
+                    boolean tieneActivo = clienteRepo.tieneCredito(c.getId());
+                    java.util.List<String> tipos = clienteRepo.getTiposPagoEnProceso(c.getId());
+                    return ClienteResumenDTO.from(c, tieneActivo,
+                            tipos.contains("DIARIO"), tipos.contains("SEMANAL"));
+                });
     }
 
     /** Detalle completo de un cliente. */
@@ -291,7 +296,7 @@ public class ClienteService {
         }
 
         c.setActivo(activo);
-        return ClienteResumenDTO.from(clienteRepo.save(c), false);
+        return ClienteResumenDTO.from(clienteRepo.save(c), false, false, false);
     }
 
     /** Verifica si un CURP ya existe (excluyendo un id dado para updates). */

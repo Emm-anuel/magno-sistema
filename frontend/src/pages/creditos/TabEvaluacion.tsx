@@ -132,12 +132,12 @@ function ApproveModal({ credito, calculo, montoAprobado, onClose, onConfirm, loa
                 <div className="font-bold text-[#3d6b35] text-lg">{fmt(montoAprobado)}</div>
               </div>
               <div>
-                <span className="text-gray-500">Pago diario</span>
+                <span className="text-gray-500">Pago {credito.tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}</span>
                 <div className="font-bold text-gray-800 text-lg">{fmt(safeN(calculo.pagoPeriodico))}</div>
               </div>
               <div>
                 <span className="text-gray-500">Plazo</span>
-                <div className="font-medium">{safeN(calculo.plazo)} días</div>
+                <div className="font-medium">{safeN(calculo.plazo)} {credito.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}</div>
               </div>
               <div>
                 <span className="text-gray-500">Tasa de interés</span>
@@ -319,7 +319,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
   }
 
   const triggerCalculo = useCallback(
-    (monto: string) => {
+    (monto: string, tipoPago: 'DIARIO' | 'SEMANAL') => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
       const n = parseFloat(monto)
       if (!Number.isFinite(n) || n <= 0) {
@@ -329,7 +329,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
       debounceRef.current = setTimeout(async () => {
         setCalculoLoading(true)
         try {
-          const result = await creditoService.calcularProducto(n)
+          const result = await creditoService.calcularProducto(n, tipoPago)
           setCalculo(result)
         } catch {
           setCalculo(null)
@@ -355,7 +355,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
       const monto = String(safeN(detalle.montoSolicitado ?? detalle.montoCapital))
       setMontoAprobado(monto)
       setObservaciones(detalle.observaciones ?? '')
-      triggerCalculo(monto)
+      triggerCalculo(monto, detalle.tipoPago)
     }
   }, [detalle, triggerCalculo])
 
@@ -505,10 +505,10 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
                       type="number"
                       step={1}
                       value={montoAprobado}
-                      onChange={(e) => {
-                        setMontoAprobado(e.target.value)
-                        triggerCalculo(e.target.value)
-                      }}
+                  onChange={(e) => {
+                    setMontoAprobado(e.target.value)
+                    triggerCalculo(e.target.value, detalle.tipoPago)
+                  }}
                       className="input w-full"
                       placeholder="Ej: 5000"
                     />

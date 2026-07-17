@@ -69,6 +69,12 @@ export interface CajaEstado {
   motivoBloqueo: string | null
 }
 
+export interface SaldoAnteriorCaja {
+  disponible: boolean
+  monto: number
+  fecha: string | null
+}
+
 export interface MovimientoInversion {
   id: number
   conceptoInversionId: number | null
@@ -192,6 +198,14 @@ export const cajaService = {
   getEstado: (sucursalId?: number): Promise<CajaEstado> =>
     api.get('/caja/estado', { params: sucursalId ? { sucursalId } : undefined })
        .then(r => normalizeEstado(r.data)),
+
+  getSaldoAnterior: (sucursalId?: number): Promise<SaldoAnteriorCaja> =>
+    api.get('/caja/saldo-anterior', { params: sucursalId ? { sucursalId } : undefined })
+       .then(r => ({
+         disponible: Boolean(r.data?.disponible),
+         monto: Number(r.data?.monto ?? 0),
+         fecha: r.data?.fecha ?? null,
+       })),
 
   abrir: (payload: {
     montoApertura: number

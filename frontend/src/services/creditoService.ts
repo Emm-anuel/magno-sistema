@@ -49,6 +49,8 @@ function normalizeCreditoResumen(raw: any): CreditoResumen {
     totalPagos: raw.totalPagos ?? raw.total_pagos ?? 0,
     tieneVideoEntrega: raw.tieneVideoEntrega ?? raw.tiene_video_entrega ?? false,
     createdAt: raw.createdAt ?? raw.created_at,
+    pagosVencidos: raw.pagosVencidos ?? raw.pagos_vencidos ?? 0,
+    multasPendientes: raw.multasPendientes ?? raw.multas_pendientes ?? 0,
   }
 }
 

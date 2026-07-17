@@ -3,6 +3,7 @@ package com.magno.repository;
 import com.magno.model.Credito;
 import com.magno.model.EstadoCalendarioPago;
 import com.magno.model.EstadoCredito;
+import com.magno.model.TipoPago;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,6 +22,8 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
         Optional<Credito> findByClienteIdAndEstado(Long clienteId, EstadoCredito estado);
 
         boolean existsByClienteIdAndEstadoIn(Long clienteId, List<EstadoCredito> estados);
+
+        boolean existsByClienteIdAndEstadoInAndTipoPago(Long clienteId, List<EstadoCredito> estados, TipoPago tipoPago);
 
         Page<Credito> findByAsesorId(Long asesorId, Pageable pageable);
 

@@ -16,5 +16,6 @@ public record ListoRenovarItemDTO(
                 String sucursalNombre,
                 long pagosRealizados,
                 int pagosRestantes,
-                BigDecimal multasPendientes) {
+                BigDecimal multasPendientes,
+                long pagosVencidos) {
 }

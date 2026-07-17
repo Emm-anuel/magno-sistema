@@ -42,15 +42,27 @@ function safeN(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
-// Generate N business dates starting from tomorrow (skip Sat=6, Sun=0)
-function generarFechasEstimadas(n: number): Date[] {
+// Replica la cadencia del backend sin festivos: diario = siguiente día hábil;
+// semanal = 7 días hábiles entre pagos.
+function generarFechasEstimadas(n: number, tipoPago: 'DIARIO' | 'SEMANAL'): Date[] {
   const fechas: Date[] = []
   const cursor = new Date()
   cursor.setHours(0, 0, 0, 0)
   cursor.setDate(cursor.getDate() + 1) // start tomorrow
   while (fechas.length < n) {
     const dow = cursor.getDay()
-    if (dow !== 0 && dow !== 6) fechas.push(new Date(cursor))
+    if (dow !== 0 && dow !== 6) {
+      fechas.push(new Date(cursor))
+      if (tipoPago === 'SEMANAL' && fechas.length < n) {
+        let diasHabiles = 0
+        while (diasHabiles < 7) {
+          cursor.setDate(cursor.getDate() + 1)
+          const siguienteDow = cursor.getDay()
+          if (siguienteDow !== 0 && siguienteDow !== 6) diasHabiles++
+        }
+        continue
+      }
+    }
     cursor.setDate(cursor.getDate() + 1)
   }
   return fechas
@@ -88,7 +100,9 @@ function CreditoItem({ credito: c, isSelected, onSelect }: CreditoItemProps) {
       <div className="font-semibold text-gray-800 text-sm">{c.cliente.nombreCompleto}</div>
       <div className="text-sm font-medium text-[#3d6b35] mt-0.5">{fmt(monto)}</div>
       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-        <span className="text-xs text-gray-500">Pago diario: {fmt(c.pagoPeriodico)}</span>
+        <span className="text-xs text-gray-500">
+          Pago {c.tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}: {fmt(c.pagoPeriodico)}
+        </span>
       </div>
       <div className="text-xs text-gray-400 mt-0.5">{c.asesor.nombreCompleto}</div>
       <div className="text-xs text-gray-400">Aprobado: {fechaAprobacion}</div>
@@ -192,12 +206,13 @@ interface CalendarioPreviewProps {
   plazoDias: number
   pagoPeriodico: number
   pagoAdelantado: number
+  tipoPago: 'DIARIO' | 'SEMANAL'
 }
 
-function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado }: CalendarioPreviewProps) {
+function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago }: CalendarioPreviewProps) {
   const n = safeN(plazoDias)
   const pago = safeN(pagoPeriodico)
-  const fechas = generarFechasEstimadas(n)
+  const fechas = generarFechasEstimadas(n, tipoPago)
   const hoy = new Date().toLocaleDateString('es-MX', {
     day: 'numeric',
     month: 'long',
@@ -219,7 +234,7 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado }: Calenda
       </div>
       <p className="text-sm text-gray-600">
         El calendario se generará con{' '}
-        <strong>{n} días hábiles</strong> a partir de hoy ({hoy}). Los sábados,
+        <strong>{n} {tipoPago === 'SEMANAL' ? 'semanas' : 'días hábiles'}</strong> a partir de hoy ({hoy}). Los sábados,
         domingos y días festivos se omiten automáticamente.
       </p>
 
@@ -319,7 +334,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
 
   // ── Derived state ──────────────────────────────────────────────
   const fechasEstimadas =
-    detalle ? generarFechasEstimadas(safeN(detalle.plazoDias)) : []
+    detalle ? generarFechasEstimadas(safeN(detalle.plazoDias), detalle.tipoPago) : []
 
   // ── Render ─────────────────────────────────────────────────────
   return (
@@ -392,7 +407,9 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-gray-500">Pago diario</div>
+                      <div className="text-xs text-gray-500">
+                        Pago {detalle.tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}
+                      </div>
                       <div className="font-semibold text-gray-800">
                         {fmt(detalle.pagoPeriodico)}
                       </div>
@@ -400,7 +417,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
                     <div>
                       <div className="text-xs text-gray-500">Plazo</div>
                       <div className="font-semibold text-gray-800">
-                        {safeN(detalle.plazoDias)} días
+                        {safeN(detalle.plazoDias)} {detalle.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}
                       </div>
                     </div>
                   </div>
@@ -429,6 +446,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
                   plazoDias={detalle.plazoDias}
                   pagoPeriodico={detalle.pagoPeriodico}
                   pagoAdelantado={detalle.pagoAdelantado}
+                  tipoPago={detalle.tipoPago}
                 />
 
                 {/* 3. Activate button */}

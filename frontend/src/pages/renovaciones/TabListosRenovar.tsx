@@ -4,6 +4,7 @@ import { AlertCircle, ChevronRight, Loader2 } from 'lucide-react'
 import { renovacionService } from '@/services/renovacionService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import TipoPagoBadge from '@/components/TipoPagoBadge'
+import PagoStatusBadge from '@/components/PagoStatusBadge'
 import { api } from '@/services/api'
 import type { ListoRenovarItem, ClienteResumen, TipoPago } from '@/types'
 
@@ -74,6 +75,8 @@ export default function TabListosRenovar({ onRenovar }: Props) {
       sucursal: { id: item.sucursalId, nombre: item.sucursalNombre },
       activo: true,
       tiene_credito_activo: true,
+      tiene_credito_diario_en_proceso: item.tipoPago === 'DIARIO',
+      tiene_credito_semanal_en_proceso: item.tipoPago === 'SEMANAL',
       estado_cliente: 'ACTIVO',
       created_at: '',
     }
@@ -160,6 +163,7 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                   <th className="py-3 pr-4 font-medium text-center">Progreso</th>
                   <th className="py-3 pr-4 font-medium text-center">Restantes</th>
                   <th className="py-3 pr-4 font-medium text-right">Multas</th>
+                  <th className="py-3 pr-4 font-medium">Estado de Pago</th>
                   {puedeCrearRenovacion && <th className="py-3 font-medium" />}
                 </tr>
               </thead>
@@ -197,6 +201,13 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                       ) : (
                         <span className="text-gray-400 text-xs">—</span>
                       )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      <PagoStatusBadge
+                        estado="ACTIVO"
+                        pagosVencidos={item.pagosVencidos ?? 0}
+                        multasPendientes={item.multasPendientes ?? 0}
+                      />
                     </td>
                     {puedeCrearRenovacion && (
                       <td className="py-3">
@@ -262,6 +273,13 @@ export default function TabListosRenovar({ onRenovar }: Props) {
                       </span>
                     </>
                   )}
+                </div>
+                <div>
+                  <PagoStatusBadge
+                    estado="ACTIVO"
+                    pagosVencidos={item.pagosVencidos ?? 0}
+                    multasPendientes={item.multasPendientes ?? 0}
+                  />
                 </div>
               </div>
             ))}

@@ -25,12 +25,15 @@ public record ClienteResumenDTO(
         Boolean activo,
         Boolean tieneCreditoActivo,
         String estadoCliente,   // ACTIVO | EN_MORA | SIN_CREDITO | INACTIVO
-        OffsetDateTime createdAt
+        OffsetDateTime createdAt,
+        Boolean tieneCreditoDiarioEnProceso,
+        Boolean tieneCreditoSemanalEnProceso
 ) {
     public record AsesorInfo(Long id, String nombreCompleto) {}
     public record SucursalInfo(Long id, String nombre) {}
 
-    public static ClienteResumenDTO from(Cliente c, boolean tieneCreditoActivo) {
+    public static ClienteResumenDTO from(Cliente c, boolean tieneCreditoActivo,
+            boolean tieneCreditoDiarioEnProceso, boolean tieneCreditoSemanalEnProceso) {
         AsesorInfo asesorInfo = c.getAsesor() != null
                 ? new AsesorInfo(c.getAsesor().getId(), c.getAsesor().getNombreCompleto())
                 : null;
@@ -66,7 +69,9 @@ public record ClienteResumenDTO(
                 c.getActivo(),
                 tieneCreditoActivo,
                 estado,
-                c.getCreatedAt()
+                c.getCreatedAt(),
+                tieneCreditoDiarioEnProceso,
+                tieneCreditoSemanalEnProceso
         );
     }
 }

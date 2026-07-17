@@ -38,6 +38,14 @@ public class CajaController {
                 .body(cajaService.abrir(req, principal(auth)));
     }
 
+    @GetMapping("/saldo-anterior")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<SaldoAnteriorCajaDTO> saldoAnterior(
+            @RequestParam(required = false) Long sucursalId,
+            Authentication auth) {
+        return ResponseEntity.ok(cajaService.getSaldoAnterior(sucursalId, principal(auth)));
+    }
+
     // ── Cierre ────────────────────────────────────────────────────────────
 
     @PostMapping("/cerrar")

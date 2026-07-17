@@ -601,6 +601,8 @@ public class RenovacionService {
                                                         .countByCreditoIdAndEstadoIn(c.getId(), realizados);
                                         int pagosRestantes = c.getPlazoDias() - (int) pagosRealizados;
                                         BigDecimal multas = multaRepo.sumMontosPendientesByCreditoId(c.getId());
+                                        long pagosVencidos = calendarioPagoRepo
+                                                        .countAtrasadosByCreditoId(c.getId(), DateTimeUtils.hoyEnMagno());
 
                                         return new ListoRenovarItemDTO(
                                                         c.getCliente().getId(),
@@ -616,7 +618,8 @@ public class RenovacionService {
                                                         c.getSucursal().getNombre(),
                                                         pagosRealizados,
                                                         Math.max(0, pagosRestantes),
-                                                        multas);
+                                                        multas,
+                                                        pagosVencidos);
                                 })
                                 .toList();
         }

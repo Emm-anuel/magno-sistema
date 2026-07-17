@@ -95,11 +95,7 @@ public class CreditoService {
                 }
 
                 return creditoRepo.findAll(spec, pageable)
-                                .map(c -> {
-                                        long realizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(),
-                                                        ESTADOS_REALIZADOS);
-                                        return CreditoResumenDTO.from(c, realizados);
-                                });
+                                .map(c -> buildResumen(c));
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -114,11 +110,7 @@ public class CreditoService {
         public List<CreditoResumenDTO> getCreditosCliente(Long clienteId) {
                 return creditoRepo.findByClienteIdOrderByCreatedAtDesc(clienteId).stream()
                                 .filter(c -> c.getDeletedAt() == null)
-                                .map(c -> {
-                                        long realizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(),
-                                                        ESTADOS_REALIZADOS);
-                                        return CreditoResumenDTO.from(c, realizados);
-                                })
+                                .map(this::buildResumen)
                                 .toList();
         }
 
@@ -145,19 +137,24 @@ public class CreditoService {
                         throw new IllegalArgumentException("El cliente está inactivo");
                 }
 
-                // 2. Bloquear si ya tiene crédito activo/solicitado/aprobado
-                if (creditoRepo.existsByClienteIdAndEstadoIn(req.clienteId(), ESTADOS_BLOQUEANTES)) {
+                // 2. Parsear tipo de pago antes de la validación
+                TipoPago tipoPago = parseTipoPago(req.tipoPago());
+
+                // 3. Bloquear si ya tiene crédito del mismo tipo activo/solicitado/aprobado
+                // (se permite tener 1 DIARIO + 1 SEMANAL simultáneamente, pero no 2 del mismo tipo)
+                if (creditoRepo.existsByClienteIdAndEstadoInAndTipoPago(req.clienteId(), ESTADOS_BLOQUEANTES, tipoPago)) {
                         throw new IllegalArgumentException(
-                                        "El cliente ya tiene un crédito activo o en proceso. " +
+                                        "El cliente ya tiene un crédito " + tipoPago.name().toLowerCase() +
+                                                        " activo o en proceso. " +
                                                         "Debe completarlo antes de solicitar uno nuevo.");
                 }
 
-                // 3. Resolver asesor
+                // 4. Resolver asesor
                 Usuario asesor = usuarioRepo.findById(req.asesorId())
                                 .orElseThrow(() -> new EntityNotFoundException(
                                                 "Asesor no encontrado: " + req.asesorId()));
 
-                // 4. Resolver sucursal (del request o del asesor)
+                // 5. Resolver sucursal (del request o del asesor)
                 Long sucursalId = req.sucursalId() != null
                                 ? req.sucursalId()
                                 : asesor.getSucursal().getId();
@@ -165,10 +162,7 @@ public class CreditoService {
                                 .orElseThrow(() -> new EntityNotFoundException(
                                                 "Sucursal no encontrada: " + sucursalId));
 
-                // 5. Tipo de pago
-                TipoPago tipoPago = parseTipoPago(req.tipoPago());
-
-                // 6. Calcular (según tipo de pago)
+                // 6. Calcular según tipo de pago
                 ResumenCalculo calculo = tipoPago == TipoPago.SEMANAL
                                 ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursalId)
                                 : calculoService.calcularCredito(req.montoSolicitado(), sucursalId);
@@ -503,5 +497,17 @@ public class CreditoService {
                                 .orElse(null);
 
                 return CreditoDetalleDTO.from(c, calendario, stats, liquidadoPorRenovacion, originadoPorRenovacion);
+        }
+
+        private CreditoResumenDTO buildResumen(Credito c) {
+                long realizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(), ESTADOS_REALIZADOS);
+                long vencidos = 0;
+                BigDecimal multas = BigDecimal.ZERO;
+                if (c.getEstado() == EstadoCredito.ACTIVO) {
+                        LocalDate hoy = DateTimeUtils.hoyEnMagno();
+                        vencidos = calendarioPagoRepo.countAtrasadosByCreditoId(c.getId(), hoy);
+                        multas = creditoRepo.sumMultasPendientes(c.getId());
+                }
+                return CreditoResumenDTO.from(c, realizados, vencidos, multas);
         }
 }

@@ -3,6 +3,7 @@ package com.magno.service;
 import com.magno.dto.cobros.ClienteNoPagoAutomaticoDTO;
 import com.magno.dto.cobros.ClienteRutaDTO;
 import com.magno.dto.cobros.RutaDiaDTO;
+import com.magno.dto.cobros.PagoModificarRequest;
 import com.magno.model.*;
 import com.magno.repository.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -444,5 +445,55 @@ class CobrosServiceTest {
         assertThat(multa2.getCredito()).isEqualTo(credito2);
         assertThat(multa2.getCliente()).isEqualTo(cliente2);
         assertThat(multa2.getMonto()).isEqualByComparingTo(new BigDecimal("300.00"));
+    }
+
+    @Test
+    void modificarPago_condonaSoloMultasPendientesDelDiaYCorrigeCalendario() {
+        Usuario gerente = new Usuario();
+        gerente.setId(99L);
+        gerente.setNombreCompleto("Laura Gerente");
+
+        CalendarioPago calendario = new CalendarioPago();
+        calendario.setEstado(EstadoCalendarioPago.NO_PAGADO);
+
+        Pago pago = new Pago();
+        pago.setId(300L);
+        pago.setCredito(credito);
+        pago.setCliente(cliente);
+        pago.setCalendarioPago(calendario);
+        pago.setNumeroPago(4);
+        pago.setFechaPago(HOY);
+        pago.setMontoRecibido(BigDecimal.ZERO);
+        pago.setMontoEsperado(new BigDecimal("156.00"));
+        pago.setEsCompleto(false);
+        pago.setRazonNoPago("No registrado");
+        pago.setMultaAplicada(new BigDecimal("50.00"));
+
+        Multa multa = new Multa();
+        multa.setId(400L);
+        multa.setCredito(credito);
+        multa.setFecha(HOY);
+        multa.setMonto(new BigDecimal("50.00"));
+        multa.setCobrada(false);
+        multa.setCondonada(false);
+
+        when(pagoRepo.findById(300L)).thenReturn(Optional.of(pago));
+        when(usuarioRepo.findById(99L)).thenReturn(Optional.of(gerente));
+        when(multaRepo.findPendientesByCreditoIdAndFecha(42L, HOY)).thenReturn(List.of(multa));
+
+        service.modificarPago(300L,
+                new PagoModificarRequest(new BigDecimal("156.00"), "", true,
+                        "El asesor omitió registrar el pago"),
+                99L);
+
+        assertThat(pago.getRazonNoPago()).isNull();
+        assertThat(pago.getEsCompleto()).isTrue();
+        assertThat(pago.getMultaAplicada()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(calendario.getEstado()).isEqualTo(EstadoCalendarioPago.PAGADO);
+        assertThat(multa.getCondonada()).isTrue();
+        assertThat(multa.getCondonadaPor()).isEqualTo(gerente);
+        assertThat(multa.getFechaCondonacion()).isNotNull();
+        assertThat(multa.getMotivoCondonacion()).isEqualTo("El asesor omitió registrar el pago");
+        verify(multaRepo).saveAll(List.of(multa));
     }
 }

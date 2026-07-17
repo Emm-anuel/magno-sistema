@@ -3,6 +3,7 @@ package com.magno.service;
 import com.magno.dto.caja.CajaCierrePreviewDTO;
 import com.magno.dto.caja.CajaDiaDetalleDTO;
 import com.magno.dto.caja.CerrarCajaRequest;
+import com.magno.dto.caja.SaldoAnteriorCajaDTO;
 import com.magno.dto.cobros.ClienteNoPagoAutomaticoDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
@@ -141,5 +142,42 @@ class CajaServiceTest {
         CajaCierrePreviewDTO preview = service.getPreviewCierre(1L, principal);
 
         assertThat(preview.clientesSinRegistro()).isEqualTo(esperado);
+    }
+
+    @Test
+    void getSaldoAnterior_usaElRemanenteDelUltimoCorteCerrado() {
+        CajaDia anterior = CajaDia.builder()
+                .sucursal(sucursal)
+                .fecha(hoy.minusDays(1))
+                .estado(EstadoCaja.CERRADA)
+                .subtotalCaja(new BigDecimal("2500.00"))
+                .montoLibres(new BigDecimal("400.00"))
+                .build();
+        when(cajaDiaRepo.findFirstBySucursalIdAndEstadoAndFechaBeforeOrderByFechaDesc(
+                1L, EstadoCaja.CERRADA, hoy)).thenReturn(Optional.of(anterior));
+
+        SaldoAnteriorCajaDTO result = service.getSaldoAnterior(null, principal);
+
+        assertThat(result.disponible()).isTrue();
+        assertThat(result.monto()).isEqualByComparingTo("2100.00");
+        assertThat(result.fecha()).isEqualTo(hoy.minusDays(1));
+    }
+
+    @Test
+    void getSaldoAnterior_noOfreceSaldosNegativos() {
+        CajaDia anterior = CajaDia.builder()
+                .sucursal(sucursal)
+                .fecha(hoy.minusDays(1))
+                .estado(EstadoCaja.CERRADA)
+                .subtotalCaja(new BigDecimal("100.00"))
+                .montoLibres(new BigDecimal("150.00"))
+                .build();
+        when(cajaDiaRepo.findFirstBySucursalIdAndEstadoAndFechaBeforeOrderByFechaDesc(
+                1L, EstadoCaja.CERRADA, hoy)).thenReturn(Optional.of(anterior));
+
+        SaldoAnteriorCajaDTO result = service.getSaldoAnterior(null, principal);
+
+        assertThat(result.disponible()).isFalse();
+        assertThat(result.monto()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

@@ -94,6 +94,8 @@ function normalizeClienteResumen(raw: any): import('@/types').ClienteResumen {
     sucursal: normalizeClienteSucursal(raw?.sucursal),
     activo: raw?.activo ?? true,
     tiene_credito_activo: raw?.tiene_credito_activo ?? raw?.tieneCreditoActivo ?? false,
+    tiene_credito_diario_en_proceso: raw?.tiene_credito_diario_en_proceso ?? raw?.tieneCreditoDiarioEnProceso ?? false,
+    tiene_credito_semanal_en_proceso: raw?.tiene_credito_semanal_en_proceso ?? raw?.tieneCreditoSemanalEnProceso ?? false,
     estado_cliente: raw?.estado_cliente ?? raw?.estadoCliente ?? 'SIN_CREDITO',
     created_at: raw?.created_at ?? raw?.createdAt ?? '',
   }

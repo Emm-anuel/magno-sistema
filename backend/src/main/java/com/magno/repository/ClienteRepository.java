@@ -48,6 +48,14 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long>,
     @Query(value = "SELECT COUNT(*) > 0 FROM creditos WHERE cliente_id = :clienteId AND estado = 'ACTIVO' AND deleted_at IS NULL", nativeQuery = true)
     boolean tieneCredito(@Param("clienteId") Long clienteId);
 
+    /**
+     * Devuelve los tipo_pago distintos que el cliente tiene en proceso
+     * (SOLICITADO, APROBADO o ACTIVO) para validar si puede solicitar
+     * un nuevo crédito del mismo tipo.
+     */
+    @Query(value = "SELECT DISTINCT tipo_pago FROM creditos WHERE cliente_id = :clienteId AND estado IN ('SOLICITADO', 'APROBADO', 'ACTIVO') AND deleted_at IS NULL", nativeQuery = true)
+    java.util.List<String> getTiposPagoEnProceso(@Param("clienteId") Long clienteId);
+
     @EntityGraph(attributePaths = {"asesor", "sucursal"})
     List<Cliente> findBySucursalIdOrderByApellidoPaternoAscNombreAsc(Long sucursalId);
 

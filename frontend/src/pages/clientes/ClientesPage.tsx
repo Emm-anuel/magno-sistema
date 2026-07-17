@@ -539,7 +539,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
     register,
     handleSubmit,
     watch,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<ClienteForm>({
     resolver: zodResolver(clienteSchema) as any,
     defaultValues: cliente ? {
@@ -619,6 +619,26 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
     docIneReversoBusy ||
     docComprobanteBusy
   )
+
+  const initialMapLat = cliente?.negocio_lat != null ? Number(cliente.negocio_lat) : null
+  const initialMapLng = cliente?.negocio_lng != null ? Number(cliente.negocio_lng) : null
+  const hasUnsavedChanges = isDirty
+    || docIneFrente !== null
+    || docIneReverso !== null
+    || docComprobante !== null
+    || mapLat !== initialMapLat
+    || mapLng !== initialMapLng
+
+  const requestClose = () => {
+    if (isProcessing || isPending || hasPendingDocumentUpload) {
+      toast.error('Espera a que termine el proceso antes de cerrar')
+      return
+    }
+    if (hasUnsavedChanges && !window.confirm('Hay información sin guardar. ¿Deseas cerrar y descartarla?')) {
+      return
+    }
+    onClose()
+  }
 
   const checkCurp = useCallback((curp: string) => {
     clearTimeout(curpTimeout.current)
@@ -709,7 +729,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   return (
     <div
       className="fixed inset-0 z-[2000] bg-black/45 flex items-start justify-center overflow-y-auto py-4 px-2"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+      role="dialog"
+      aria-modal="true"
     >
       <div className="bg-white rounded-xl w-full max-w-3xl shadow-[0_20px_60px_rgba(0,0,0,0.2)] my-auto">
         {/* Header */}
@@ -720,7 +741,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
               {isEdit ? 'Editar Cliente' : 'Nuevo Cliente'}
             </h3>
           </div>
-          <button onClick={onClose} className="text-[#adb5bd] hover:text-[#495057] p-1">
+          <button type="button" onClick={requestClose} className="text-[#adb5bd] hover:text-[#495057] p-1" aria-label="Cerrar">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1069,7 +1090,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
           {/* Footer */}
           <div className="modal-footer">
-            <button type="button" onClick={onClose} className="btn">Cancelar</button>
+            <button type="button" onClick={requestClose} className="btn">Cancelar</button>
             <button type="submit" disabled={isPending || hasPendingDocumentUpload || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
               {hasPendingDocumentUpload ? 'Subiendo documentos...' : isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
             </button>

@@ -182,6 +182,8 @@ export interface ClienteResumen {
   sucursal: SucursalInfo
   activo: boolean
   tiene_credito_activo: boolean
+  tiene_credito_diario_en_proceso: boolean
+  tiene_credito_semanal_en_proceso: boolean
   estado_cliente: EstadoCliente
   created_at: string
 }
@@ -492,6 +494,7 @@ export interface PagoRegistrarRequest {
 export interface PagoModificarRequest {
   montoRecibido?: number
   razonNoPago?: string
+  condonarMultaDia?: boolean
   motivoModificacion: string
 }
 
@@ -613,6 +616,8 @@ export interface CreditoResumen {
   totalPagos: number
   tieneVideoEntrega: boolean
   createdAt: string
+  pagosVencidos: number
+  multasPendientes: number
 }
 
 // ------------------------------------------------------------------
@@ -784,4 +789,5 @@ export interface ListoRenovarItem {
   pagosRealizados: number
   pagosRestantes: number
   multasPendientes: number
+  pagosVencidos: number
 }

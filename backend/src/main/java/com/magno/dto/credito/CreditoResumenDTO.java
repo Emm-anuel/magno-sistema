@@ -24,7 +24,9 @@ public record CreditoResumenDTO(
                 long pagosRealizados,
                 int totalPagos,
                 boolean tieneVideoEntrega,
-                OffsetDateTime createdAt) {
+                OffsetDateTime createdAt,
+                long pagosVencidos,
+                BigDecimal multasPendientes) {
         public record ClienteInfo(Long id, String nombreCompleto, String celular) {
         }
 
@@ -34,7 +36,8 @@ public record CreditoResumenDTO(
         public record SucursalInfo(Long id, String nombre) {
         }
 
-        public static CreditoResumenDTO from(Credito c, long pagosRealizados) {
+        public static CreditoResumenDTO from(Credito c, long pagosRealizados,
+                        long pagosVencidos, BigDecimal multasPendientes) {
                 ClienteInfo cliente = new ClienteInfo(
                                 c.getCliente().getId(),
                                 c.getCliente().getNombreCompleto(),
@@ -63,6 +66,8 @@ public record CreditoResumenDTO(
                                 pagosRealizados,
                                 c.getPlazoDias(),
                                 c.getVideoEntregaUrl() != null && !c.getVideoEntregaUrl().isBlank(),
-                                c.getCreatedAt());
+                                c.getCreatedAt(),
+                                pagosVencidos,
+                                multasPendientes != null ? multasPendientes : BigDecimal.ZERO);
         }
 }

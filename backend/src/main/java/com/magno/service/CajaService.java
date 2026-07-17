@@ -110,6 +110,21 @@ public class CajaService {
                 return toDetalleDTO(cajaDiaRepo.save(caja), List.of());
         }
 
+        public SaldoAnteriorCajaDTO getSaldoAnterior(Long sucursalId, JwtPrincipal principal) {
+                Long effectiveId = effectiveSucursalId(sucursalId, principal);
+                return cajaDiaRepo.findFirstBySucursalIdAndEstadoAndFechaBeforeOrderByFechaDesc(
+                                effectiveId, EstadoCaja.CERRADA, DateTimeUtils.hoyEnMagno())
+                                .map(caja -> {
+                                        BigDecimal saldo = calcularTotal(caja.getSubtotalCaja(), caja.getMontoLibres());
+                                        boolean disponible = saldo != null && saldo.compareTo(BigDecimal.ZERO) > 0;
+                                        return new SaldoAnteriorCajaDTO(
+                                                        disponible,
+                                                        disponible ? saldo : BigDecimal.ZERO,
+                                                        caja.getFecha());
+                                })
+                                .orElseGet(() -> new SaldoAnteriorCajaDTO(false, BigDecimal.ZERO, null));
+        }
+
         // ── Cerrar ────────────────────────────────────────────────────────────
 
         @Transactional

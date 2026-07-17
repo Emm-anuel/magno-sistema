@@ -162,26 +162,43 @@ export default function Historial() {
   }, [sucursalId, usuario?.sucursal?.id])
 
   useEffect(() => {
-    if (!asesorId) return
+    if (soloSusPropios && usuario?.id && asesorId !== usuario.id) {
+      setAsesorId(usuario.id)
+    }
+  }, [asesorId, soloSusPropios, usuario?.id])
+
+  useEffect(() => {
+    if (!puedeVerTodosAsesores || !asesorId) return
     const sigueEnSucursal = asesoresSucursal.some((a: any) => a.id === asesorId)
     if (!sigueEnSucursal) {
       setAsesorId(undefined)
     }
-  }, [asesorId, asesoresSucursal])
+  }, [asesorId, asesoresSucursal, puedeVerTodosAsesores])
 
   const asesorNombre = soloSusPropios
     ? usuario?.nombre_completo
     : asesoresSucursal.find((a: any) => a.id === asesorId)?.nombre_completo
 
   // Ruta del día → lista de clientes con numeroPagoHoy
-  const { data: rutaDia, isLoading: isLoadingRuta } = useQuery({
+  // Stats del día (resumen de cobros)
+  const { data: rutaDia } = useQuery({
     queryKey: ['ruta-dia', sucursalId, asesorId, fecha],
     queryFn: () => cobrosService.getRutaDia({ asesorId, sucursalId, fecha }),
     enabled: !!asesorId,
     staleTime: 30_000,
   })
 
-  const clientes = rutaDia?.clientes ?? []
+  // Todos los créditos activos del asesor, incluyendo SEMANAL en días sin cobro
+  const { data: creditosActivosPage, isLoading: isLoadingLista } = useQuery({
+    queryKey: ['creditos-activos-historial', asesorId],
+    queryFn: () => creditoService.listar({ estado: 'ACTIVO', size: 200 }),
+    enabled: !!asesorId,
+    staleTime: 30_000,
+  })
+  const creditosActivos = useMemo(
+    () => creditosActivosPage?.content ?? [],
+    [creditosActivosPage?.content],
+  )
 
   const { data: abonosAdeudo = [], isLoading: isLoadingAbonos } = useQuery({
     queryKey: ['historial-abonos-pago', asesorId, fecha],
@@ -195,24 +212,24 @@ export default function Historial() {
     staleTime: 30_000,
   })
 
-  // Fetch full credit detail (with calendar) for each client in parallel
+  // Detalle completo (con calendario) de cada crédito activo, en paralelo
   const creditoQueries = useQueries({
-    queries: clientes.map((c) => ({
-      queryKey: ['credito', c.creditoId] as const,
-      queryFn: () => creditoService.obtener(c.creditoId),
+    queries: creditosActivos.map((c) => ({
+      queryKey: ['credito', c.id] as const,
+      queryFn: () => creditoService.obtener(c.id),
       staleTime: 30_000,
-      enabled: !!asesorId && clientes.length > 0,
+      enabled: !!asesorId && creditosActivos.length > 0,
     })),
   })
 
-  const isLoadingCreditos = creditoQueries.some((q) => q.isLoading)
-  const isLoading = isLoadingRuta || isLoadingCreditos
+  const isLoadingDetalles = creditoQueries.some((q) => q.isLoading)
+  const isLoading = isLoadingLista || isLoadingDetalles
 
   // Max payment columns (25 or 30)
   const maxPagos = useMemo(() => {
-    if (clientes.length === 0) return 25
-    return Math.max(...clientes.map((c) => c.totalPagos ?? 25))
-  }, [clientes])
+    if (creditosActivos.length === 0) return 25
+    return Math.max(...creditosActivos.map((c) => c.plazoDias ?? 25))
+  }, [creditosActivos])
 
   const pagoIndices = useMemo(
     () => Array.from({ length: maxPagos }, (_, i) => i + 1),
@@ -325,7 +342,7 @@ export default function Historial() {
         </div>
       )}
 
-      {!sucursalId && !puedeElegirSucursal && (
+      {!asesorId && !puedeElegirSucursal && (
         <div className="card p-8 text-center text-[#adb5bd] text-[14px]">
           Selecciona un asesor para ver su historial de pago.
         </div>
@@ -450,9 +467,9 @@ export default function Historial() {
               <p className="text-[#adb5bd] text-[13px] text-center py-10">
                 Cargando tabla...
               </p>
-            ) : clientes.length === 0 ? (
+            ) : creditosActivos.length === 0 ? (
               <p className="text-[#adb5bd] text-[13px] text-center py-10">
-                Sin clientes activos para este asesor en esta fecha.
+                Sin clientes con créditos activos para este asesor.
               </p>
             ) : (
               <div className="overflow-x-auto">
@@ -482,7 +499,7 @@ export default function Historial() {
                     </tr>
                   </thead>
                   <tbody>
-                    {clientes.map((cliente, idx) => {
+                    {creditosActivos.map((creditoResumen, idx) => {
                       const creditoQuery = creditoQueries[idx]
                       const credito = creditoQuery?.data
                       const calendario: CalendarioPagoDetalle[] =
@@ -493,45 +510,53 @@ export default function Historial() {
                         calendario.map((p) => [p.numeroPago, p])
                       )
 
+                      // Encuentra el número de pago correspondiente a la fecha seleccionada
+                      const entradaHoy = calendario.find(
+                        (cp) => cp.fechaProgramada.slice(0, 10) === fecha
+                      )
+                      const numeroPagoHoy = entradaHoy?.numeroPago ?? -1
+
                       return (
                         <tr
-                          key={cliente.clienteId}
+                          key={creditoResumen.id}
                           className="hover:bg-[#f8f9fa] border-b border-[#f1f3f5]"
                         >
                           {/* Sticky first column */}
                           <td className="sticky left-0 z-10 bg-white px-3 py-2 border-r border-[#e9ecef] shadow-[1px_0_0_#e9ecef]">
                             <div className="font-medium text-[#212529] truncate max-w-[148px]">
-                              {cliente.nombreCompleto}
+                              {credito?.cliente.nombreCompleto ?? creditoResumen.cliente.nombreCompleto}
                             </div>
-                            <div className="text-[10px] text-[#adb5bd]">{cliente.celular}</div>
+                            <div className="text-[10px] text-[#adb5bd]">
+                              {credito?.cliente.celular ?? creditoResumen.cliente.celular}
+                            </div>
                           </td>
 
                           <td className="text-right px-2 py-2 font-semibold text-[#212529] whitespace-nowrap">
-                            {fmtMoney(cliente.pagoPeriodico)}
+                            {fmtMoney(credito?.pagoPeriodico ?? creditoResumen.pagoPeriodico)}
                           </td>
 
                           {pagoIndices.map((n) => (
                             <PaymentCell
                               key={n}
                               pago={calMap.get(n)}
-                              isHoy={n === (cliente.numeroPagoHoy ?? -1)}
+                              isHoy={n === numeroPagoHoy}
                             />
                           ))}
 
                           <td className="text-center px-2 py-2 text-[#6c757d] whitespace-nowrap">
-                            {fmtDateShort(credito?.fechaVencimiento)}
+                            {fmtDateShort(credito?.fechaVencimiento ?? creditoResumen.fechaVencimiento)}
                           </td>
                           <td className="text-center px-2 py-2">
                             <span
                               className={`badge text-[10px] ${
-                                credito?.estado === 'ACTIVO'
+                                (credito?.estado ?? creditoResumen.estado) === 'ACTIVO'
                                   ? 'badge-verde'
-                                  : credito?.estado === 'PAGADO'
+                                  : (credito?.estado ?? creditoResumen.estado) === 'PAGADO'
                                   ? 'badge-azul'
                                   : 'badge-gris'
                               }`}
                             >
-                              {credito?.estado ?? '—'}
+                              {credito?.estado ?? creditoResumen.estado ?? '—'}
                             </span>
                           </td>
                         </tr>

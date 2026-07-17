@@ -16,6 +16,7 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
 
   const [monto, setMonto] = useState(String(pago.montoRecibido))
   const [razonNoPago, setRazonNoPago] = useState(pago.razonNoPago ?? '')
+  const [condonarMultaDia, setCondonarMultaDia] = useState(false)
   const [motivo, setMotivo] = useState('')
 
   useEffect(() => {
@@ -29,12 +30,15 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
       cobrosService.modificar(pago.id, {
         montoRecibido: Number(monto) || undefined,
         razonNoPago: razonNoPago || undefined,
+        condonarMultaDia,
         motivoModificacion: motivo.trim(),
       }),
     onSuccess: () => {
       toast.success('Pago modificado')
       qc.invalidateQueries({ queryKey: ['ruta-dia'] })
       qc.invalidateQueries({ queryKey: ['historial-cobros'] })
+      qc.invalidateQueries({ queryKey: ['multas-credito', pago.creditoId] })
+      qc.invalidateQueries({ queryKey: ['preview-multas-abono', pago.creditoId] })
       onSuccess()
       onClose()
     },
@@ -93,6 +97,23 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
               value={razonNoPago}
               onChange={(e) => setRazonNoPago(e.target.value)}
             />
+          </div>
+
+          <div>
+            <label className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-amber-600"
+                checked={condonarMultaDia}
+                onChange={(e) => setCondonarMultaDia(e.target.checked)}
+              />
+              <span>
+                <span className="block text-[13px] font-semibold text-amber-900">Condonar multa de este día</span>
+                <span className="block text-[11px] text-amber-800 mt-0.5">
+                  Condonará únicamente las multas pendientes del {pago.fechaPago} asociadas a este crédito.
+                </span>
+              </span>
+            </label>
           </div>
 
           <div>

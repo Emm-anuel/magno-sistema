@@ -16,5 +16,7 @@ public record PagoModificarRequest(
 
         @JsonAlias("razon_no_pago") String razonNoPago,
 
+        @JsonAlias("condonar_multa_dia") Boolean condonarMultaDia,
+
         @NotBlank(message = "motivo_modificacion es obligatorio para la bitácora") @JsonAlias("motivo_modificacion") String motivoModificacion) {
 }

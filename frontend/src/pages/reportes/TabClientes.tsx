@@ -37,8 +37,16 @@ function EstadoBadge({ estado }: { estado: string }) {
 }
 
 function fmtFecha(s: string) {
-  if (!s) return '—'
-  return new Date(s + 'T12:00:00').toLocaleDateString('es-MX', {
+  if (!s || s === '—') return '—'
+
+  const fechaMx = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  const fecha = fechaMx
+    ? new Date(Number(fechaMx[3]), Number(fechaMx[2]) - 1, Number(fechaMx[1]), 12)
+    : new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? `${s}T12:00:00` : s)
+
+  if (Number.isNaN(fecha.getTime())) return '—'
+
+  return fecha.toLocaleDateString('es-MX', {
     day: '2-digit', month: 'short', year: 'numeric',
   })
 }

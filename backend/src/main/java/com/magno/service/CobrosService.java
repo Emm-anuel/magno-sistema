@@ -439,22 +439,40 @@ public class CobrosService {
             boolean ahora = req.montoRecibido().compareTo(pago.getMontoEsperado()) >= 0;
             pago.setEsCompleto(ahora);
 
-            // Actualizar estado del calendario
-            CalendarioPago cp = pago.getCalendarioPago();
-            if (cp != null) {
-                if (pago.getRazonNoPago() != null && !pago.getRazonNoPago().isBlank()) {
-                    cp.setEstado(EstadoCalendarioPago.NO_PAGADO);
-                } else if (ahora) {
-                    cp.setEstado(EstadoCalendarioPago.PAGADO);
-                } else {
-                    cp.setEstado(EstadoCalendarioPago.PARCIAL);
-                }
-                calendarioPagoRepo.save(cp);
-            }
         }
 
         if (req.razonNoPago() != null) {
             pago.setRazonNoPago(req.razonNoPago().isBlank() ? null : req.razonNoPago());
+        }
+
+        // Recalcular después de aplicar también la razón; permite corregir un
+        // NO_PAGADO a PAGADO/PARCIAL en una sola operación.
+        CalendarioPago cp = pago.getCalendarioPago();
+        if (cp != null && (req.montoRecibido() != null || req.razonNoPago() != null)) {
+            if (pago.getRazonNoPago() != null && !pago.getRazonNoPago().isBlank()) {
+                cp.setEstado(EstadoCalendarioPago.NO_PAGADO);
+            } else if (Boolean.TRUE.equals(pago.getEsCompleto())) {
+                cp.setEstado(EstadoCalendarioPago.PAGADO);
+            } else {
+                cp.setEstado(EstadoCalendarioPago.PARCIAL);
+            }
+            calendarioPagoRepo.save(cp);
+        }
+
+        if (Boolean.TRUE.equals(req.condonarMultaDia())) {
+            List<Multa> multasDia = multaRepo.findPendientesByCreditoIdAndFecha(
+                    pago.getCredito().getId(), pago.getFechaPago());
+            var ahoraCondonacion = DateTimeUtils.ahoraEnMagno();
+            for (Multa multa : multasDia) {
+                multa.setCondonada(true);
+                multa.setCondonadaPor(modificador);
+                multa.setFechaCondonacion(ahoraCondonacion);
+                multa.setMotivoCondonacion(req.motivoModificacion().trim());
+            }
+            multaRepo.saveAll(multasDia);
+            if (!multasDia.isEmpty()) {
+                pago.setMultaAplicada(BigDecimal.ZERO);
+            }
         }
 
         pago.setModificadoPor(modificador);

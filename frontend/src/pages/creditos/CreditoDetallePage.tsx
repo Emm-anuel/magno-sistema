@@ -401,7 +401,7 @@ export default function CreditoDetallePage() {
           <span className="metric-val">{fmtMoney(credito.montoAprobado ?? credito.montoSolicitado)}</span>
         </div>
         <div className="metric-card">
-          <span className="metric-label">Pago diario</span>
+          <span className="metric-label">Pago {credito.tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}</span>
           <span className="metric-val">{fmtMoney(pagoPeriodicoVisual)}</span>
         </div>
         <div className="metric-card">
@@ -466,13 +466,13 @@ export default function CreditoDetallePage() {
                     <Row label="Tasa de interés" value={fmtPct(credito.tasaInteres)} />
                     <Row label="Cargo financiero" value={fmtMoney(credito.cargoFinanciero)} />
                     <Row label="Total a pagar" value={fmtMoney(totalAPagarCredito)} />
-                    <Row label="Pago diario" value={fmtMoney(pagoPeriodicoVisual)} />
+                    <Row label={`Pago ${credito.tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}`} value={fmtMoney(pagoPeriodicoVisual)} />
                     <Row label="Pago adelantado" value={fmtMoney(credito.pagoAdelantado)} />
                     <Row
                       label="Forma de pago"
                       value={credito.tipoPago === 'DIARIO' ? 'Diario' : 'Semanal'}
                     />
-                    <Row label="Plazo" value={`${credito.plazoDias} días`} />
+                    <Row label="Plazo" value={`${credito.plazoDias} ${credito.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}`} />
                     <Row label="Fecha inicio" value={fmtDate(credito.fechaInicio)} />
                     <Row label="Fecha vencimiento" value={fmtDate(credito.fechaVencimiento)} />
                     {credito.garantiaDescripcion && (
