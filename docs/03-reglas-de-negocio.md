@@ -35,7 +35,7 @@
 - Para créditos semanales se usa la misma fórmula financiera:
   - `cargo_financiero = capital * tasa`
   - `pago_semanal = (capital + cargo_financiero) / plazo`
-  - calendario en intervalos de **7 días hábiles** (saltando sábados, domingos y festivos).
+  - calendario en intervalos de **7 días calendario** desde el desembolso; si un vencimiento cae en sábado, domingo o festivo, se recorre al siguiente día hábil sin alterar el ancla de las semanas posteriores.
 - IVA = $0.00
 
 ### Tabla de Pagos Diarios Completa

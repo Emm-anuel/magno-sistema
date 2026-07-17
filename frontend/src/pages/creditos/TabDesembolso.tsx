@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { Calendar, X, AlertTriangle } from 'lucide-react'
 import { creditoService } from '@/services/creditoService'
+import { adminService } from '@/services/adminService'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import type { CreditoResumen, CreditoDetalle } from '@/types'
 import type { ApiError } from '@/types'
@@ -42,26 +43,50 @@ function safeN(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
-// Replica la cadencia del backend sin festivos: diario = siguiente día hábil;
-// semanal = 7 días hábiles entre pagos.
-function generarFechasEstimadas(n: number, tipoPago: 'DIARIO' | 'SEMANAL'): Date[] {
+function fechaLocalKey(fecha: Date): string {
+  const year = fecha.getFullYear()
+  const month = String(fecha.getMonth() + 1).padStart(2, '0')
+  const day = String(fecha.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function esInhabil(fecha: Date, diasInhabiles: Set<string>): boolean {
+  const dow = fecha.getDay()
+  return dow === 0 || dow === 6 || diasInhabiles.has(fechaLocalKey(fecha))
+}
+
+// Replica la cadencia del backend: los pagos semanales usan anclas separadas
+// por 7 días calendario y solo la fecha que cae en inhábil se recorre.
+function generarFechasEstimadas(
+  n: number,
+  tipoPago: 'DIARIO' | 'SEMANAL',
+  fechasInhabiles: string[] = [],
+): Date[] {
   const fechas: Date[] = []
-  const cursor = new Date()
-  cursor.setHours(0, 0, 0, 0)
-  cursor.setDate(cursor.getDate() + 1) // start tomorrow
-  while (fechas.length < n) {
-    const dow = cursor.getDay()
-    if (dow !== 0 && dow !== 6) {
-      fechas.push(new Date(cursor))
-      if (tipoPago === 'SEMANAL' && fechas.length < n) {
-        let diasHabiles = 0
-        while (diasHabiles < 7) {
-          cursor.setDate(cursor.getDate() + 1)
-          const siguienteDow = cursor.getDay()
-          if (siguienteDow !== 0 && siguienteDow !== 6) diasHabiles++
-        }
-        continue
+  const diasInhabiles = new Set(fechasInhabiles)
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+
+  if (tipoPago === 'SEMANAL') {
+    const fechaBase = new Date(hoy)
+    fechaBase.setDate(fechaBase.getDate() + 7)
+
+    while (fechas.length < n) {
+      const fechaProgramada = new Date(fechaBase)
+      while (esInhabil(fechaProgramada, diasInhabiles)) {
+        fechaProgramada.setDate(fechaProgramada.getDate() + 1)
       }
+      fechas.push(fechaProgramada)
+      fechaBase.setDate(fechaBase.getDate() + 7)
+    }
+    return fechas
+  }
+
+  const cursor = new Date(hoy)
+  cursor.setDate(cursor.getDate() + 1)
+  while (fechas.length < n) {
+    if (!esInhabil(cursor, diasInhabiles)) {
+      fechas.push(new Date(cursor))
     }
     cursor.setDate(cursor.getDate() + 1)
   }
@@ -209,12 +234,13 @@ interface CalendarioPreviewProps {
   pagoPeriodico: number
   pagoAdelantado: number
   tipoPago: 'DIARIO' | 'SEMANAL'
+  fechasInhabiles: string[]
 }
 
-function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago }: CalendarioPreviewProps) {
+function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago, fechasInhabiles }: CalendarioPreviewProps) {
   const n = safeN(plazoDias)
   const pago = safeN(pagoPeriodico)
-  const fechas = generarFechasEstimadas(n, tipoPago)
+  const fechas = generarFechasEstimadas(n, tipoPago, fechasInhabiles)
   const hoy = new Date().toLocaleDateString('es-MX', {
     day: 'numeric',
     month: 'long',
@@ -235,9 +261,17 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago 
         <h3 className="font-semibold text-gray-800">Calendario que se generará</h3>
       </div>
       <p className="text-sm text-gray-600">
-        El calendario se generará con{' '}
-        <strong>{n} {tipoPago === 'SEMANAL' ? 'semanas' : 'días hábiles'}</strong> a partir de hoy ({hoy}). Los sábados,
-        domingos y días festivos se omiten automáticamente.
+        {tipoPago === 'SEMANAL' ? (
+          <>
+            Se generarán <strong>{n} pagos semanales</strong>. El primero será 7 días calendario después del desembolso
+            de hoy ({hoy}); cada fecha inhábil se recorre al siguiente día hábil.
+          </>
+        ) : (
+          <>
+            Se generarán <strong>{n} pagos en días hábiles</strong> a partir de mañana. Los sábados, domingos y días
+            festivos se omiten automáticamente.
+          </>
+        )}
       </p>
 
       {/* Scrollable table */}
@@ -274,7 +308,7 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago 
       </div>
 
       <p className="text-xs text-gray-400">
-        * Fechas estimadas. Las fechas exactas consideran días festivos configurados.
+        * Fechas calculadas con los días festivos configurados actualmente.
       </p>
     </div>
   )
@@ -313,6 +347,15 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
     enabled: selectedId !== null,
   })
 
+  const { data: diasInhabiles = [] } = useQuery({
+    queryKey: ['admin-dias-inhabiles'],
+    queryFn: adminService.getDiasInhabiles,
+    enabled: isAuthorized,
+    staleTime: 60_000,
+  })
+
+  const fechasInhabiles = diasInhabiles.map((dia) => dia.fecha)
+
   // ── Mutation ───────────────────────────────────────────────────
   const activarMutation = useMutation({
     mutationFn: () => creditoService.activarCredito(selectedId!),
@@ -339,7 +382,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
 
   // ── Derived state ──────────────────────────────────────────────
   const fechasEstimadas =
-    detalle ? generarFechasEstimadas(safeN(detalle.plazoDias), detalle.tipoPago) : []
+    detalle ? generarFechasEstimadas(safeN(detalle.plazoDias), detalle.tipoPago, fechasInhabiles) : []
 
   // ── Render ─────────────────────────────────────────────────────
   return (
@@ -452,6 +495,7 @@ export default function TabDesembolso({ initialCreditoId }: Props) {
                   pagoPeriodico={detalle.pagoPeriodico}
                   pagoAdelantado={detalle.pagoAdelantado}
                   tipoPago={detalle.tipoPago}
+                  fechasInhabiles={fechasInhabiles}
                 />
 
                 {/* 3. Activate button */}

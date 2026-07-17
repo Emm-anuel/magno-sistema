@@ -190,8 +190,13 @@ export default function Historial() {
 
   // Todos los créditos activos del asesor, incluyendo SEMANAL en días sin cobro
   const { data: creditosActivosPage, isLoading: isLoadingLista } = useQuery({
-    queryKey: ['creditos-activos-historial', asesorId],
-    queryFn: () => creditoService.listar({ estado: 'ACTIVO', size: 200 }),
+    queryKey: ['creditos-activos-historial', sucursalId, asesorId],
+    queryFn: () => creditoService.listar({
+      asesorId,
+      sucursalId,
+      estado: 'ACTIVO',
+      size: 200,
+    }),
     enabled: !!asesorId,
     staleTime: 30_000,
   })

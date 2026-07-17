@@ -339,13 +339,11 @@ public class CreditoService {
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 
-                // Generar calendario desde el día siguiente al desembolso
-                LocalDate inicioPagos = hoy.plusDays(1);
                 if (c.getTipoPago() == TipoPago.SEMANAL) {
-                        calculoService.generarCalendarioSemanal(c, inicioPagos, calculo.plazo(), calculo,
+                        calculoService.generarCalendarioSemanal(c, hoy.plusDays(7), calculo.plazo(), calculo,
                                         c.getSucursal().getId());
                 } else {
-                        calculoService.generarCalendario(c, inicioPagos, calculo.plazo(), calculo, c.getSucursal().getId());
+                        calculoService.generarCalendario(c, hoy.plusDays(1), calculo.plazo(), calculo, c.getSucursal().getId());
                 }
 
                 c.setPagoAdelantado(calculo.pagoAdelantado());

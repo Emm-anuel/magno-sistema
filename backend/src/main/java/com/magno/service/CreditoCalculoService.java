@@ -175,7 +175,6 @@ public class CreditoCalculoService {
         LocalDate cursor = fechaInicio;
 
         for (int num = 1; num <= plazo; num++) {
-            // Avanzar al siguiente día hábil
             while (esInhabil(cursor, diasFestivos)) {
                 cursor = cursor.plusDays(1);
             }
@@ -273,14 +272,14 @@ public class CreditoCalculoService {
     }
 
     /**
-     * Genera exactamente {@code plazo} semanas de pagos (separados por 7 días
-     * hábiles)
-     * a partir de {@code fechaInicio}, saltando sábados, domingos y días festivos.
+     * Genera exactamente {@code plazo} pagos con frecuencia semanal.
+     * Las fechas base están separadas por 7 días calendario; cada vencimiento
+     * inhábil se recorre al siguiente día hábil de forma independiente.
      *
      * <ul>
      * <li>Pago #N (último): estado=ADELANTADO (ya se cobró al desembolsar)</li>
      * <li>Pago #N: monto ajustado para que la suma exacta = totalAPagar</li>
-     * <li>Cada pago se separa del anterior por 7 días hábiles (no 1 día)</li>
+     * <li>Las fechas base conservan una cadencia de 7 días calendario</li>
      * </ul>
      *
      * Actualiza {@code credito.fechaVencimiento} con la fecha del último pago.
@@ -302,12 +301,12 @@ public class CreditoCalculoService {
         Set<LocalDate> diasFestivos = new HashSet<>(diaFestivoRepo.findFechasBySucursalId(sucursalId));
 
         List<CalendarioPago> pagos = new ArrayList<>(plazo);
-        LocalDate cursor = fechaInicio;
+        LocalDate fechaBase = fechaInicio;
 
         for (int num = 1; num <= plazo; num++) {
-            // Avanzar al siguiente día hábil
-            while (esInhabil(cursor, diasFestivos)) {
-                cursor = cursor.plusDays(1);
+            LocalDate fechaProgramada = fechaBase;
+            while (esInhabil(fechaProgramada, diasFestivos)) {
+                fechaProgramada = fechaProgramada.plusDays(1);
             }
 
             BigDecimal monto;
@@ -325,16 +324,15 @@ public class CreditoCalculoService {
             CalendarioPago cp = CalendarioPago.builder()
                     .credito(credito)
                     .numeroPago(num)
-                    .fechaProgramada(cursor)
+                    .fechaProgramada(fechaProgramada)
                     .montoEsperado(monto)
                     .estado(estadoInicial)
                     .build();
 
             pagos.add(calendarioPagoRepo.save(cp));
 
-            // Avanzar 7 días hábiles para el siguiente pago
-            // (no 1 día como en diarios)
-            cursor = avanzar7DiasHabiles(cursor, diasFestivos);
+            // Mantener el ancla semanal aunque este vencimiento haya sido recorrido.
+            fechaBase = fechaBase.plusDays(7);
         }
 
         // Actualizar fecha de vencimiento en el crédito
@@ -346,26 +344,6 @@ public class CreditoCalculoService {
     // ────────────────────────────────────────────────────────────────────
     // Helpers privados
     // ────────────────────────────────────────────────────────────────────
-
-    /**
-     * Avanza exactamente 7 días hábiles a partir de la fecha dada.
-     * Se salta sábados, domingos y días festivos.
-     */
-    private LocalDate avanzar7DiasHabiles(LocalDate desde, Set<LocalDate> diasFestivos) {
-        LocalDate cursor = desde.plusDays(1);
-        int diasHabilesAvanzados = 0;
-
-        while (diasHabilesAvanzados < 7) {
-            if (!esInhabil(cursor, diasFestivos)) {
-                diasHabilesAvanzados++;
-            }
-            if (diasHabilesAvanzados < 7) {
-                cursor = cursor.plusDays(1);
-            }
-        }
-
-        return cursor;
-    }
 
     private boolean esInhabil(LocalDate fecha, Set<LocalDate> festivos) {
         DayOfWeek dow = fecha.getDayOfWeek();
