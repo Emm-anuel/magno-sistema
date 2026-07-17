@@ -160,10 +160,12 @@ function ConfirmModal({ detalle, fechas, onClose, onConfirm, loading }: ConfirmM
                 <span className="text-gray-500">Monto aprobado</span>
                 <div className="font-bold text-[#3d6b35] text-base">{fmt(monto)}</div>
               </div>
-              <div>
-                <span className="text-gray-500">Pago adelantado</span>
-                <div className="font-medium text-orange-600">− {fmt(pagoAdelantado)}</div>
-              </div>
+              {detalle.tipoPago !== 'SEMANAL' && (
+                <div>
+                  <span className="text-gray-500">Pago adelantado</span>
+                  <div className="font-medium text-orange-600">− {fmt(pagoAdelantado)}</div>
+                </div>
+              )}
             </div>
             <div className="border-t border-green-200 pt-2">
               <span className="text-gray-500">A entregar al cliente</span>
@@ -238,7 +240,7 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago 
         domingos y días festivos se omiten automáticamente.
       </p>
 
-      {/* Scrollable table — muestra el último pago (adelantado) por defecto */}
+      {/* Scrollable table */}
       <div ref={scrollRef} className="overflow-auto max-h-52 rounded-lg border border-gray-200">
         <table className="min-w-full text-xs">
           <thead className="bg-gray-50 sticky top-0">
@@ -246,21 +248,24 @@ function CalendarioPreview({ plazoDias, pagoPeriodico, pagoAdelantado, tipoPago 
               <th className="px-3 py-2 text-left font-medium text-gray-600">#</th>
               <th className="px-3 py-2 text-left font-medium text-gray-600">Fecha estimada</th>
               <th className="px-3 py-2 text-right font-medium text-gray-600">Monto</th>
-              <th className="px-3 py-2 text-left font-medium text-gray-600">Nota</th>
+              {tipoPago !== 'SEMANAL' && (
+                <th className="px-3 py-2 text-left font-medium text-gray-600">Nota</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {fechas.map((fecha, idx) => {
               const isLast = idx === fechas.length - 1
-              const nota = isLast ? 'Pago adelantado' : ''
-              const montoFila = isLast ? (safeN(pagoAdelantado) > 0 ? safeN(pagoAdelantado) : pago) : pago
+              const esDiario = tipoPago !== 'SEMANAL'
+              const nota = (esDiario && isLast) ? 'Pago adelantado' : ''
+              const montoFila = (esDiario && isLast) ? (safeN(pagoAdelantado) > 0 ? safeN(pagoAdelantado) : pago) : pago
 
               return (
-                <tr key={fecha.toISOString()} className={isLast ? 'bg-green-50' : ''}>
+                <tr key={fecha.toISOString()} className={(esDiario && isLast) ? 'bg-green-50' : ''}>
                   <td className="px-3 py-1.5 text-gray-700">{idx + 1}</td>
                   <td className="px-3 py-1.5 text-gray-700">{fmtDate(fecha)}</td>
                   <td className="px-3 py-1.5 text-right text-gray-700">{fmt(montoFila)}</td>
-                  <td className="px-3 py-1.5 text-gray-500 italic">{nota}</td>
+                  {esDiario && <td className="px-3 py-1.5 text-gray-500 italic">{nota}</td>}
                 </tr>
               )
             })}

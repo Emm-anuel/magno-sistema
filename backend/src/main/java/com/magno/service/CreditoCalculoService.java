@@ -258,10 +258,8 @@ public class CreditoCalculoService {
         BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
         BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
         BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
-        // Último pago absorbe residuo del redondeo y es el cobrado por adelantado
-        BigDecimal ultimoPago = total.subtract(pago.multiply(BigDecimal.valueOf(producto.plazo() - 1L)))
-                .setScale(2, RoundingMode.HALF_UP);
 
+        // Créditos semanales: no hay pago adelantado, el crédito se entrega completo.
         return new ResumenCalculo(
                 capital,
                 producto.plazo(),
@@ -270,7 +268,7 @@ public class CreditoCalculoService {
                 total,
                 pagoExacto,
                 pago,
-                ultimoPago
+                BigDecimal.ZERO
         );
     }
 
@@ -316,14 +314,13 @@ public class CreditoCalculoService {
             EstadoCalendarioPago estadoInicial;
 
             if (num == plazo) {
-                // Último pago: absorbe el residuo del redondeo + ya fue cobrado adelantado al desembolsar
+                // Último pago: absorbe el residuo del redondeo. Sin pago adelantado en semanales.
                 BigDecimal pagados = calculo.pagoPeriodico().multiply(BigDecimal.valueOf(plazo - 1L));
                 monto = calculo.totalAPagar().subtract(pagados).setScale(2, RoundingMode.HALF_UP);
-                estadoInicial = EstadoCalendarioPago.ADELANTADO;
             } else {
                 monto = calculo.pagoPeriodico();
-                estadoInicial = EstadoCalendarioPago.PENDIENTE;
             }
+            estadoInicial = EstadoCalendarioPago.PENDIENTE;
 
             CalendarioPago cp = CalendarioPago.builder()
                     .credito(credito)

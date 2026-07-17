@@ -264,14 +264,6 @@ export default function CreditoDetallePage() {
       (multaPreview) => !multaPreview.id || !multasCredito.some((multa) => multa.id === multaPreview.id),
     ),
   ]
-  const multasPorPagoId = multasCalendario.reduce<Record<number, number>>((acc, multa) => {
-    const pagoId = Number(multa.pagoId ?? 0)
-    const monto = Number(multa.monto ?? 0)
-    if (pagoId > 0 && monto > 0) {
-      acc[pagoId] = (acc[pagoId] ?? 0) + monto
-    }
-    return acc
-  }, {})
   const multasPorFecha = multasCalendario.reduce<Record<string, number>>((acc, multa) => {
     const fecha = multa.fecha?.slice(0, 10)
     const monto = Number(multa.monto ?? 0)
@@ -661,7 +653,6 @@ export default function CreditoDetallePage() {
                         : null
                       const fechaPagoProgramada = pago.fechaProgramada?.slice(0, 10) ?? ''
                       const multaFila = Math.max(
-                        multasPorPagoId[pago.id] ?? 0,
                         multasPorFecha[fechaPagoProgramada] ?? 0,
                         multasPagoPorNumero[pago.numeroPago] ?? 0,
                         multasAbonoPorNumero[pago.numeroPago] ?? 0,

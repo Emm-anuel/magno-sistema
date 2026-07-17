@@ -90,7 +90,9 @@ export default function ProductoCalculoCard({ calculo, loading }: Props) {
         value={fmt(safeNumber(getCalculoValue(calculo, 'pagoPeriodico', 'pago_periodico')))}
         bold
       />
-      <Row label="Pago adelantado:" value={fmt(safeNumber(getCalculoValue(calculo, 'pagoAdelantado', 'pago_adelantado')))} />
+      {calculo.tipoPago !== 'SEMANAL' && (
+        <Row label="Pago adelantado:" value={fmt(safeNumber(getCalculoValue(calculo, 'pagoAdelantado', 'pago_adelantado')))} />
+      )}
     </div>
   )
 }
