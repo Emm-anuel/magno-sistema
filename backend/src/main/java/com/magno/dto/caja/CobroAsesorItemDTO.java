@@ -5,5 +5,6 @@ import java.math.BigDecimal;
 public record CobroAsesorItemDTO(
         String asesorNombre,
         int cantidadCobros,
-        BigDecimal montoCobrado
+        BigDecimal montoCobrado,
+        String origen
 ) {}

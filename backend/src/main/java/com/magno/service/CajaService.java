@@ -640,25 +640,29 @@ public class CajaService {
         private List<CobroAsesorItemDTO> getCobrosPorAsesor(Long sucursalId, LocalDate fecha) {
                 Map<String, CobroAsesorItemDTO> totales = new LinkedHashMap<>();
                 agregarCobrosPorAsesor(totales,
-                                pagoRepo.findCobrosPorAsesorBySucursalAndFecha(sucursalId, fecha));
+                                pagoRepo.findCobrosPorAsesorBySucursalAndFecha(sucursalId, fecha),
+                                "COBRO_RUTA");
                 agregarCobrosPorAsesor(totales,
-                                abonoCorrienteRepo.findCobrosPorAsesorBySucursalAndFecha(sucursalId, fecha));
+                                abonoCorrienteRepo.findCobrosPorAsesorBySucursalAndFecha(sucursalId, fecha),
+                                "ABONO");
                 return List.copyOf(totales.values());
         }
 
         private static void agregarCobrosPorAsesor(Map<String, CobroAsesorItemDTO> totales,
-                        List<Object[]> filas) {
+                        List<Object[]> filas, String origen) {
                 if (filas == null) return;
                 for (Object[] fila : filas) {
                         String nombre = (String) fila[0];
+                        String clave = nombre + "|" + origen;
                         int cantidad = ((Number) fila[1]).intValue();
                         BigDecimal monto = (BigDecimal) fila[2];
-                        totales.merge(nombre,
-                                        new CobroAsesorItemDTO(nombre, cantidad, monto),
+                        totales.merge(clave,
+                                        new CobroAsesorItemDTO(nombre, cantidad, monto, origen),
                                         (actual, adicional) -> new CobroAsesorItemDTO(
                                                         nombre,
                                                         actual.cantidadCobros() + adicional.cantidadCobros(),
-                                                        actual.montoCobrado().add(adicional.montoCobrado())));
+                                                        actual.montoCobrado().add(adicional.montoCobrado()),
+                                                        origen));
                 }
         }
 

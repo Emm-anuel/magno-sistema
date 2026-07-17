@@ -6,6 +6,7 @@ export interface CobroAsesorItem {
   asesorNombre: string
   cantidadCobros: number
   montoCobrado: number
+  origen: 'COBRO_RUTA' | 'ABONO'
 }
 
 export interface MultaAsesorItem {
@@ -256,6 +257,7 @@ export const cajaService = {
              asesorNombre:  x.asesorNombre,
              cantidadCobros: x.cantidadCobros,
              montoCobrado:  Number(x.montoCobrado ?? 0),
+             origen:        x.origen,
            })),
            totalIngresoCarteras:      Number(d.totalIngresoCarteras ?? 0),
            desembolsosCreditosNuevos: Number(d.desembolsosCreditosNuevos ?? 0),

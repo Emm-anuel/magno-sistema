@@ -90,8 +90,16 @@ public class CreditoService {
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("estado"), estado));
                 if (buscar != null && !buscar.isBlank()) {
                         String patron = "%" + buscar.trim().toLowerCase() + "%";
-                        spec = spec.and((r, q, cb) ->
-                                        cb.like(cb.lower(r.get("cliente").get("nombreCompleto")), patron));
+                        spec = spec.and((r, q, cb) -> {
+                                var cliente = r.get("cliente");
+                                var nombreCompleto = cb.concat(
+                                                cb.concat(cliente.<String>get("nombre"), " "),
+                                                cliente.<String>get("apellidoPaterno"));
+                                nombreCompleto = cb.concat(
+                                                cb.concat(nombreCompleto, " "),
+                                                cb.coalesce(cliente.<String>get("apellidoMaterno"), ""));
+                                return cb.like(cb.lower(nombreCompleto), patron);
+                        });
                 }
 
                 // Un crédito APROBADO pendiente de desembolso no debe tener fechaDesembolso.

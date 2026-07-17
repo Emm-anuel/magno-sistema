@@ -152,10 +152,13 @@ class CajaServiceTest {
 
         assertThat(preview.clientesSinRegistro()).isEqualTo(esperado);
         assertThat(preview.totalIngresoCarteras()).isEqualByComparingTo("175.00");
-        assertThat(preview.cobrosPorAsesor()).singleElement().satisfies(cobro -> {
-            assertThat(cobro.cantidadCobros()).isEqualTo(3);
-            assertThat(cobro.montoCobrado()).isEqualByComparingTo("175.00");
-        });
+        assertThat(preview.cobrosPorAsesor()).hasSize(2);
+        assertThat(preview.cobrosPorAsesor())
+                .extracting(cobro -> cobro.origen())
+                .containsExactly("COBRO_RUTA", "ABONO");
+        assertThat(preview.cobrosPorAsesor())
+                .extracting(cobro -> cobro.montoCobrado())
+                .containsExactly(new BigDecimal("100.00"), new BigDecimal("75.00"));
     }
 
     @Test

@@ -312,14 +312,20 @@ export default function CajaCierrePage() {
                   <thead>
                     <tr>
                       <th className="!text-center">Asesor</th>
+                      <th className="!text-center">Origen</th>
                       <th className="!text-center">Cobros</th>
                       <th className="!text-center">Monto</th>
                     </tr>
                   </thead>
                   <tbody>
                     {preview.cobrosPorAsesor.map(row => (
-                      <tr key={row.asesorNombre}>
+                      <tr key={`${row.asesorNombre}-${row.origen}`}>
                         <td className="text-center">{row.asesorNombre}</td>
+                        <td className="text-center">
+                          <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${row.origen === 'ABONO' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}`}>
+                            {row.origen === 'ABONO' ? 'Abono' : 'Cobro en ruta'}
+                          </span>
+                        </td>
                         <td className="text-center">{row.cantidadCobros}</td>
                         <td className="text-center font-mono">{fmtMoney(row.montoCobrado)}</td>
                       </tr>
