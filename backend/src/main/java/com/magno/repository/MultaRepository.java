@@ -87,4 +87,6 @@ public interface MultaRepository extends JpaRepository<Multa, Long> {
                      Long creditoId,
                      LocalDate fecha,
                      String tipo);
+
+       boolean existsByCreditoIdAndDeletedAtIsNull(Long creditoId);
 }

@@ -228,6 +228,9 @@ export const creditoService = {
   cancelarCredito: (id: number, motivo: string) =>
     api.patch<CreditoDetalle>(`/creditos/${id}/cancelar`, { motivo }).then((r) => normalizeCreditoDetalle(r.data)),
 
+  revertirDesembolso: (id: number, motivo: string) =>
+    api.patch<CreditoDetalle>(`/creditos/${id}/revertir-desembolso`, { motivo }).then((r) => normalizeCreditoDetalle(r.data)),
+
   getCreditosCliente: (clienteId: number): Promise<CreditoResumen[]> =>
     api.get(`/creditos/cliente/${clienteId}`).then((r) =>
       (r.data ?? []).map(normalizeCreditoResumen),

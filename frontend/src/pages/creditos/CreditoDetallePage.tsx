@@ -108,6 +108,8 @@ export default function CreditoDetallePage() {
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
   const [adeudoOpen, setAdeudoOpen] = useState(false)
   const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
+  const [revertirOpen, setRevertirOpen] = useState(false)
+  const [revertirMotivo, setRevertirMotivo] = useState('')
 
   const hoyIso = useMemo(() => todayLocalIso(), [])
 
@@ -156,6 +158,20 @@ export default function CreditoDetallePage() {
     },
     onError: () => {
       toast.error('Error al guardar el video')
+    },
+  })
+
+  const revertirMut = useMutation({
+    mutationFn: (motivo: string) => creditoService.revertirDesembolso(numId, motivo),
+    onSuccess: () => {
+      toast.success('Desembolso revertido. El crédito regresó a estado Aprobado.')
+      setRevertirOpen(false)
+      setRevertirMotivo('')
+      qc.invalidateQueries({ queryKey: ['credito', numId] })
+      qc.invalidateQueries({ queryKey: ['creditos'] })
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      toast.error(err?.response?.data?.message ?? 'No se pudo revertir el desembolso')
     },
   })
 
@@ -381,6 +397,16 @@ export default function CreditoDetallePage() {
               onClick={() => setAdeudoOpen(true)}
             >
               Pagar adeudo
+            </button>
+          )}
+          {credito.estado === 'ACTIVO' && esAdminSupervisor &&
+            stats.pagosRealizados === 0 &&
+            Number(stats.multasPendientes ?? 0) === 0 && (
+            <button
+              className="btn btn-sm border-red-300 text-red-600 hover:bg-red-50"
+              onClick={() => { setRevertirOpen(true); setRevertirMotivo('') }}
+            >
+              Revertir desembolso
             </button>
           )}
         </div>
@@ -1154,6 +1180,48 @@ export default function CreditoDetallePage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Revertir desembolso */}
+      {revertirOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-800">Revertir desembolso</h2>
+            <p className="text-sm text-gray-600">
+              El crédito regresará a estado <strong>Aprobado</strong>. El calendario de pagos
+              se eliminará. El dinero entregado debe ser recuperado físicamente por el asesor.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Motivo <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                className="input w-full h-24 resize-none"
+                placeholder="Ej: Cliente devolvió el dinero, desistió del crédito..."
+                value={revertirMotivo}
+                onChange={(e) => setRevertirMotivo(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => { setRevertirOpen(false); setRevertirMotivo('') }}
+                disabled={revertirMut.isPending}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm bg-red-600 text-white hover:bg-red-700"
+                disabled={!revertirMotivo.trim() || revertirMut.isPending}
+                onClick={() => revertirMut.mutate(revertirMotivo.trim())}
+              >
+                {revertirMut.isPending ? 'Revirtiendo...' : 'Confirmar revertir'}
+              </button>
             </div>
           </div>
         </div>

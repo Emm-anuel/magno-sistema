@@ -27,6 +27,8 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
 
        boolean existsByCreditoIdAndNumeroPago(Long creditoId, Integer numeroPago);
 
+       boolean existsByCreditoIdAndDeletedAtIsNull(Long creditoId);
+
        /**
         * Cuenta pagos incompletos (abonos) de un crédito, excluyendo los "no pagó".
         */

@@ -42,6 +42,10 @@ public class CreditoService {
         private final CreditoCalculoService calculoService;
         private final RenovacionRepository renovacionRepo;
         private final RenovacionElegibilidadService renovacionElegibilidadService;
+        private final PagoRepository pagoRepo;
+        private final MultaRepository multaRepo;
+        private final AbonoCorrienteRepository abonoCorrienteRepo;
+        private final CajaDiaRepository cajaDiaRepo;
 
         public CreditoService(CreditoRepository creditoRepo,
                         CalendarioPagoRepository calendarioPagoRepo,
@@ -50,7 +54,11 @@ public class CreditoService {
                         SucursalRepository sucursalRepo,
                         CreditoCalculoService calculoService,
                         RenovacionRepository renovacionRepo,
-                        RenovacionElegibilidadService renovacionElegibilidadService) {
+                        RenovacionElegibilidadService renovacionElegibilidadService,
+                        PagoRepository pagoRepo,
+                        MultaRepository multaRepo,
+                        AbonoCorrienteRepository abonoCorrienteRepo,
+                        CajaDiaRepository cajaDiaRepo) {
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
                 this.clienteRepo = clienteRepo;
@@ -59,6 +67,10 @@ public class CreditoService {
                 this.calculoService = calculoService;
                 this.renovacionRepo = renovacionRepo;
                 this.renovacionElegibilidadService = renovacionElegibilidadService;
+                this.pagoRepo = pagoRepo;
+                this.multaRepo = multaRepo;
+                this.abonoCorrienteRepo = abonoCorrienteRepo;
+                this.cajaDiaRepo = cajaDiaRepo;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -423,6 +435,61 @@ public class CreditoService {
                 creditoRepo.save(c);
 
                 log.info("Crédito CANCELADO — id=" + c.getId() + " motivo=" + motivo);
+
+                return buildDetalle(c);
+        }
+
+        /**
+         * Revierte el desembolso de un crédito ACTIVO que no tiene ningún pago,
+         * multa ni abono registrado, y cuya caja del día del desembolso sigue abierta.
+         * El crédito regresa a APROBADO y el calendario se elimina.
+         */
+        @Transactional
+        public CreditoDetalleDTO revertirDesembolso(Long id, String motivo) {
+                Credito c = findCreditoActivo(id);
+
+                if (c.getEstado() != EstadoCredito.ACTIVO) {
+                        throw new IllegalArgumentException(
+                                        "Solo se puede revertir un crédito en estado ACTIVO. Estado actual: "
+                                                        + c.getEstado());
+                }
+                if (pagoRepo.existsByCreditoIdAndDeletedAtIsNull(c.getId())) {
+                        throw new IllegalArgumentException(
+                                        "No se puede revertir: el crédito ya tiene pagos registrados.");
+                }
+                if (multaRepo.existsByCreditoIdAndDeletedAtIsNull(c.getId())) {
+                        throw new IllegalArgumentException(
+                                        "No se puede revertir: el crédito tiene multas generadas por atraso.");
+                }
+                if (abonoCorrienteRepo.existsByCreditoId(c.getId())) {
+                        throw new IllegalArgumentException(
+                                        "No se puede revertir: el crédito tiene abonos al corriente registrados.");
+                }
+
+                LocalDate fechaDesembolso = c.getFechaDesembolso().toLocalDate();
+                boolean cajaYaCerrada = cajaDiaRepo.existsBySucursalIdAndFechaAndEstado(
+                                c.getSucursal().getId(), fechaDesembolso, EstadoCaja.CERRADA);
+                if (cajaYaCerrada) {
+                        throw new IllegalArgumentException(
+                                        "No se puede revertir: la caja del día del desembolso ("
+                                                        + fechaDesembolso + ") ya fue cerrada.");
+                }
+
+                calendarioPagoRepo.deleteByCreditoId(c.getId());
+
+                c.setEstado(EstadoCredito.APROBADO);
+                c.setFechaDesembolso(null);
+                c.setFechaInicio(null);
+                c.setFechaVencimiento(null);
+
+                String nota = "[REVERSION " + DateTimeUtils.ahoraEnMagno().toLocalDate() + "] " + motivo;
+                c.setObservaciones(c.getObservaciones() != null
+                                ? c.getObservaciones() + "\n" + nota
+                                : nota);
+
+                creditoRepo.save(c);
+
+                log.info("Crédito REVERTIDO a APROBADO — id=" + c.getId() + " motivo=" + motivo);
 
                 return buildDetalle(c);
         }

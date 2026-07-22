@@ -213,6 +213,25 @@ public class CreditoController {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // PATCH /api/creditos/{id}/revertir-desembolso
+    // ────────────────────────────────────────────────────────────────────
+    @PatchMapping("/{id}/revertir-desembolso")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR')")
+    public ResponseEntity<CreditoDetalleDTO> revertirDesembolso(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            Authentication auth) {
+
+        String motivo = body.getOrDefault("motivo", "");
+
+        CreditoDetalleDTO dto = creditoService.obtenerDetalle(id);
+        JwtPrincipal p = principal(auth);
+        verificarAcceso(dto, p);
+
+        return ResponseEntity.ok(creditoService.revertirDesembolso(id, motivo));
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // GET /api/creditos/{id}/calendario
     // ────────────────────────────────────────────────────────────────────
 

@@ -15,6 +15,8 @@ public interface AbonoCorrienteRepository extends JpaRepository<AbonoCorriente, 
 
     List<AbonoCorriente> findByCreditoIdOrderByFechaDesc(Long creditoId);
 
+    boolean existsByCreditoId(Long creditoId);
+
     @Query("SELECT a FROM AbonoCorriente a " +
             "WHERE (:asesorId IS NULL OR a.credito.asesor.id = :asesorId) " +
             "AND (:clienteId IS NULL OR a.credito.cliente.id = :clienteId) " +

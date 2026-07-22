@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Search, Eye, CheckCircle, Banknote, Plus, Pencil } from 'lucide-react'
+import { Search, Eye, CheckCircle, Banknote, Plus, Pencil, XCircle } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { creditoService } from '@/services/creditoService'
 import { usuarioService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -70,6 +71,7 @@ export default function TabSolicitudes({
   onEditarSolicitud,
 }: Props) {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const { usuario } = useAuthStore()
   const isAdminOrSup =
     usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
@@ -79,6 +81,22 @@ export default function TabSolicitudes({
   const [tipoFilter, setTipoFilter] = useState<'' | 'NUEVO' | 'RENOVACION'>('')
   const [asesorId, setAsesorId] = useState<number | undefined>()
   const [page, setPage] = useState(0)
+  const [cancelarId, setCancelarId] = useState<number | null>(null)
+  const [cancelarMotivo, setCancelarMotivo] = useState('')
+
+  const cancelarMutation = useMutation({
+    mutationFn: ({ id, motivo }: { id: number; motivo: string }) =>
+      creditoService.cancelarCredito(id, motivo),
+    onSuccess: () => {
+      toast.success('Crédito cancelado')
+      qc.invalidateQueries({ queryKey: ['creditos'] })
+      setCancelarId(null)
+      setCancelarMotivo('')
+    },
+    onError: (err: { response?: { data?: { message?: string } } }) => {
+      toast.error(err?.response?.data?.message ?? 'Error al cancelar el crédito')
+    },
+  })
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['creditos', { estado, asesorId, buscar, page }],
@@ -364,6 +382,16 @@ export default function TabSolicitudes({
                               <Banknote className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          {isAdminOrSup && c.estado === 'APROBADO' && (
+                            <button
+                              type="button"
+                              onClick={() => { setCancelarId(c.id); setCancelarMotivo('') }}
+                              className="btn btn-sm text-red-600 hover:bg-red-50"
+                              title="Cancelar crédito"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -387,6 +415,7 @@ export default function TabSolicitudes({
                 onEvaluar={() => onEvaluar(c.id)}
                 onDesembolsar={() => onDesembolsar(c.id)}
                 onEditarSolicitud={() => onEditarSolicitud(c.id)}
+                onCancelar={() => { setCancelarId(c.id); setCancelarMotivo('') }}
               />
             ))}
           </div>
@@ -417,6 +446,46 @@ export default function TabSolicitudes({
           )}
         </>
       )}
+      {/* Modal cancelar crédito APROBADO */}
+      {cancelarId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+            <h2 className="text-base font-semibold text-gray-800">Cancelar crédito aprobado</h2>
+            <p className="text-sm text-gray-600">
+              Esta acción cancela el crédito de forma definitiva. Indica el motivo.
+            </p>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                Motivo <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                className="input w-full h-24 resize-none"
+                placeholder="Ej: Cliente desistió, documentación incompleta..."
+                value={cancelarMotivo}
+                onChange={(e) => setCancelarMotivo(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => { setCancelarId(null); setCancelarMotivo('') }}
+                disabled={cancelarMutation.isPending}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm bg-red-600 text-white hover:bg-red-700"
+                disabled={!cancelarMotivo.trim() || cancelarMutation.isPending}
+                onClick={() => cancelarMutation.mutate({ id: cancelarId, motivo: cancelarMotivo.trim() })}
+              >
+                {cancelarMutation.isPending ? 'Cancelando...' : 'Confirmar cancelación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -430,6 +499,7 @@ interface MobileCardProps {
   onEvaluar: () => void
   onDesembolsar: () => void
   onEditarSolicitud: () => void
+  onCancelar: () => void
 }
 
 function MobileCard({
@@ -439,6 +509,7 @@ function MobileCard({
   onEvaluar,
   onDesembolsar,
   onEditarSolicitud,
+  onCancelar,
 }: MobileCardProps) {
   function fmtM(n: number) {
     return new Intl.NumberFormat('es-MX', {
@@ -539,6 +610,15 @@ function MobileCard({
             className="btn-primary flex-1 py-2 text-sm"
           >
             Desembolsar
+          </button>
+        )}
+        {isAdminOrSup && c.estado === 'APROBADO' && (
+          <button
+            type="button"
+            onClick={onCancelar}
+            className="btn flex-1 py-2 text-sm text-red-600 hover:bg-red-50"
+          >
+            Cancelar
           </button>
         )}
       </div>

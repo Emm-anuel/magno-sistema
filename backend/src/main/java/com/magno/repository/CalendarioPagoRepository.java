@@ -4,6 +4,7 @@ import com.magno.model.CalendarioPago;
 import com.magno.model.EstadoCalendarioPago;
 import com.magno.model.EstadoCredito;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -16,6 +17,10 @@ import java.util.List;
 public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, Long> {
 
         List<CalendarioPago> findByCreditoIdOrderByNumeroPago(Long creditoId);
+
+        @Modifying
+        @Query("DELETE FROM CalendarioPago cp WHERE cp.credito.id = :creditoId")
+        void deleteByCreditoId(@Param("creditoId") Long creditoId);
 
         List<CalendarioPago> findByCreditoIdAndEstado(Long creditoId, EstadoCalendarioPago estado);
 
