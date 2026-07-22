@@ -400,8 +400,8 @@ export default function CreditoDetallePage() {
             </button>
           )}
           {credito.estado === 'ACTIVO' && esAdminSupervisor &&
-            stats.pagosRealizados === 0 &&
-            Number(stats.multasPendientes ?? 0) === 0 && (
+            pagosHistorialCredito.length === 0 &&
+            abonosCredito.length === 0 && (
             <button
               className="btn btn-sm border-red-300 text-red-600 hover:bg-red-50"
               onClick={() => { setRevertirOpen(true); setRevertirMotivo('') }}
