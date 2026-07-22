@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { useQuery, useQueries } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ChevronLeft, ChevronRight, Eye } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
 import { creditoService } from '@/services/creditoService'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -440,7 +441,19 @@ export default function Historial() {
                       const esParcial = a.diasParciales > 0
                       return (
                         <tr key={a.abonoId}>
-                          <td className="font-medium">{a.cliente.nombreCompleto}</td>
+                          <td className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <span>{a.cliente.nombreCompleto}</span>
+                              <Link
+                                to={`/creditos/${a.creditoId}`}
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#2563eb] transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                title="Ver detalle del crédito"
+                                aria-label={`Ver detalle del crédito de ${a.cliente.nombreCompleto}`}
+                              >
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                              </Link>
+                            </div>
+                          </td>
                           <td className="text-[#6c757d]">
                             {a.diasCubiertos} cubierto{a.diasCubiertos === 1 ? '' : 's'}
                             {a.diasParciales > 0 ? `, ${a.diasParciales} parcial` : ''}
@@ -528,8 +541,18 @@ export default function Historial() {
                         >
                           {/* Sticky first column */}
                           <td className="sticky left-0 z-10 bg-white px-3 py-2 border-r border-[#e9ecef] shadow-[1px_0_0_#e9ecef]">
-                            <div className="font-medium text-[#212529] truncate max-w-[148px]">
-                              {credito?.cliente.nombreCompleto ?? creditoResumen.cliente.nombreCompleto}
+                            <div className="flex items-center gap-1.5 max-w-[148px]">
+                              <span className="font-medium text-[#212529] truncate">
+                                {credito?.cliente.nombreCompleto ?? creditoResumen.cliente.nombreCompleto}
+                              </span>
+                              <Link
+                                to={`/creditos/${creditoResumen.id}`}
+                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[#2563eb] transition-colors hover:bg-blue-50 hover:text-[#1d4ed8] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
+                                title="Ver detalle del crédito"
+                                aria-label={`Ver detalle del crédito de ${credito?.cliente.nombreCompleto ?? creditoResumen.cliente.nombreCompleto}`}
+                              >
+                                <Eye className="h-4 w-4" aria-hidden="true" />
+                              </Link>
                             </div>
                             <div className="text-[10px] text-[#adb5bd]">
                               {credito?.cliente.celular ?? creditoResumen.cliente.celular}

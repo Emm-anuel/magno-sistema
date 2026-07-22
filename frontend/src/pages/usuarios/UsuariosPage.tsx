@@ -14,6 +14,7 @@ import ProcessingOverlay from '@/components/ProcessingOverlay'
 
 // ── Tipos ─────────────────────────────────────────────────────────
 const ROLES: Rol[] = ['ADMINISTRADOR', 'SUPERVISOR', 'SUPERVISOR_CAMPO', 'ASESOR_COBRADOR']
+const USUARIOS_OCULTOS = new Set(['admin@magno.mx'])
 
 // ── Esquema de validación ─────────────────────────────────────────
 const baseSchema = {
@@ -95,8 +96,13 @@ export default function UsuariosPage() {
     onError: () => toast.error('Error al cambiar estado'),
   })
 
+  // Ocultar cuentas internas únicamente de esta pantalla administrativa.
+  const usuariosVisibles = (data?.content ?? []).filter(
+    (u) => !USUARIOS_OCULTOS.has(u.email.trim().toLowerCase())
+  )
+
   // Filtrar localmente
-  const usuarios = (data?.content ?? []).filter((u) => {
+  const usuarios = usuariosVisibles.filter((u) => {
     const q = busqueda.toLowerCase()
     const matchQ = !q || u.nombre_completo.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
     const matchRol = !filtroRol || u.rol === filtroRol
@@ -105,9 +111,9 @@ export default function UsuariosPage() {
   })
 
   // Métricas
-  const total = data?.content?.length ?? 0
-  const activos = data?.content?.filter((u) => u.activo).length ?? 0
-  const conIne = data?.content?.filter((u) => u.ine_imagen_url).length ?? 0
+  const total = usuariosVisibles.length
+  const activos = usuariosVisibles.filter((u) => u.activo).length
+  const conIne = usuariosVisibles.filter((u) => u.ine_imagen_url).length
 
   return (
     <div>
