@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -157,6 +158,8 @@ class UsuarioServiceTest {
         return new UsuarioUpdateRequest(
                 "Nombre Test",
                 "5555555555",
+                LocalDate.of(1990, 1, 1),
+                LocalDate.of(2020, 1, 1),
                 rol,
                 sucursalId,
                 "Calle Test",
