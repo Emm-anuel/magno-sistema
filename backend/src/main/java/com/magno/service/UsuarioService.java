@@ -11,6 +11,7 @@ import com.magno.repository.RolRepository;
 import com.magno.repository.SucursalRepository;
 import com.magno.repository.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -188,5 +189,46 @@ public class UsuarioService {
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + id));
         u.setActivo(activo);
         return UsuarioDTO.from(usuarioRepo.save(u));
+    }
+
+    /** Lista las sucursales adicionales asignadas a un usuario Supervisor. */
+    public List<UsuarioDTO.SucursalInfo> getSucursalesAdicionales(Long usuarioId) {
+        Usuario u = usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
+        return u.getSucursalesAdicionales().stream()
+                .map(UsuarioDTO.SucursalInfo::from)
+                .toList();
+    }
+
+    /**
+     * Reemplaza el conjunto completo de sucursales adicionales de un usuario Supervisor.
+     * Solo aplica a SUPERVISOR_CAMPO — es el único rol para el que este flujo está expuesto
+     * en el admin (ver spec: docs/superpowers/specs/2026-08-06-supervisor-multi-sucursal-design.md).
+     */
+    @Transactional
+    public List<UsuarioDTO.SucursalInfo> setSucursalesAdicionales(Long usuarioId, java.util.List<Long> sucursalIds) {
+        Usuario u = usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
+
+        if (!"SUPERVISOR_CAMPO".equals(u.getRol().getNombre())) {
+            throw new IllegalArgumentException(
+                    "Solo se pueden asignar sucursales adicionales a usuarios con rol Supervisor");
+        }
+        if (sucursalIds.contains(u.getSucursal().getId())) {
+            throw new IllegalArgumentException(
+                    "La sucursal home del usuario no debe incluirse en sucursales adicionales");
+        }
+
+        java.util.List<Sucursal> sucursales = sucursalRepo.findAllById(sucursalIds);
+        if (sucursales.size() != sucursalIds.size()) {
+            throw new EntityNotFoundException("Una o más sucursales no existen");
+        }
+
+        u.setSucursalesAdicionales(new java.util.HashSet<>(sucursales));
+        usuarioRepo.save(u);
+
+        return sucursales.stream()
+                .map(UsuarioDTO.SucursalInfo::from)
+                .toList();
     }
 }
