@@ -73,4 +73,19 @@ class SecurityHelperTest {
 
         assertThat(securityHelper.tieneAccesoSucursal(principal, null)).isFalse();
     }
+
+    @Test
+    void asesorCobrador_sinAccesoAOtraSucursal_soloVeSuHome() {
+        JwtPrincipal principal = new JwtPrincipal(USUARIO_ID, "asesor@magno.mx", "ASESOR_COBRADOR", HOME_SUCURSAL_ID);
+
+        assertThat(securityHelper.tieneAccesoSucursal(principal, SUCURSAL_NO_ASIGNADA_ID)).isFalse();
+        assertThat(securityHelper.tieneAccesoSucursal(principal, HOME_SUCURSAL_ID)).isTrue();
+    }
+
+    @Test
+    void principalSinSucursalHome_noLanzaExcepcion_devuelveFalse() {
+        JwtPrincipal principal = new JwtPrincipal(USUARIO_ID, "raro@magno.mx", "SUPERVISOR_CAMPO", null);
+
+        assertThat(securityHelper.tieneAccesoSucursal(principal, SUCURSAL_NO_ASIGNADA_ID)).isFalse();
+    }
 }
