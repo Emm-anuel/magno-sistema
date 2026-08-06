@@ -3,7 +3,9 @@ package com.magno.service;
 import com.magno.dto.sucursal.SucursalCreateRequest;
 import com.magno.dto.sucursal.SucursalDTO;
 import com.magno.dto.sucursal.SucursalUpdateRequest;
+import com.magno.model.CategoriaGasto;
 import com.magno.model.Sucursal;
+import com.magno.repository.CategoriaGastoRepository;
 import com.magno.repository.SucursalRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Sort;
@@ -16,10 +18,17 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class SucursalService {
 
-    private final SucursalRepository sucursalRepo;
+    // Categorías de gasto con las que arranca toda sucursal nueva (mismo catálogo
+    // inicial que V19__gastos_seed.sql aplicó a las sucursales existentes).
+    private static final List<String> CATEGORIAS_GASTO_INICIALES =
+            List.of("Gasolina", "Servicio de Motos", "Gastos Varios");
 
-    public SucursalService(SucursalRepository sucursalRepo) {
+    private final SucursalRepository sucursalRepo;
+    private final CategoriaGastoRepository categoriaGastoRepo;
+
+    public SucursalService(SucursalRepository sucursalRepo, CategoriaGastoRepository categoriaGastoRepo) {
         this.sucursalRepo = sucursalRepo;
+        this.categoriaGastoRepo = categoriaGastoRepo;
     }
 
     public List<SucursalDTO> listarActivas() {
@@ -51,7 +60,15 @@ public class SucursalService {
                 .activa(true)
                 .build();
 
-        return SucursalDTO.from(sucursalRepo.save(nueva));
+        Sucursal guardada = sucursalRepo.save(nueva);
+        CATEGORIAS_GASTO_INICIALES.forEach(nombreCategoria ->
+                categoriaGastoRepo.save(CategoriaGasto.builder()
+                        .sucursalId(guardada.getId())
+                        .nombre(nombreCategoria)
+                        .activo(true)
+                        .build()));
+
+        return SucursalDTO.from(guardada);
     }
 
     @Transactional

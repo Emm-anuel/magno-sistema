@@ -258,8 +258,9 @@ export default function ClienteDetallePage() {
     usuario?.rol === 'ADMINISTRADOR' ||
     usuario?.rol === 'SUPERVISOR' ||
     usuario?.rol === 'SUPERVISOR_CAMPO'
-  const puedeAsignarSucursal =
-    usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
+  // Solo el Gerente General (ADMINISTRADOR) gestiona múltiples sucursales.
+  // El Gerente de Sucursal (SUPERVISOR) siempre opera dentro de su propia sucursal.
+  const puedeAsignarSucursal = usuario?.rol === 'ADMINISTRADOR'
   const puedeRegistrarCobro =
     usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
 

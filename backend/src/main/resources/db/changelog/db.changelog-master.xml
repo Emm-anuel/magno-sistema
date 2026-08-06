@@ -287,4 +287,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V36-gastos-seed-backfill" author="magno">
+        <sqlFile
+            path="db/changelog/V36__gastos_seed_backfill.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

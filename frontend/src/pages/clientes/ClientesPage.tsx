@@ -121,9 +121,9 @@ export default function ClientesPage() {
     usuario?.rol === 'ADMINISTRADOR' ||
     usuario?.rol === 'SUPERVISOR' ||
     usuario?.rol === 'SUPERVISOR_CAMPO'
-  const puedeAsignarSucursal =
-    usuario?.rol === 'ADMINISTRADOR' ||
-    usuario?.rol === 'SUPERVISOR'
+  // Solo el Gerente General (ADMINISTRADOR) gestiona múltiples sucursales.
+  // El Gerente de Sucursal (SUPERVISOR) siempre opera dentro de su propia sucursal.
+  const puedeAsignarSucursal = usuario?.rol === 'ADMINISTRADOR'
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['clientes', usuario?.id, usuario?.rol, { buscar, filtroEstado, filtroAsesor, filtroSucursal, pagina }],
