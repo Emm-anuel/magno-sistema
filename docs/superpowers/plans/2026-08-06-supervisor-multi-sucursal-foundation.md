@@ -1693,6 +1693,20 @@ with:
     },
 ```
 
+**IMPORTANT — this defaultValues change alone is not enough.** The `sucursal_id` field in the form is only ever `register()`-ed when `puedeAsignarSucursal` is true (ADMINISTRADOR only — see the "Asignación" section, `{puedeAsignarSucursal && (<Field label="Sucursal *">...)}`). For every other role, including SUPERVISOR_CAMPO, `data.sucursal_id` on submit is untouched form state — but it's not even read: the `onSubmit` payload construction has its own separate ternary that unconditionally overrides it for non-admins:
+
+```typescript
+      sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : authUsuario!.sucursal.id,
+```
+
+This line ignores `sucursalScopeId` entirely and always forces the client's home sucursal for every non-admin role, on both create AND edit (the same `payload` object is reused for both mutations). For edit, this is harmless — the backend's `ClienteController.normalizarUpdate` already discards whatever `sucursal_id` the frontend sends for SUPERVISOR/SUPERVISOR_CAMPO (see Task 14). But for **create**, the backend's `resolverSucursalEfectiva` *does* honor whatever `sucursal_id` is sent (falling back to home only if null or not granted) — so without this fix, a SUPERVISOR_CAMPO viewing sucursal B via the new selector would still have every new client silently created in their home sucursal A, defeating the entire point of Task 18.
+
+Fix: update that same line to fall back to `sucursalScopeId` before the hardcoded home sucursal:
+
+```typescript
+      sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : (sucursalScopeId ?? authUsuario!.sucursal.id),
+```
+
 - [ ] **Step 5: Pass the prop from the invocation site**
 
 At the `<ClienteModal ... />` invocation (lines 475-498), add the prop:
