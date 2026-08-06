@@ -72,6 +72,7 @@ export interface Usuario {
   telefono: string
   rol: Rol
   sucursal: Sucursal
+  sucursales_adicionales: Sucursal[]
   activo: boolean
   // Campos adicionales (presentes en detalle)
   ine_numero?: string

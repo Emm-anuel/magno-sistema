@@ -18,6 +18,13 @@ function normalizeUsuario(raw: any): AuthResponse['usuario'] {
       telefono: sucursal?.telefono,
       activa: sucursal?.activa ?? true,
     },
+    sucursales_adicionales: (raw?.sucursales_adicionales ?? raw?.sucursalesAdicionales ?? []).map((s: any) => ({
+      id: s?.id,
+      nombre: s?.nombre ?? '',
+      direccion: s?.direccion,
+      telefono: s?.telefono,
+      activa: s?.activa ?? true,
+    })),
     activo: raw?.activo ?? true,
     ine_numero: raw?.ine_numero ?? raw?.ineNumero,
     ine_imagen_url: raw?.ine_imagen_url ?? raw?.ineImagenUrl,
@@ -368,6 +375,12 @@ export const usuarioService = {
 
   cambiarEstado: (id: number, activo: boolean) =>
     api.patch<any>(`/usuarios/${id}/estado`, { activo }).then((r) => normalizeUsuario(r.data)),
+
+  getSucursalesAdicionales: (id: number) =>
+    api.get<any[]>(`/usuarios/${id}/sucursales-adicionales`).then((r) => r.data.map(normalizeSucursal)),
+
+  setSucursalesAdicionales: (id: number, sucursalIds: number[]) =>
+    api.put<any[]>(`/usuarios/${id}/sucursales-adicionales`, { sucursalIds }).then((r) => r.data.map(normalizeSucursal)),
 
   cambiarMiPassword: (passwordActual: string, passwordNuevo: string) =>
     api.patch('/usuarios/me/password', { passwordActual, passwordNuevo }),
