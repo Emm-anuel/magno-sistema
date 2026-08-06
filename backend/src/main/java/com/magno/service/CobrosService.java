@@ -37,6 +37,8 @@ public class CobrosService {
     private final ConfigMultaRepository configMultaRepo;
     private final DiaFestivoRepository diaFestivoRepo;
     private final AbonoCoberturaDetalleRepository abonoCoberturaRepo;
+    private final AbonoCorrienteRepository abonoCorrienteRepo;
+    private final AbonoFuturoService abonoFuturoService;
 
     public CobrosService(PagoRepository pagoRepo,
             MultaRepository multaRepo,
@@ -45,7 +47,9 @@ public class CobrosService {
             CalendarioPagoRepository calendarioPagoRepo,
             ConfigMultaRepository configMultaRepo,
             DiaFestivoRepository diaFestivoRepo,
-            AbonoCoberturaDetalleRepository abonoCoberturaRepo) {
+            AbonoCoberturaDetalleRepository abonoCoberturaRepo,
+            AbonoCorrienteRepository abonoCorrienteRepo,
+            AbonoFuturoService abonoFuturoService) {
         this.pagoRepo = pagoRepo;
         this.multaRepo = multaRepo;
         this.creditoRepo = creditoRepo;
@@ -54,6 +58,8 @@ public class CobrosService {
         this.configMultaRepo = configMultaRepo;
         this.diaFestivoRepo = diaFestivoRepo;
         this.abonoCoberturaRepo = abonoCoberturaRepo;
+        this.abonoCorrienteRepo = abonoCorrienteRepo;
+        this.abonoFuturoService = abonoFuturoService;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -613,6 +619,13 @@ public class CobrosService {
             multaAplicadaEnEstePago = totalMultasPendientes;
         }
 
+        // Lo que exceda cuota + multas del día no se amontona en este pago: se
+        // adelanta a días futuros (o queda como sobrante) vía un AbonoCorriente,
+        // igual que el flujo de "Pagar Adeudo".
+        BigDecimal excedente = montoRecibido.subtract(montoEsperado).subtract(multaAplicadaEnEstePago)
+                .max(BigDecimal.ZERO);
+        BigDecimal montoRecibidoDelDia = montoRecibido.subtract(excedente);
+
         // Crear el pago
         Pago pago = Pago.builder()
                 .credito(credito)
@@ -621,7 +634,7 @@ public class CobrosService {
                 .calendarioPago(cp)
                 .numeroPago(cp.getNumeroPago())
                 .fechaPago(hoy)
-                .montoRecibido(montoRecibido)
+                .montoRecibido(montoRecibidoDelDia)
                 .montoEsperado(montoEsperado)
                 .esCompleto(esCompleto)
                 .razonNoPago(null)
@@ -652,10 +665,42 @@ public class CobrosService {
             verificarMultaIncompletos(credito, cliente, hoy, sucursalId, montoCapital, pago);
         }
 
+        if (excedente.compareTo(BigDecimal.ZERO) > 0) {
+            adelantarExcedenteComoAbono(credito, registrador, excedente, hoy);
+        }
+
         // Verificar si el crédito está completamente pagado
         verificarCreditoCompletado(credito);
 
         return pago;
+    }
+
+    /**
+     * El monto recibido en el día que sobra después de cubrir cuota + multas no
+     * se pierde: se adelanta a los próximos días PENDIENTE del calendario (o
+     * queda registrado como sobrante si no hay más días), igual que "Pagar
+     * Adeudo". Así el cliente puede pagar por adelantado y calificar antes para
+     * renovación.
+     */
+    private void adelantarExcedenteComoAbono(Credito credito, Usuario registrador, BigDecimal excedente,
+            LocalDate hoy) {
+        AbonoFuturoService.ResultadoAdelanto adelanto =
+                abonoFuturoService.adelantarDiasFuturos(credito, excedente, hoy);
+
+        AbonoCorriente abono = AbonoCorriente.builder()
+                .credito(credito)
+                .fecha(hoy)
+                .montoTotal(excedente)
+                .montoDistribuido(excedente.subtract(adelanto.saldoRestante()))
+                .montoSobrante(adelanto.saldoRestante())
+                .registradoPor(registrador)
+                .build();
+        abono = abonoCorrienteRepo.save(abono);
+
+        for (AbonoCoberturaDetalle c : adelanto.coberturas()) {
+            c.setAbono(abono);
+            abonoCoberturaRepo.save(c);
+        }
     }
 
     /**

@@ -57,6 +57,7 @@ public class ReporteService {
     private final SucursalRepository sucursalRepo;
     private final GastoRepository gastoRepo;
     private final ClienteRepository clienteRepo;
+    private final AbonoCorrienteRepository abonoCorrienteRepo;
 
     public ReporteService(CajaDiaRepository cajaDiaRepo,
             CajaMovimientoInversionRepository movimientoRepo,
@@ -68,7 +69,8 @@ public class ReporteService {
             UsuarioRepository usuarioRepo,
             SucursalRepository sucursalRepo,
             GastoRepository gastoRepo,
-            ClienteRepository clienteRepo) {
+            ClienteRepository clienteRepo,
+            AbonoCorrienteRepository abonoCorrienteRepo) {
         this.cajaDiaRepo = cajaDiaRepo;
         this.movimientoRepo = movimientoRepo;
         this.creditoRepo = creditoRepo;
@@ -80,6 +82,7 @@ public class ReporteService {
         this.sucursalRepo = sucursalRepo;
         this.gastoRepo = gastoRepo;
         this.clienteRepo = clienteRepo;
+        this.abonoCorrienteRepo = abonoCorrienteRepo;
     }
 
     // ── Ingresos/Egresos ─────────────────────────────────────────────────
@@ -99,7 +102,8 @@ public class ReporteService {
         List<FilaDiariaDTO> filas = new ArrayList<>();
         for (LocalDate fecha = desde; !fecha.isAfter(hasta); fecha = fecha.plusDays(1)) {
             CajaDia dia = dias.get(fecha);
-            BigDecimal ingresos = coalesce(pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fecha));
+            BigDecimal ingresos = coalesce(pagoRepo.sumIngresoBySucursalAndFecha(sucursalId, fecha))
+                    .add(coalesce(abonoCorrienteRepo.sumMontoTotalBySucursalAndFecha(sucursalId, fecha)));
             BigDecimal apertura = dia != null ? coalesce(dia.getMontoApertura()) : BigDecimal.ZERO;
             BigDecimal inversiones = dia != null ? coalesce(movimientoRepo.sumMontoByCajaDiaId(dia.getId())) : BigDecimal.ZERO;
             BigDecimal desembolsos = dia != null ? coalesce(dia.getDesembolsos()) : BigDecimal.ZERO;
@@ -299,7 +303,8 @@ public class ReporteService {
 
         for (Usuario u : usuarios) {
             long cobros = pagoRepo.countByAsesorAndFechaRange(u.getId(), desde, hasta);
-            BigDecimal montoCobrado = pagoRepo.sumMontoCobradoByAsesorAndFechaRange(u.getId(), desde, hasta);
+            BigDecimal montoCobrado = coalesce(pagoRepo.sumMontoCobradoByAsesorAndFechaRange(u.getId(), desde, hasta))
+                    .add(coalesce(abonoCorrienteRepo.sumMontoTotalByScopeAndFechaRange(null, u.getId(), desde, hasta)));
             BigDecimal multasCobradas = multaRepo.sumMultasCobradaByAsesorAndFechaRange(u.getId(), desde, hasta);
             long pagosIncompletos = pagoRepo.countIncompletosByAsesorAndFechaRange(u.getId(), desde, hasta);
 

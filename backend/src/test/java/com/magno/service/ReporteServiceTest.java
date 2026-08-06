@@ -30,6 +30,7 @@ class ReporteServiceTest {
         private SucursalRepository sucursalRepo;
         private GastoRepository gastoRepo;
         private ClienteRepository clienteRepo;
+        private AbonoCorrienteRepository abonoCorrienteRepo;
         private ReporteService service;
 
         @BeforeEach
@@ -45,10 +46,12 @@ class ReporteServiceTest {
                 sucursalRepo = mock(SucursalRepository.class);
                 gastoRepo = mock(GastoRepository.class);
                 clienteRepo = mock(ClienteRepository.class);
+                abonoCorrienteRepo = mock(AbonoCorrienteRepository.class);
                 service = new ReporteService(
                                 cajaDiaRepo, movimientoRepo, creditoRepo,
                                 pagoRepo, multaRepo, calendarioRepo,
-                                renovacionRepo, usuarioRepo, sucursalRepo, gastoRepo, clienteRepo);
+                                renovacionRepo, usuarioRepo, sucursalRepo, gastoRepo, clienteRepo,
+                                abonoCorrienteRepo);
         }
 
         @Test
@@ -125,6 +128,22 @@ class ReporteServiceTest {
         }
 
         @Test
+        void getIngresosEgresos_incluyeAbonosDePagarAdeudoEnElIngresoDelDia() {
+                LocalDate fecha = LocalDate.of(2026, 4, 9);
+                when(cajaDiaRepo.findBySucursalAndFechaRange(1L, fecha, fecha))
+                                .thenReturn(List.of());
+                when(pagoRepo.sumIngresoBySucursalAndFecha(1L, fecha))
+                                .thenReturn(new BigDecimal("750.00"));
+                when(abonoCorrienteRepo.sumMontoTotalBySucursalAndFecha(1L, fecha))
+                                .thenReturn(new BigDecimal("300.00"));
+
+                ReporteIngresosEgresosDTO result = service.getIngresosEgresos(1L, fecha, fecha);
+
+                assertThat(result.filas().get(0).ingresoCarteras()).isEqualByComparingTo("1050.00");
+                assertThat(result.totalIngresoCarteras()).isEqualByComparingTo("1050.00");
+        }
+
+        @Test
         void getCartera_enMora_filtraCorrectamente() {
                 Credito creditoSano = credito(10L, new BigDecimal("5000.00"), new BigDecimal("260.00"), 25);
                 Credito creditoMora = credito(11L, new BigDecimal("3000.00"), new BigDecimal("156.00"), 25);
@@ -184,6 +203,37 @@ class ReporteServiceTest {
                 assertThat(resumen.montoCobrado()).isEqualByComparingTo("3120.00");
                 assertThat(resumen.clientesActivos()).isEqualTo(1);
                 assertThat(result.totalClientesActivos()).isEqualTo(1);
+        }
+
+        @Test
+        void getPorAsesor_sumaAbonosDePagarAdeudoAlMontoCobrado() {
+                Usuario asesor = usuario(5L, "ASESOR_COBRADOR", "Juan Pérez");
+                Credito credito = credito(20L, new BigDecimal("4000.00"), new BigDecimal("208.00"), 25);
+
+                when(usuarioRepo.findBySucursalId(1L)).thenReturn(List.of(asesor));
+                when(creditoRepo.findActivosBySucursalAndAsesor(1L, 5L))
+                                .thenReturn(List.of(credito));
+
+                LocalDate desde = LocalDate.of(2026, 4, 1);
+                LocalDate hasta = LocalDate.of(2026, 4, 30);
+                LocalDate hoy = DateTimeUtils.hoyEnMagno();
+
+                when(pagoRepo.countByAsesorAndFechaRange(5L, desde, hasta)).thenReturn(15L);
+                when(pagoRepo.sumMontoCobradoByAsesorAndFechaRange(5L, desde, hasta))
+                                .thenReturn(new BigDecimal("3120.00"));
+                when(abonoCorrienteRepo.sumMontoTotalByScopeAndFechaRange(null, 5L, desde, hasta))
+                                .thenReturn(new BigDecimal("450.00"));
+                when(multaRepo.sumMultasCobradaByAsesorAndFechaRange(5L, desde, hasta))
+                                .thenReturn(BigDecimal.ZERO);
+                when(pagoRepo.countIncompletosByAsesorAndFechaRange(5L, desde, hasta)).thenReturn(1L);
+
+                when(calendarioRepo.countAtrasadosByCreditoId(20L, hoy)).thenReturn(0L);
+                when(calendarioRepo.countRealizadosByCreditoId(20L)).thenReturn(10L);
+                when(multaRepo.sumMontosPendientesByCreditoId(20L)).thenReturn(BigDecimal.ZERO);
+
+                ReportePorAsesorDTO result = service.getPorAsesor(1L, desde, hasta, null);
+
+                assertThat(result.asesores().get(0).montoCobrado()).isEqualByComparingTo("3570.00");
         }
 
         private CajaDia cajaDia(Long id, LocalDate fecha,

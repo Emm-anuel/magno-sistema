@@ -31,6 +31,7 @@ class AbonoCorrienteServiceTest {
     private MultaRepository multaRepo;
     private ConfigMultaRepository configMultaRepo;
     private CobrosService cobrosService;
+    private AbonoFuturoService abonoFuturoService;
 
     private AbonoCorrienteService service;
 
@@ -50,6 +51,11 @@ class AbonoCorrienteServiceTest {
         multaRepo          = mock(MultaRepository.class);
         configMultaRepo    = mock(ConfigMultaRepository.class);
         cobrosService      = mock(CobrosService.class);
+        abonoFuturoService = mock(AbonoFuturoService.class);
+
+        // Por defecto no hay días futuros que adelantar: el saldo que entra queda igual.
+        when(abonoFuturoService.adelantarDiasFuturos(any(), any(), any()))
+                .thenAnswer(inv -> new AbonoFuturoService.ResultadoAdelanto(List.of(), inv.getArgument(1)));
 
         service = new AbonoCorrienteService(
                 abonoCorrienteRepo,
@@ -59,7 +65,8 @@ class AbonoCorrienteServiceTest {
                 calendarioPagoRepo,
                 multaRepo,
                 configMultaRepo,
-                cobrosService);
+                cobrosService,
+                abonoFuturoService);
 
         sucursal = new Sucursal();
         sucursal.setId(1L);
@@ -301,6 +308,43 @@ class AbonoCorrienteServiceTest {
         assertThat(result.coberturas().get(0).montoMulta()).isEqualByComparingTo(new BigDecimal("50.00"));
         assertThat(result.coberturas().get(0).montoCuota()).isEqualByComparingTo(cuota);
         assertThat(slotVencido.getEstado()).isEqualTo(EstadoCalendarioPago.RECUPERADO);
+    }
+
+    @Test
+    void sobranteDespuesDeAtrasados_seDistribuyeHaciaDiasFuturos() {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
+        BigDecimal cuota = new BigDecimal("700.00");
+        CalendarioPago slotAtrasado = slot(300L, 8, hoy.minusDays(1), cuota, EstadoCalendarioPago.NO_PAGADO);
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slotAtrasado));
+        when(multaRepo.findPendientesByCreditoIdAndFecha(eq(42L), eq(slotAtrasado.getFechaProgramada())))
+                .thenReturn(List.of());
+        when(abonoCoberturaRepo.sumTotalAplicadoByCalendarioPagoId(300L)).thenReturn(BigDecimal.ZERO);
+        when(abonoCoberturaRepo.sumMontoMultaByCalendarioPagoId(300L)).thenReturn(BigDecimal.ZERO);
+
+        CalendarioPago slotFuturo = slot(301L, 9, hoy.plusDays(1), cuota, EstadoCalendarioPago.PENDIENTE);
+        AbonoCoberturaDetalle coberturaFutura = AbonoCoberturaDetalle.builder()
+                .calendarioPago(slotFuturo)
+                .numeroPago(9)
+                .montoCuota(cuota)
+                .montoMulta(BigDecimal.ZERO)
+                .totalAplicado(cuota)
+                .esParcial(false)
+                .build();
+        when(abonoFuturoService.adelantarDiasFuturos(eq(credito), eq(new BigDecimal("1300.00")), any()))
+                .thenReturn(new AbonoFuturoService.ResultadoAdelanto(List.of(coberturaFutura), new BigDecimal("600.00")));
+
+        when(abonoCorrienteRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AbonoCorrienteRequest req = new AbonoCorrienteRequest(42L, new BigDecimal("2000.00"), null);
+        AbonoCorrienteDTO result = service.registrarAbono(req, 10L);
+
+        assertThat(result.montoSobrante()).isEqualByComparingTo("600.00");
+        assertThat(coberturaFutura.getAbono()).isNotNull();
+        verify(abonoCoberturaRepo, times(2)).save(any());
     }
 
     @Test

@@ -31,6 +31,8 @@ class CobrosServiceTest {
     private ConfigMultaRepository configMultaRepo;
     private DiaFestivoRepository diaFestivoRepo;
     private AbonoCoberturaDetalleRepository abonoCoberturaRepo;
+    private AbonoCorrienteRepository abonoCorrienteRepo;
+    private AbonoFuturoService abonoFuturoService;
 
     private CobrosService service;
 
@@ -52,10 +54,17 @@ class CobrosServiceTest {
         configMultaRepo = mock(ConfigMultaRepository.class);
         diaFestivoRepo = mock(DiaFestivoRepository.class);
         abonoCoberturaRepo = mock(AbonoCoberturaDetalleRepository.class);
+        abonoCorrienteRepo = mock(AbonoCorrienteRepository.class);
+        abonoFuturoService = mock(AbonoFuturoService.class);
+
+        // Por defecto no hay días futuros que adelantar: el excedente queda igual.
+        when(abonoFuturoService.adelantarDiasFuturos(any(), any(), any()))
+                .thenAnswer(inv -> new AbonoFuturoService.ResultadoAdelanto(List.of(), inv.getArgument(1)));
 
         service = new CobrosService(
                 pagoRepo, multaRepo, creditoRepo, usuarioRepo,
-                calendarioPagoRepo, configMultaRepo, diaFestivoRepo, abonoCoberturaRepo);
+                calendarioPagoRepo, configMultaRepo, diaFestivoRepo, abonoCoberturaRepo,
+                abonoCorrienteRepo, abonoFuturoService);
 
         sucursal = new Sucursal();
         sucursal.setId(1L);
@@ -495,5 +504,85 @@ class CobrosServiceTest {
         assertThat(multa.getFechaCondonacion()).isNotNull();
         assertThat(multa.getMotivoCondonacion()).isEqualTo("El asesor omitió registrar el pago");
         verify(multaRepo).saveAll(List.of(multa));
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // registrarPago — excedente se adelanta a días futuros
+    // ────────────────────────────────────────────────────────────────
+
+    private CalendarioPago slotPendiente(long id, int numeroPago, LocalDate fecha, String monto) {
+        CalendarioPago cp = new CalendarioPago();
+        cp.setId(id);
+        cp.setNumeroPago(numeroPago);
+        cp.setFechaProgramada(fecha);
+        cp.setMontoEsperado(new BigDecimal(monto));
+        cp.setEstado(EstadoCalendarioPago.PENDIENTE);
+        cp.setCredito(credito);
+        return cp;
+    }
+
+    @Test
+    void registrarPago_montoExacto_noGeneraExcedenteNiAbono() {
+        LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
+        CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
+                .thenReturn(List.of(cp));
+        when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(42L)).thenReturn(List.of());
+        when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(cp));
+
+        var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("156.00"), null, null);
+        var result = service.registrarPago(req, 10L);
+
+        assertThat(result.montoRecibido()).isEqualByComparingTo("156.00");
+        verify(abonoFuturoService, never()).adelantarDiasFuturos(any(), any(), any());
+        verify(abonoCorrienteRepo, never()).save(any());
+    }
+
+    @Test
+    void registrarPago_conExcedente_loAdelantaADiasFuturosYCreaAbono() {
+        LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
+        CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
+                .thenReturn(List.of(cp));
+        when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(42L)).thenReturn(List.of());
+        when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(cp));
+
+        CalendarioPago slotFuturo = slotPendiente(501L, 6, hoy.plusDays(1), "156.00");
+        AbonoCoberturaDetalle coberturaFutura = AbonoCoberturaDetalle.builder()
+                .calendarioPago(slotFuturo)
+                .numeroPago(6)
+                .montoCuota(new BigDecimal("156.00"))
+                .montoMulta(BigDecimal.ZERO)
+                .totalAplicado(new BigDecimal("156.00"))
+                .esParcial(false)
+                .build();
+        when(abonoFuturoService.adelantarDiasFuturos(eq(credito), eq(new BigDecimal("300.00")), eq(hoy)))
+                .thenReturn(new AbonoFuturoService.ResultadoAdelanto(List.of(coberturaFutura), BigDecimal.ZERO));
+        when(abonoCorrienteRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("456.00"), null, null);
+        var result = service.registrarPago(req, 10L);
+
+        assertThat(result.montoRecibido())
+                .as("el pago del día solo refleja la cuota, no el excedente")
+                .isEqualByComparingTo("156.00");
+        assertThat(coberturaFutura.getAbono()).isNotNull();
+
+        ArgumentCaptor<AbonoCorriente> captor = ArgumentCaptor.forClass(AbonoCorriente.class);
+        verify(abonoCorrienteRepo).save(captor.capture());
+        assertThat(captor.getValue().getMontoTotal()).isEqualByComparingTo("300.00");
+        assertThat(captor.getValue().getMontoDistribuido()).isEqualByComparingTo("300.00");
+        assertThat(captor.getValue().getMontoSobrante()).isEqualByComparingTo(BigDecimal.ZERO);
     }
 }

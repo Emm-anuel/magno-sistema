@@ -27,6 +27,7 @@ function fmtDate(iso: string) {
 
 interface DistribucionRow extends AbonoCoberturaDTO {
   noAlcanza: boolean
+  adelantado?: boolean
 }
 
 function computeDistribucion(
@@ -41,6 +42,10 @@ function computeDistribucion(
     if (p.estado === 'PENDIENTE' && p.fechaProgramada <= hoy) return true
     return false
   }).sort((a, b) => a.numeroPago - b.numeroPago)
+
+  const futuros = slots
+    .filter((p) => p.estado === 'PENDIENTE' && p.fechaProgramada > hoy)
+    .sort((a, b) => a.numeroPago - b.numeroPago)
 
   const yaAbonado: Record<number, number> = {}
   const multaYaAbonada: Record<number, number> = {}
@@ -101,6 +106,26 @@ function computeDistribucion(
     })
   }
 
+  // El sobrante después de cubrir atrasados se adelanta a días futuros completos
+  // (nunca parcialmente), para que el cliente pueda pagar por anticipado.
+  for (const slot of futuros) {
+    if (saldo <= 0) break
+    const costo = Number(slot.montoEsperado)
+    if (saldo < costo) break
+
+    saldo -= costo
+    rows.push({
+      numeroPago: slot.numeroPago,
+      fechaProgramada: slot.fechaProgramada,
+      montoCuota: costo,
+      montoMulta: 0,
+      totalAplicado: costo,
+      esParcial: false,
+      noAlcanza: false,
+      adelantado: true,
+    })
+  }
+
   return rows
 }
 
@@ -133,7 +158,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
     staleTime: 30_000,
   })
 
-  const calendario = credito?.calendario ?? []
+  const calendario = useMemo(() => credito?.calendario ?? [], [credito])
   const montoNum = Number(monto)
   const montoValido = Number.isFinite(montoNum) && montoNum > 0
 
@@ -161,10 +186,21 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
     }, 0)
   }, [calendario, multas, hoy, abonosExistentes])
 
+  const montoFuturoDisponible = useMemo(() =>
+    calendario
+      .filter((p) => p.estado === 'PENDIENTE' && p.fechaProgramada > hoy)
+      .reduce((sum, slot) => sum + Number(slot.montoEsperado), 0),
+    [calendario, hoy],
+  )
+
+  const montoMaximoAdmisible = montoParaCorriente + montoFuturoDisponible
+
   const montoCentavos = montoValido ? Math.round(montoNum * 100) : 0
   const saldoRequeridoCentavos = Math.round(montoParaCorriente * 100)
-  const excedeSaldoRequerido = montoValido && montoCentavos > saldoRequeridoCentavos
-  const puedeConfirmar = montoValido && !excedeSaldoRequerido && saldoRequeridoCentavos > 0
+  const montoMaximoCentavos = Math.round(montoMaximoAdmisible * 100)
+  const excedeSaldoRequerido = montoValido && montoCentavos > montoMaximoCentavos
+  const adelantaDiasFuturos = montoValido && montoCentavos > saldoRequeridoCentavos
+  const puedeConfirmar = montoValido && !excedeSaldoRequerido && montoMaximoCentavos > 0
 
   const diasAtrasados = useMemo(() =>
     calendario.filter((p) => {
@@ -178,7 +214,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
   const mutation = useMutation({
     mutationFn: () => {
       if (excedeSaldoRequerido) {
-        throw new Error(`El monto no puede ser mayor a ${fmtMoney(montoParaCorriente)}`)
+        throw new Error(`El monto no puede ser mayor a ${fmtMoney(montoMaximoAdmisible)}`)
       }
 
       return cobrosService.registrarAbonoCorrente({
@@ -247,7 +283,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
                 type="number"
                 inputMode="decimal"
                 min="0.01"
-                max={Math.max(0, montoParaCorriente).toFixed(2)}
+                max={Math.max(0, montoMaximoAdmisible).toFixed(2)}
                 step="0.01"
                 className={`input pl-7 ${excedeSaldoRequerido ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                 placeholder="0.00"
@@ -256,11 +292,19 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
                 autoFocus
               />
             </div>
-            {excedeSaldoRequerido && (
+            {excedeSaldoRequerido ? (
               <p className="text-[12px] text-red-600 mt-1">
-                El monto no puede ser mayor al saldo requerido: {fmtMoney(montoParaCorriente)}.
+                El monto no puede ser mayor a {fmtMoney(montoMaximoAdmisible)} (adeudo + días futuros disponibles).
               </p>
-            )}
+            ) : adelantaDiasFuturos ? (
+              <p className="text-[12px] text-blue-600 mt-1">
+                El excedente sobre {fmtMoney(montoParaCorriente)} se adelantará a los próximos días de pago.
+              </p>
+            ) : montoFuturoDisponible > 0 ? (
+              <p className="text-[12px] text-[#6c757d] mt-1">
+                Puedes recibir hasta {fmtMoney(montoMaximoAdmisible)} para adelantar días futuros.
+              </p>
+            ) : null}
           </div>
 
           {/* Tabla de distribución */}
@@ -290,6 +334,10 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
                           {row.noAlcanza ? (
                             <span className="inline-flex items-center gap-1 text-[#adb5bd]">
                               <Minus className="w-3 h-3" /> no alcanza
+                            </span>
+                          ) : row.adelantado ? (
+                            <span className="inline-flex items-center gap-1 text-blue-600">
+                              <CheckCircle className="w-3 h-3" /> adelantado
                             </span>
                           ) : row.esParcial ? (
                             <span className="inline-flex items-center gap-1 text-amber-600">

@@ -38,6 +38,15 @@ public interface AbonoCorrienteRepository extends JpaRepository<AbonoCorriente, 
             @Param("hasta") LocalDate hasta);
 
     @Query("SELECT COALESCE(SUM(a.montoTotal), 0) FROM AbonoCorriente a " +
+            "WHERE (:sucursalId IS NULL OR a.credito.sucursal.id = :sucursalId) " +
+            "AND (:asesorId IS NULL OR a.credito.asesor.id = :asesorId) " +
+            "AND a.fecha >= :desde AND a.fecha <= :hasta")
+    BigDecimal sumMontoTotalByScopeAndFechaRange(@Param("sucursalId") Long sucursalId,
+            @Param("asesorId") Long asesorId,
+            @Param("desde") LocalDate desde,
+            @Param("hasta") LocalDate hasta);
+
+    @Query("SELECT COALESCE(SUM(a.montoTotal), 0) FROM AbonoCorriente a " +
             "WHERE a.credito.sucursal.id = :sucursalId AND a.fecha = :fecha")
     BigDecimal sumMontoTotalBySucursalAndFecha(@Param("sucursalId") Long sucursalId,
             @Param("fecha") LocalDate fecha);

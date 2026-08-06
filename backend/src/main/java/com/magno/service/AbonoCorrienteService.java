@@ -32,6 +32,7 @@ public class AbonoCorrienteService {
     private final MultaRepository multaRepo;
     private final ConfigMultaRepository configMultaRepo;
     private final CobrosService cobrosService;
+    private final AbonoFuturoService abonoFuturoService;
 
     public AbonoCorrienteService(
             AbonoCorrienteRepository abonoCorrienteRepo,
@@ -41,7 +42,8 @@ public class AbonoCorrienteService {
             CalendarioPagoRepository calendarioPagoRepo,
             MultaRepository multaRepo,
             ConfigMultaRepository configMultaRepo,
-            CobrosService cobrosService) {
+            CobrosService cobrosService,
+            AbonoFuturoService abonoFuturoService) {
         this.abonoCorrienteRepo = abonoCorrienteRepo;
         this.abonoCoberturaRepo = abonoCoberturaRepo;
         this.creditoRepo = creditoRepo;
@@ -50,6 +52,7 @@ public class AbonoCorrienteService {
         this.multaRepo = multaRepo;
         this.configMultaRepo = configMultaRepo;
         this.cobrosService = cobrosService;
+        this.abonoFuturoService = abonoFuturoService;
     }
 
     @Transactional
@@ -131,6 +134,13 @@ public class AbonoCorrienteService {
             if (multaYaAbonada.add(montoMultaAplicado).compareTo(totalMultasDia) >= 0) {
                 multasCubiertas.addAll(multasDia);
             }
+        }
+
+        if (saldo.compareTo(BigDecimal.ZERO) > 0) {
+            AbonoFuturoService.ResultadoAdelanto adelanto =
+                    abonoFuturoService.adelantarDiasFuturos(credito, saldo, fechaOperacion);
+            coberturas.addAll(adelanto.coberturas());
+            saldo = adelanto.saldoRestante();
         }
 
         BigDecimal totalDistribuido = req.montoRecibido().subtract(saldo);
