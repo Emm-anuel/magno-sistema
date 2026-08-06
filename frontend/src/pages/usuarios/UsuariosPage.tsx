@@ -510,6 +510,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
         const seleccion = sucursalesAdicionales.filter((id) => id !== payload.sucursal_id)
         try {
           await usuarioService.setSucursalesAdicionales(savedId, seleccion)
+          await qc.refetchQueries({ queryKey: ['usuarios'] })
         } catch {
           toast.error('Usuario guardado, pero no se pudieron guardar las sucursales adicionales')
         }
