@@ -139,7 +139,7 @@ public class ClienteController {
         }
 
         ClienteUpdateRequest normalizado = normalizarUpdate(req, principal);
-        cajaGuard.validarCajaAbierta(principal, normalizado.sucursalId());
+        cajaGuard.validarCajaAbierta(principal, actual.sucursal().id());
         return ResponseEntity.ok(clienteService.actualizarCliente(id, normalizado));
     }
 
