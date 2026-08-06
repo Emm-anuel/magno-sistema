@@ -359,6 +359,9 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
   const [ineReversoFullPreview, setIneReversoFullPreview] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [passwordModified, setPasswordModified] = useState(false)
+  const [sucursalesAdicionales, setSucursalesAdicionales] = useState<number[]>(
+    usuario?.sucursales_adicionales?.map((s) => s.id) ?? [],
+  )
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fileInputReversoRef = useRef<HTMLInputElement>(null)
 
@@ -369,6 +372,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
     handleSubmit,
     getValues,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<CreateForm>({
     resolver: zodResolver(schema) as any,
@@ -405,7 +409,6 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
     onSuccess: () => {
       qc.refetchQueries({ queryKey: ['usuarios'] })
       toast.success('Usuario creado')
-      onSaved()
     },
     onError: (e: any) => toast.error(e.message ?? 'Error al crear usuario'),
   })
@@ -416,7 +419,6 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
     onSuccess: () => {
       qc.refetchQueries({ queryKey: ['usuarios'] })
       toast.success('Usuario actualizado')
-      onSaved()
     },
     onError: (e: any) => toast.error(e.message ?? 'Error al actualizar'),
   })
@@ -492,14 +494,28 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
 
       const payload = { ...formData, ine_imagen_url: ineUrl, ine_imagen_reverso_url: ineReversoUrl }
 
+      let savedId: number
       if (isEdit) {
         if (!passwordModified || !payload.password) {
           delete (payload as any).password
         }
-        await editMutation.mutateAsync({ id: usuario!.id, data: payload as UsuarioUpdateRequest })
+        const saved = await editMutation.mutateAsync({ id: usuario!.id, data: payload as UsuarioUpdateRequest })
+        savedId = saved.id
       } else {
-        await createMutation.mutateAsync(payload as UsuarioCreateRequest)
+        const saved = await createMutation.mutateAsync(payload as UsuarioCreateRequest)
+        savedId = saved.id
       }
+
+      if (payload.rol === 'SUPERVISOR_CAMPO') {
+        const seleccion = sucursalesAdicionales.filter((id) => id !== payload.sucursal_id)
+        try {
+          await usuarioService.setSucursalesAdicionales(savedId, seleccion)
+        } catch {
+          toast.error('Usuario guardado, pero no se pudieron guardar las sucursales adicionales')
+        }
+      }
+
+      onSaved()
     } catch {
       return
     } finally {
@@ -594,6 +610,33 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                     ))}
                   </select>
                 </Field>
+
+                {watch('rol') === 'SUPERVISOR_CAMPO' && (
+                  <div className="md:col-span-2">
+                    <label className="text-[13px] font-medium text-[#495057] mb-1.5 block">
+                      Sucursales adicionales
+                    </label>
+                    <div className="flex flex-wrap gap-3">
+                      {sucursales
+                        .filter((s) => s.id !== Number(watch('sucursal_id')))
+                        .map((s) => (
+                          <label key={s.id} className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="w-3.5 h-3.5 accent-[#2196F3] cursor-pointer"
+                              checked={sucursalesAdicionales.includes(s.id)}
+                              onChange={(e) => {
+                                setSucursalesAdicionales((prev) =>
+                                  e.target.checked ? [...prev, s.id] : prev.filter((id) => id !== s.id),
+                                )
+                              }}
+                            />
+                            <span className="text-[13px] text-[#495057]">{s.nombre}</span>
+                          </label>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
