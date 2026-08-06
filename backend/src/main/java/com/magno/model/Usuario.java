@@ -44,6 +44,8 @@ public class Usuario {
     @JoinColumn(name = "sucursal_id", nullable = false)
     private Sucursal sucursal;
 
+    // EAGER aquí es N+1 (SELECT extra por fila padre), no un JOIN como sucursal/rol arriba —
+    // aceptable a esta escala (23 usuarios), pero no copiar este patrón a una colección más grande.
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
             name = "usuario_sucursal_adicional",
