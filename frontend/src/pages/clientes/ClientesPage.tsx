@@ -12,6 +12,8 @@ import { api, clienteService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { useCajaOperativa } from '@/hooks/useCajaOperativa'
 import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
+import SucursalSelector from '@/components/SucursalSelector'
+import { useSucursalScope } from '@/hooks/useSucursalScope'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
 import type {
   EstadoCliente,
@@ -103,6 +105,7 @@ export default function ClientesPage() {
   const location = useLocation()
   const { usuario } = useAuthStore()
   const { bannerVariant, horaLimite, bloqueado } = useCajaOperativa()
+  const { opciones: sucursalScopeOpciones, sucursalId: sucursalScopeId, setSucursalId: setSucursalScopeId } = useSucursalScope()
 
   const [buscar, setBuscar] = useState('')
   const [filtroEstado, setFiltroEstado] = useState<EstadoCliente | ''>('')
@@ -126,12 +129,12 @@ export default function ClientesPage() {
   const puedeAsignarSucursal = usuario?.rol === 'ADMINISTRADOR'
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['clientes', usuario?.id, usuario?.rol, { buscar, filtroEstado, filtroAsesor, filtroSucursal, pagina }],
+    queryKey: ['clientes', usuario?.id, usuario?.rol, sucursalScopeId, { buscar, filtroEstado, filtroAsesor, filtroSucursal, pagina }],
     queryFn: () => clienteService.listar({
       buscar:      buscar || undefined,
       estado:      filtroEstado || undefined,
       asesorId:    filtroAsesor || undefined,
-      sucursalId:  filtroSucursal || undefined,
+      sucursalId:  filtroSucursal || sucursalScopeId || undefined,
       page: pagina,
       size: 20,
     }),
@@ -294,6 +297,11 @@ export default function ClientesPage() {
               ))}
             </select>
           )}
+          <SucursalSelector
+            opciones={sucursalScopeOpciones}
+            value={sucursalScopeId}
+            onChange={(id) => { setSucursalScopeId(id); setPagina(0) }}
+          />
         </div>
 
         {isLoading ? (
@@ -478,6 +486,7 @@ export default function ClientesPage() {
           asesores={asesores ?? []}
           puedeAsignarAsesor={puedeAsignarAsesor}
           puedeAsignarSucursal={puedeAsignarSucursal}
+          sucursalScopeId={sucursalScopeId}
           onClose={() => {
             setModal({ open: false, cliente: null })
             if (returnToPath) {
@@ -508,11 +517,12 @@ interface ModalProps {
   asesores: { id: number; nombre_completo: string }[]
   puedeAsignarAsesor: boolean
   puedeAsignarSucursal: boolean
+  sucursalScopeId?: number
   onClose: () => void
   onSaved: () => void
 }
 
-export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, onClose, onSaved }: ModalProps) {
+export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, sucursalScopeId, onClose, onSaved }: ModalProps) {
   const isEdit = !!cliente
   const { usuario: authUsuario } = useAuthStore()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -592,8 +602,9 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       asesor_id:           cliente.asesor?.id,
       sucursal_id:         cliente.sucursal.id,
     } : {
-      // Para create mode: auto-fill sucursal del usuario actual si no es admin
-      sucursal_id: authUsuario?.sucursal?.id ?? 0,
+      // Para create mode: prioriza la sucursal actualmente seleccionada (Supervisor con
+      // múltiples sucursales asignadas); si no aplica, cae a la sucursal del usuario.
+      sucursal_id: sucursalScopeId ?? authUsuario?.sucursal?.id ?? 0,
     },
   })
 
@@ -692,7 +703,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       gastos_renta:        data.gastos_renta         || undefined,
       gastos_otros:        data.gastos_otros         || undefined,
       asesor_id:    puedeAsignarAsesor    ? (data.asesor_id || undefined)    : authUsuario?.id,
-      sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : authUsuario!.sucursal.id,
+      sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : (sucursalScopeId ?? authUsuario!.sucursal.id),
       negocio_lat:  mapLat ?? undefined,
       negocio_lng:  mapLng ?? undefined,
     }
