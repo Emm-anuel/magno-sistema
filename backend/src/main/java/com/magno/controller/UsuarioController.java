@@ -1,6 +1,7 @@
 package com.magno.controller;
 
 import com.magno.dto.usuario.PasswordChangeRequest;
+import com.magno.dto.usuario.SucursalesAdicionalesRequest;
 import com.magno.dto.usuario.UsuarioCreateRequest;
 import com.magno.dto.usuario.UsuarioDTO;
 import com.magno.dto.usuario.UsuarioUpdateRequest;
@@ -16,6 +17,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -92,5 +94,21 @@ public class UsuarioController {
             return ResponseEntity.badRequest().build();
         }
         return ResponseEntity.ok(usuarioService.cambiarEstado(id, activo));
+    }
+
+    /** GET /api/usuarios/{id}/sucursales-adicionales */
+    @GetMapping("/{id}/sucursales-adicionales")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    public ResponseEntity<List<UsuarioDTO.SucursalInfo>> getSucursalesAdicionales(@PathVariable Long id) {
+        return ResponseEntity.ok(usuarioService.getSucursalesAdicionales(id));
+    }
+
+    /** PUT /api/usuarios/{id}/sucursales-adicionales  body: { "sucursalIds": [2, 3] } */
+    @PutMapping("/{id}/sucursales-adicionales")
+    @PreAuthorize("hasAuthority('ADMINISTRADOR')")
+    public ResponseEntity<List<UsuarioDTO.SucursalInfo>> setSucursalesAdicionales(
+            @PathVariable Long id,
+            @Valid @RequestBody SucursalesAdicionalesRequest req) {
+        return ResponseEntity.ok(usuarioService.setSucursalesAdicionales(id, req.sucursalIds()));
     }
 }
