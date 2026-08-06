@@ -128,6 +128,16 @@ public class ClienteController {
             @Valid @RequestBody ClienteUpdateRequest req,
             Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
+
+        ClienteDetalleDTO actual = clienteService.obtenerDetalle(id);
+        switch (principal.rol()) {
+            case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
+                if (!securityHelper.tieneAccesoSucursal(principal, actual.sucursal().id())) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
+            }
+        }
+
         ClienteUpdateRequest normalizado = normalizarUpdate(req, principal);
         cajaGuard.validarCajaAbierta(principal, normalizado.sucursalId());
         return ResponseEntity.ok(clienteService.actualizarCliente(id, normalizado));
