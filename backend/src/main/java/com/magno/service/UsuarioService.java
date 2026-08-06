@@ -143,6 +143,9 @@ public class UsuarioService {
         u.setNombreCompleto(req.nombreCompleto());
         u.setTelefono(req.telefono());
         u.setRol(rol);
+        if (!"SUPERVISOR_CAMPO".equals(rol.getNombre())) {
+            u.getSucursalesAdicionales().clear();
+        }
         u.setSucursal(sucursal);
         u.setCalle(req.calle());
         u.setNoExterior(req.noExterior());
@@ -220,7 +223,7 @@ public class UsuarioService {
         }
 
         java.util.List<Sucursal> sucursales = sucursalRepo.findAllById(sucursalIds);
-        if (sucursales.size() != sucursalIds.size()) {
+        if (sucursales.size() != new java.util.HashSet<>(sucursalIds).size()) {
             throw new EntityNotFoundException("Una o más sucursales no existen");
         }
 
