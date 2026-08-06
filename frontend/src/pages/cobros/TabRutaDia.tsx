@@ -246,6 +246,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
         <ModalPagarAdeudo
           creditoId={abonoModal.creditoId}
           nombreCliente={abonoModal.nombreCompleto}
+          modo={abonoModal.tieneAdeudoPendiente ? 'adeudo' : 'futuro'}
           onClose={() => setAbonoModal(null)}
           onSuccess={() => setAbonoModal(null)}
         />
@@ -270,6 +271,9 @@ function ClienteCard({
   esFechaHistorica: boolean
 }) {
   const puedePagarAdeudo = c.tieneAdeudoPendiente && !esFechaHistorica
+  const puedeAbonarFuturo = !c.tieneAdeudoPendiente
+    && !esFechaHistorica
+    && (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'INHABIL' || c.estadoHoy === 'INHABILL')
   const puedeRegistrarCorriente = puedeRegistrar && !puedePagarAdeudo
 
   return (
@@ -327,6 +331,15 @@ function ClienteCard({
               Pagar adeudo
             </button>
           )}
+          {puedeAbonarFuturo && (
+            <button
+              type="button"
+              onClick={onPagarAdeudo}
+              className="py-2.5 px-4 rounded-lg border-2 border-blue-600 text-blue-700 text-[13px] font-semibold hover:bg-blue-50 min-w-[80px]"
+            >
+              Adelantar pagos
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -347,6 +360,9 @@ function ClienteRow({
   esFechaHistorica: boolean
 }) {
   const puedePagarAdeudo = c.tieneAdeudoPendiente && !esFechaHistorica
+  const puedeAbonarFuturo = !c.tieneAdeudoPendiente
+    && !esFechaHistorica
+    && (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'INHABIL' || c.estadoHoy === 'INHABILL')
   const puedeRegistrarCorriente = puedeRegistrar && !puedePagarAdeudo
 
   return (
@@ -387,6 +403,15 @@ function ClienteRow({
               className="btn btn-sm border-[#d97706] text-[#d97706] hover:bg-[#fef3c7]"
             >
               Pagar adeudo
+            </button>
+          )}
+          {puedeAbonarFuturo && (
+            <button
+              type="button"
+              onClick={onPagarAdeudo}
+              className="btn btn-sm border-blue-600 text-blue-700 hover:bg-blue-50"
+            >
+              Adelantar pagos
             </button>
           )}
         </div>

@@ -303,4 +303,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V38-usuarios-fechas-personales-laborales" author="magno">
+        <sqlFile
+            path="db/changelog/V38__usuarios_fechas_personales_laborales.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -35,6 +36,12 @@ public class Usuario {
 
     @Column(nullable = false, length = 20)
     private String telefono;
+
+    @Column(name = "fecha_nacimiento")
+    private LocalDate fechaNacimiento;
+
+    @Column(name = "fecha_ingreso")
+    private LocalDate fechaIngreso;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "rol_id", nullable = false)

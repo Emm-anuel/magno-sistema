@@ -471,8 +471,10 @@ public class CreditoService {
                                 c.getSucursal().getId(), fechaDesembolso, EstadoCaja.CERRADA);
                 if (cajaYaCerrada) {
                         throw new IllegalArgumentException(
-                                        "No se puede revertir: la caja del día del desembolso ("
-                                                        + fechaDesembolso + ") ya fue cerrada.");
+                                        "No se puede revertir este desembolso porque la caja correspondiente al "
+                                                        + fechaDesembolso
+                                                        + " ya está cerrada y sus movimientos fueron consolidados. "
+                                                        + "Para continuar, primero reabre la caja de esa fecha y vuelve a intentar la reversión.");
                 }
 
                 calendarioPagoRepo.deleteByCreditoId(c.getId());

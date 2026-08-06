@@ -70,6 +70,8 @@ export interface Usuario {
   nombre_completo: string
   email: string
   telefono: string
+  fecha_nacimiento?: string
+  fecha_ingreso?: string
   rol: Rol
   sucursal: Sucursal
   sucursales_adicionales: Sucursal[]
@@ -101,6 +103,8 @@ export interface UsuarioCreateRequest {
   email: string
   password: string
   telefono: string
+  fecha_nacimiento: string
+  fecha_ingreso: string
   rol: Rol
   sucursal_id: number
   calle: string
@@ -124,6 +128,8 @@ export interface UsuarioCreateRequest {
 export interface UsuarioUpdateRequest {
   nombre_completo: string
   telefono: string
+  fecha_nacimiento: string
+  fecha_ingreso: string
   rol: Rol
   sucursal_id: number
   calle: string

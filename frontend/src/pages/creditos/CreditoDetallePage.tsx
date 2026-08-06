@@ -107,6 +107,7 @@ export default function CreditoDetallePage() {
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
   const [adeudoOpen, setAdeudoOpen] = useState(false)
+  const [adelantoOpen, setAdelantoOpen] = useState(false)
   const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
   const [revertirOpen, setRevertirOpen] = useState(false)
   const [revertirMotivo, setRevertirMotivo] = useState('')
@@ -250,6 +251,9 @@ export default function CreditoDetallePage() {
   const fechaPago = hoyIso
   const pagoPendienteHoy = calendario.find(
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada?.slice(0, 10) === fechaPago,
+  )
+  const tienePagosFuturos = calendario.some(
+    (p) => p.estado === 'PENDIENTE' && p.fechaProgramada?.slice(0, 10) > fechaPago,
   )
   const siguientePendiente = calendario.find((p) => p.estado === 'PENDIENTE')
   const numeroPagoHoy = pagoPendienteHoy?.numeroPago ?? siguientePendiente?.numeroPago ?? null
@@ -397,6 +401,15 @@ export default function CreditoDetallePage() {
               onClick={() => setAdeudoOpen(true)}
             >
               Pagar adeudo
+            </button>
+          )}
+          {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) &&
+            !tieneAdeudoPendiente && !pagoPendienteHoy && tienePagosFuturos && (
+            <button
+              className="btn btn-sm border-blue-600 text-blue-700 hover:bg-blue-50"
+              onClick={() => setAdelantoOpen(true)}
+            >
+              Adelantar pagos
             </button>
           )}
           {credito.estado === 'ACTIVO' && esAdminSupervisor &&
@@ -1117,6 +1130,21 @@ export default function CreditoDetallePage() {
           onClose={() => setAdeudoOpen(false)}
           onSuccess={() => {
             setAdeudoOpen(false)
+            qc.invalidateQueries({ queryKey: ['credito', numId] })
+            qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
+            qc.invalidateQueries({ queryKey: ['abonos-credito', numId] })
+          }}
+        />
+      )}
+
+      {adelantoOpen && (
+        <ModalPagarAdeudo
+          creditoId={numId}
+          nombreCliente={credito.cliente.nombreCompleto}
+          modo="futuro"
+          onClose={() => setAdelantoOpen(false)}
+          onSuccess={() => {
+            setAdelantoOpen(false)
             qc.invalidateQueries({ queryKey: ['credito', numId] })
             qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
             qc.invalidateQueries({ queryKey: ['abonos-credito', numId] })

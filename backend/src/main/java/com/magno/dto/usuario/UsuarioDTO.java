@@ -1,6 +1,7 @@
 package com.magno.dto.usuario;
 
 import com.magno.model.Usuario;
+import java.time.LocalDate;
 
 import java.util.List;
 
@@ -12,6 +13,8 @@ public record UsuarioDTO(
                 String nombreCompleto,
                 String email,
                 String telefono,
+                LocalDate fechaNacimiento,
+                LocalDate fechaIngreso,
                 String rol,
                 SucursalInfo sucursal,
                 List<SucursalInfo> sucursalesAdicionales,
@@ -59,6 +62,8 @@ public record UsuarioDTO(
                                 u.getNombreCompleto(),
                                 u.getEmail(),
                                 u.getTelefono(),
+                                u.getFechaNacimiento(),
+                                u.getFechaIngreso(),
                                 u.getRol().getNombre(),
                                 s,
                                 adicionales,

@@ -10,6 +10,7 @@ import type { AbonoCoberturaDTO } from '@/types'
 interface Props {
   creditoId: number
   nombreCliente: string
+  modo?: 'adeudo' | 'futuro'
   onClose: () => void
   onSuccess: () => void
 }
@@ -129,7 +130,7 @@ function computeDistribucion(
   return rows
 }
 
-export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, onSuccess }: Props) {
+export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'adeudo', onClose, onSuccess }: Props) {
   const qc = useQueryClient()
   const hoy = useMemo(() => todayLocalStr(), [])
   const [monto, setMonto] = useState('')
@@ -250,7 +251,9 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef] sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-[15px] font-semibold text-[#212529]">Pagar adeudo</h2>
+            <h2 className="text-[15px] font-semibold text-[#212529]">
+              {modo === 'futuro' ? 'Adelantar pagos' : 'Pagar adeudo'}
+            </h2>
             <p className="text-[12px] text-[#6c757d] mt-0.5">{nombreCliente}</p>
           </div>
           <button type="button" onClick={onClose} className="btn btn-sm p-1.5">
@@ -370,7 +373,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, onClose, on
             onClick={() => mutation.mutate()}
             className="flex-1 py-3 rounded-lg border-2 border-[#d97706] bg-[#d97706] text-white text-[14px] font-semibold hover:bg-[#b45309] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {mutation.isPending ? 'Registrando...' : 'Confirmar abono'}
+            {mutation.isPending ? 'Registrando...' : modo === 'futuro' ? 'Confirmar adelanto' : 'Confirmar abono'}
           </button>
         </div>
       </div>

@@ -128,6 +128,15 @@ function Campo({ label, value }: { label: string; value?: string | null }) {
   )
 }
 
+function fmtFecha(fecha?: string | null) {
+  if (!fecha) return null
+  return new Date(`${fecha.slice(0, 10)}T12:00:00`).toLocaleDateString('es-MX', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  })
+}
+
 // ── Badge de Rol ──────────────────────────────────────────────────
 function RolBadge({ rol }: { rol: string }) {
   const map: Record<string, string> = {
@@ -223,6 +232,8 @@ export default function UsuarioDetallePage() {
             <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Campo label="Teléfono" value={u.telefono} />
               <Campo label="Sucursal" value={u.sucursal.nombre} />
+              <Campo label="Fecha de nacimiento" value={fmtFecha(u.fecha_nacimiento)} />
+              <Campo label="Fecha de ingreso" value={fmtFecha(u.fecha_ingreso)} />
               <Campo label="No. de INE" value={u.ine_numero} />
             </div>
           </div>

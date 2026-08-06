@@ -11,6 +11,7 @@ import { ROL_LABELS } from '@/types'
 import type { Rol, Usuario, UsuarioCreateRequest, UsuarioUpdateRequest } from '@/types'
 import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
+import { todayLocalStr } from '@/utils/date'
 
 // ── Tipos ─────────────────────────────────────────────────────────
 const ROLES: Rol[] = ['ADMINISTRADOR', 'SUPERVISOR', 'SUPERVISOR_CAMPO', 'ASESOR_COBRADOR']
@@ -21,6 +22,14 @@ const baseSchema = {
   nombre_completo: z.string().min(2, 'Requerido'),
   email:           z.string().email('Correo inválido'),
   telefono:        z.string().min(10, 'Mínimo 10 dígitos'),
+  fecha_nacimiento: z.string().min(1, 'Requerido').refine(
+    (fecha) => fecha < todayLocalStr(),
+    'Debe ser anterior a hoy',
+  ),
+  fecha_ingreso: z.string().min(1, 'Requerido').refine(
+    (fecha) => fecha <= todayLocalStr(),
+    'No puede ser futura',
+  ),
   rol:             z.enum(['ADMINISTRADOR', 'SUPERVISOR', 'SUPERVISOR_CAMPO', 'ASESOR_COBRADOR'] as const),
   sucursal_id:     z.coerce.number().min(1, 'Requerido'),
   calle:           z.string().min(1, 'Requerido'),
@@ -381,6 +390,8 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
           nombre_completo: usuario.nombre_completo,
           email:           usuario.email,
           telefono:        usuario.telefono,
+          fecha_nacimiento: usuario.fecha_nacimiento ?? '',
+          fecha_ingreso:   usuario.fecha_ingreso ?? '',
           rol:             usuario.rol,
           sucursal_id:     usuario.sucursal.id,
           calle:           usuario.calle ?? '',
@@ -592,6 +603,24 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
 
                 <Field label="Teléfono *" error={errors.telefono?.message}>
                   <input {...register('telefono')} className={`input ${errors.telefono ? 'input-error' : ''}`} placeholder="10 dígitos" />
+                </Field>
+
+                <Field label="Fecha de nacimiento *" error={errors.fecha_nacimiento?.message}>
+                  <input
+                    {...register('fecha_nacimiento')}
+                    type="date"
+                    max={todayLocalStr()}
+                    className={`input ${errors.fecha_nacimiento ? 'input-error' : ''}`}
+                  />
+                </Field>
+
+                <Field label="Fecha de ingreso *" error={errors.fecha_ingreso?.message}>
+                  <input
+                    {...register('fecha_ingreso')}
+                    type="date"
+                    max={todayLocalStr()}
+                    className={`input ${errors.fecha_ingreso ? 'input-error' : ''}`}
+                  />
                 </Field>
 
                 <Field label="Rol *" error={errors.rol?.message}>

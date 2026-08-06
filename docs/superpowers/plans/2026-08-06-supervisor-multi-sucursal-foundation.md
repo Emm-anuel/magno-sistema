@@ -1445,7 +1445,7 @@ Expected: `200`, returns clients from `<otraSucursalId>` (not filtered out or 40
 curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:8080/api/clientes?sucursalId=<sucursalNoAsignadaId>" -H "Authorization: Bearer $TOKEN"
 ```
 
-Expected: still `200` but the switch statement falls back silently to the home sucursal per current behavior for an invalid explicit filter — confirm by checking the response only contains clients from the supervisor's home sucursal, not `<sucursalNoAsignadaId>`. (Note: this endpoint returns 200 with home-scoped results rather than 403 for an unauthorized `sucursalId` filter — that's the existing `listar` pattern preserved from Step 2 of Task 14; only `obtener`/document endpoints return 403 for out-of-scope access to a specific resource.)
+Expected: `403`. As implemented, Task 14 Step 2 validates an explicitly-passed `sucursalId` via `tieneAccesoSucursal` and returns 403 for one the caller can't access — it only falls back silently to the home sucursal when no `sucursalId` is passed at all. (This note originally assumed silent fallback for an invalid explicit filter too; corrected after Task 14's code review confirmed the actual shipped behavior.)
 
 - [ ] **Step 4: Open a specific client that belongs to the assigned (non-home) sucursal**
 

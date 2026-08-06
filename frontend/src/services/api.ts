@@ -10,6 +10,8 @@ function normalizeUsuario(raw: any): AuthResponse['usuario'] {
     nombre_completo: raw?.nombre_completo ?? raw?.nombreCompleto ?? '',
     email: raw?.email ?? '',
     telefono: raw?.telefono ?? '',
+    fecha_nacimiento: raw?.fecha_nacimiento ?? raw?.fechaNacimiento,
+    fecha_ingreso: raw?.fecha_ingreso ?? raw?.fechaIngreso,
     rol: raw?.rol,
     sucursal: {
       id: sucursal?.id,
@@ -181,6 +183,8 @@ function toUsuarioRequestPayload(data: any) {
     email: data?.email,
     password: data?.password,
     telefono: data?.telefono,
+    fechaNacimiento: data?.fechaNacimiento ?? data?.fecha_nacimiento,
+    fechaIngreso: data?.fechaIngreso ?? data?.fecha_ingreso,
     rol: data?.rol,
     sucursalId: data?.sucursalId ?? data?.sucursal_id,
     calle: data?.calle,

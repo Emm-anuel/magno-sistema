@@ -4,6 +4,9 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.PastOrPresent;
+import java.time.LocalDate;
 
 public record UsuarioCreateRequest(
 
@@ -20,6 +23,14 @@ public record UsuarioCreateRequest(
 
         @NotBlank(message = "telefono no debe estar vacío")
         String telefono,
+
+        @NotNull(message = "fechaNacimiento no debe ser nula")
+        @Past(message = "fechaNacimiento debe ser anterior a hoy")
+        LocalDate fechaNacimiento,
+
+        @NotNull(message = "fechaIngreso no debe ser nula")
+        @PastOrPresent(message = "fechaIngreso no puede ser futura")
+        LocalDate fechaIngreso,
 
         @NotBlank(message = "rol no debe estar vacío")
         String rol,

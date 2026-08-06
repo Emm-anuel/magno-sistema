@@ -88,6 +88,8 @@ public class UsuarioService {
                 .email(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .telefono(req.telefono())
+                .fechaNacimiento(req.fechaNacimiento())
+                .fechaIngreso(req.fechaIngreso())
                 .rol(rol)
                 .sucursal(sucursal)
                 .calle(req.calle())
@@ -142,6 +144,8 @@ public class UsuarioService {
 
         u.setNombreCompleto(req.nombreCompleto());
         u.setTelefono(req.telefono());
+        u.setFechaNacimiento(req.fechaNacimiento());
+        u.setFechaIngreso(req.fechaIngreso());
         u.setRol(rol);
         if (!"SUPERVISOR_CAMPO".equals(rol.getNombre())) {
             u.getSucursalesAdicionales().clear();
