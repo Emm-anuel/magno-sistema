@@ -20,10 +20,19 @@ public class CajaGuard {
         this.cajaDiaRepo = cajaDiaRepo;
     }
 
+    /** Valida contra la sucursal home del usuario (comportamiento sin cambios). */
     public void validarCajaAbierta(JwtPrincipal principal) {
+        validarCajaAbierta(principal, principal.sucursalId());
+    }
+
+    /**
+     * Valida contra una sucursal explícita — para roles con acceso a más de una sucursal,
+     * usar la sucursal efectiva de la operación en curso, no siempre la sucursal home.
+     */
+    public void validarCajaAbierta(JwtPrincipal principal, Long sucursalId) {
         if (!ROLES_BLOQUEADOS.contains(principal.rol())) return;
         boolean abierta = cajaDiaRepo.existsBySucursalIdAndFechaAndEstado(
-                principal.sucursalId(), DateTimeUtils.hoyEnMagno(), EstadoCaja.ABIERTA);
+                sucursalId, DateTimeUtils.hoyEnMagno(), EstadoCaja.ABIERTA);
         if (!abierta) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "No es posible registrar operaciones — la caja está cerrada");
