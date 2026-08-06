@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "usuarios")
@@ -41,6 +43,14 @@ public class Usuario {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "sucursal_id", nullable = false)
     private Sucursal sucursal;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+            name = "usuario_sucursal_adicional",
+            joinColumns = @JoinColumn(name = "usuario_id"),
+            inverseJoinColumns = @JoinColumn(name = "sucursal_id"))
+    @Builder.Default
+    private Set<Sucursal> sucursalesAdicionales = new HashSet<>();
 
     // ── Domicilio ──────────────────────────────────────────────────
     @Column(nullable = false, length = 150)
