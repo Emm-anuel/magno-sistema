@@ -19,4 +19,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>,
     List<Usuario> findBySucursalId(Long sucursalId);
 
     boolean existsByEmail(String email);
+
+    /** Usado por SecurityHelper.tieneAccesoSucursal para validar sucursales adicionales. */
+    boolean existsByIdAndSucursalesAdicionales_Id(Long usuarioId, Long sucursalId);
 }
