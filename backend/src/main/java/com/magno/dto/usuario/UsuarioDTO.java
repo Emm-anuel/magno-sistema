@@ -2,10 +2,10 @@ package com.magno.dto.usuario;
 
 import com.magno.model.Usuario;
 
+import java.util.List;
+
 /**
  * Respuesta pública del usuario — nunca incluye password_hash.
- * Los nombres de campo en camelCase se serializar a snake_case via Jackson
- * SNAKE_CASE strategy.
  */
 public record UsuarioDTO(
                 Long id,
@@ -14,6 +14,7 @@ public record UsuarioDTO(
                 String telefono,
                 String rol,
                 SucursalInfo sucursal,
+                List<SucursalInfo> sucursalesAdicionales,
                 Boolean activo,
                 String ineNumero,
                 String ineImagenUrl,
@@ -40,16 +41,18 @@ public record UsuarioDTO(
                         String direccion,
                         String telefono,
                         Boolean activa) {
+
+                static SucursalInfo from(com.magno.model.Sucursal s) {
+                        return new SucursalInfo(s.getId(), s.getNombre(), s.getDireccion(), s.getTelefono(), s.getActiva());
+                }
         }
 
         /** Convierte una entidad Usuario a DTO. */
         public static UsuarioDTO from(Usuario u) {
-                SucursalInfo s = new SucursalInfo(
-                                u.getSucursal().getId(),
-                                u.getSucursal().getNombre(),
-                                u.getSucursal().getDireccion(),
-                                u.getSucursal().getTelefono(),
-                                u.getSucursal().getActiva());
+                SucursalInfo s = SucursalInfo.from(u.getSucursal());
+                List<SucursalInfo> adicionales = u.getSucursalesAdicionales().stream()
+                                .map(SucursalInfo::from)
+                                .toList();
                 return new UsuarioDTO(
                                 u.getId(),
                                 u.getNombreCompleto(),
@@ -57,6 +60,7 @@ public record UsuarioDTO(
                                 u.getTelefono(),
                                 u.getRol().getNombre(),
                                 s,
+                                adicionales,
                                 u.getActivo(),
                                 u.getIneNumero(),
                                 u.getIneImagenUrl(),
