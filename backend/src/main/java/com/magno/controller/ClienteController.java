@@ -7,6 +7,7 @@ import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
+import com.magno.security.SecurityHelper;
 import com.magno.service.ClientePdfService;
 import com.magno.service.ClienteService;
 import jakarta.validation.Valid;
@@ -32,13 +33,16 @@ public class ClienteController {
     private final ClienteService clienteService;
     private final ClientePdfService clientePdfService;
     private final CajaGuard cajaGuard;
+    private final SecurityHelper securityHelper;
 
     public ClienteController(ClienteService clienteService,
                              ClientePdfService clientePdfService,
-                             CajaGuard cajaGuard) {
+                             CajaGuard cajaGuard,
+                             SecurityHelper securityHelper) {
         this.clienteService    = clienteService;
         this.clientePdfService = clientePdfService;
         this.cajaGuard         = cajaGuard;
+        this.securityHelper    = securityHelper;
     }
 
     /**
@@ -67,9 +71,11 @@ public class ClienteController {
                 // Solo ve sus propios clientes
                 asesorId = principal.userId();
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
-                // Ve solo los clientes de su sucursal
-                if (sucursalId == null)
+                if (sucursalId == null) {
                     sucursalId = principal.sucursalId();
+                } else if (!securityHelper.tieneAccesoSucursal(principal, sucursalId)) {
+                    return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+                }
             }
             // ADMINISTRADOR: sin restricción automática
         }
@@ -92,7 +98,7 @@ public class ClienteController {
                 }
             }
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
-                if (!dto.sucursal().id().equals(principal.sucursalId())) {
+                if (!securityHelper.tieneAccesoSucursal(principal, dto.sucursal().id())) {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
                 }
             }
@@ -108,8 +114,8 @@ public class ClienteController {
             @Valid @RequestBody ClienteCreateRequest req,
             Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
-        cajaGuard.validarCajaAbierta(principal);
         ClienteCreateRequest normalizado = normalizarCreate(req, principal);
+        cajaGuard.validarCajaAbierta(principal, normalizado.sucursalId());
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(clienteService.crearCliente(normalizado, principal.userId()));
     }
@@ -122,8 +128,8 @@ public class ClienteController {
             @Valid @RequestBody ClienteUpdateRequest req,
             Authentication auth) {
         JwtPrincipal principal = getPrincipal(auth);
-        cajaGuard.validarCajaAbierta(principal);
         ClienteUpdateRequest normalizado = normalizarUpdate(req, principal);
+        cajaGuard.validarCajaAbierta(principal, normalizado.sucursalId());
         return ResponseEntity.ok(clienteService.actualizarCliente(id, normalizado));
     }
 
@@ -189,6 +195,18 @@ public class ClienteController {
     }
 
     /**
+     * Para SUPERVISOR/SUPERVISOR_CAMPO: usa el sucursalId que mandó el request si el
+     * usuario tiene acceso a esa sucursal (home o adicional asignada); si no vino o no
+     * tiene acceso, cae a su sucursal home.
+     */
+    private Long resolverSucursalEfectiva(Long sucursalIdSolicitado, JwtPrincipal p) {
+        if (sucursalIdSolicitado != null && securityHelper.tieneAccesoSucursal(p, sucursalIdSolicitado)) {
+            return sucursalIdSolicitado;
+        }
+        return p.sucursalId();
+    }
+
+    /**
      * Normaliza el request de creación según el rol:
      * - ASESOR_COBRADOR: fuerza su propio id como asesorId y su sucursal como
      * sucursalId.
@@ -241,7 +259,7 @@ public class ClienteController {
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
                     req.asesorId(), // puede elegir asesor
-                    p.sucursalId() // sucursalId forzado
+                    resolverSucursalEfectiva(req.sucursalId(), p)
                 );
             default -> req; // ADMINISTRADOR sin cambios
         };
@@ -285,7 +303,7 @@ public class ClienteController {
             case "ASESOR_COBRADOR" ->
                     (dto.asesor() != null && dto.asesor().id().equals(p.userId())) ? dto : null;
             case "SUPERVISOR", "SUPERVISOR_CAMPO" ->
-                    dto.sucursal().id().equals(p.sucursalId()) ? dto : null;
+                    securityHelper.tieneAccesoSucursal(p, dto.sucursal().id()) ? dto : null;
             default -> dto;
         };
     }
@@ -313,7 +331,7 @@ public class ClienteController {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
-                if (!dto.sucursal().id().equals(principal.sucursalId()))
+                if (!securityHelper.tieneAccesoSucursal(principal, dto.sucursal().id()))
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
         }
@@ -334,7 +352,7 @@ public class ClienteController {
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             case "SUPERVISOR", "SUPERVISOR_CAMPO" -> {
-                if (!dto.sucursal().id().equals(principal.sucursalId()))
+                if (!securityHelper.tieneAccesoSucursal(principal, dto.sucursal().id()))
                     return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
         }
@@ -400,7 +418,7 @@ public class ClienteController {
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
                     req.asesorId(), // puede elegir asesor
-                    p.sucursalId() // sucursalId forzado
+                    resolverSucursalEfectiva(req.sucursalId(), p)
                 );
             default -> req; // ADMINISTRADOR sin cambios
         };
