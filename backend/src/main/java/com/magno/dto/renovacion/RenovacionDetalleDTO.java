@@ -26,6 +26,7 @@ public record RenovacionDetalleDTO(
                 String tipoPago,
                 int pagosRestantes,
                 BigDecimal montoPagosRestantes,
+                int pagosConAbonoParcial,
                 BigDecimal multasPendientes,
                 BigDecimal multasCondonadas,
                 String motivoCondonacion,
@@ -43,10 +44,15 @@ public record RenovacionDetalleDTO(
                         BigDecimal pagoPeriodico, String estado) {}
 
         public static RenovacionDetalleDTO from(Renovacion r) {
-                return from(r, List.of());
+                return from(r, List.of(), 0);
         }
 
         public static RenovacionDetalleDTO from(Renovacion r, List<MultaCondonadaDTO> condonadasDetalle) {
+                return from(r, condonadasDetalle, 0);
+        }
+
+        public static RenovacionDetalleDTO from(Renovacion r, List<MultaCondonadaDTO> condonadasDetalle,
+                        int pagosConAbonoParcial) {
                 CreditoInfo creditoNuevoInfo = null;
                 if (r.getCreditoNuevo() != null) {
                         creditoNuevoInfo = new CreditoInfo(
@@ -102,6 +108,7 @@ public record RenovacionDetalleDTO(
                                 r.getTipoPago().name(),
                                 r.getPagosRestantes(),
                                 r.getMontoPagosRestantes(),
+                                pagosConAbonoParcial,
                                 r.getMultasPendientes(),
                                 r.getMultasCondonadas(),
                                 motivoCond,

@@ -38,10 +38,13 @@ public class RenovacionService {
 
         private static final Logger log = Logger.getLogger(RenovacionService.class.getName());
 
+        // PARCIAL no se incluye: un día con abono parcial ya se trata como resuelto
+        // (ver CobrosService.verificarCreditoCompletado, que lo agrupa junto con
+        // PAGADO/ADELANTADO/RECUPERADO), por lo que no debe contarse otra vez como
+        // pago restante a cobrar en su totalidad al renovar.
         private static final List<EstadoCalendarioPago> ESTADOS_PENDIENTES = List.of(
                         EstadoCalendarioPago.PENDIENTE,
                         EstadoCalendarioPago.NO_PAGADO,
-                        EstadoCalendarioPago.PARCIAL,
                         EstadoCalendarioPago.RECUPERADO_PARCIAL);
 
         private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS =
@@ -100,6 +103,7 @@ public class RenovacionService {
                 int numPagosRestantes = pagosPendientes.size();
                 BigDecimal montoPagosRestantes = credito.getPagoPeriodico()
                                 .multiply(BigDecimal.valueOf(numPagosRestantes));
+                int pagosConAbonoParcial = contarPagosConAbonoParcial(creditoId);
 
                 BigDecimal multasPendientes = multaRepo.sumMontosPendientesByCreditoId(creditoId);
 
@@ -126,6 +130,7 @@ public class RenovacionService {
                                 montoNuevo,
                                 numPagosRestantes,
                                 montoPagosRestantes,
+                                pagosConAbonoParcial,
                                 multasPendientes,
                                 pagoAdelantado,
                                 desembolso,
@@ -510,7 +515,8 @@ public class RenovacionService {
                 return renovacionRepo
                                 .findPendientes(asesorId, sucursalId)
                                 .stream()
-                                .map(r -> RenovacionDetalleDTO.from(r, cargarCondonadasDetalle(r)))
+                                .map(r -> RenovacionDetalleDTO.from(r, cargarCondonadasDetalle(r),
+                                                contarPagosConAbonoParcial(r.getCreditoAnterior().getId())))
                                 .toList();
         }
 
@@ -692,6 +698,11 @@ public class RenovacionService {
         // ────────────────────────────────────────────────────────────────────
         // Helpers
         // ────────────────────────────────────────────────────────────────────
+
+        private int contarPagosConAbonoParcial(Long creditoId) {
+                return (int) calendarioPagoRepo.countByCreditoIdAndEstadoIn(
+                                creditoId, List.of(EstadoCalendarioPago.PARCIAL));
+        }
 
         private List<MultaCondonadaDTO> cargarCondonadasDetalle(Renovacion r) {
                 if (r.getMultasCondonadas() == null

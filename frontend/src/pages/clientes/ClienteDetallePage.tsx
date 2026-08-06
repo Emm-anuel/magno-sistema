@@ -832,8 +832,17 @@ export default function ClienteDetallePage() {
                               <td className="text-right font-semibold text-[#2d6a4f]">
                                 {fmtMoney(a.montoDistribuido)}
                               </td>
-                              <td className="text-right text-[#dc2626]">
-                                {Number(a.montoMulta ?? 0) > 0 ? fmtMoney(a.montoMulta) : '—'}
+                              <td className="text-right">
+                                {Number(a.montoMulta ?? 0) > 0
+                                  ? (
+                                    <span className="text-blue-700" title="Multa cubierta con este abono">
+                                      {fmtMoney(a.montoMulta)}
+                                      <span className="block text-[10px] font-normal leading-tight">
+                                        cubierta con abono
+                                      </span>
+                                    </span>
+                                  )
+                                  : <span className="text-[#6c757d]">—</span>}
                               </td>
                               <td>
                                 <span className={`badge ${esParcial ? 'badge-amarillo' : 'badge-verde'}`}>

@@ -683,6 +683,10 @@ export default function CreditoDetallePage() {
                         multasPagoPorNumero[pago.numeroPago] ?? 0,
                         multasAbonoPorNumero[pago.numeroPago] ?? 0,
                       )
+                      const multaCubiertaAbono =
+                        esAbono
+                        && multaFila > 0
+                        && (multasAbonoPorNumero[pago.numeroPago] ?? 0) >= multaFila
 
                       return (
                         <tr key={pago.id} className={rowClass}>
@@ -710,7 +714,16 @@ export default function CreditoDetallePage() {
                           {hayMultasCalendario && (
                             <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">
                               {multaFila > 0
-                                ? <span className="text-[#dc2626]">{fmtMoney(multaFila)}</span>
+                                ? multaCubiertaAbono
+                                  ? (
+                                    <span className="text-blue-700" title="Multa cubierta con un abono">
+                                      {fmtMoney(multaFila)}
+                                      <span className="block text-[10px] font-sans font-normal leading-tight">
+                                        cubierta con abono
+                                      </span>
+                                    </span>
+                                  )
+                                  : <span className="text-[#dc2626]">{fmtMoney(multaFila)}</span>
                                 : <span className="text-gray-400">—</span>}
                             </td>
                           )}

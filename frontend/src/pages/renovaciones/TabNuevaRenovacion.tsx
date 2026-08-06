@@ -436,6 +436,15 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
                         {fmt(calculo.montoDesembolso)}
                       </span>
                     </div>
+                    {calculo.pagosConAbonoParcial > 0 && (
+                      <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 mt-1">
+                        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        <p className="text-xs text-amber-700">
+                          {calculo.pagosConAbonoParcial} pago{calculo.pagosConAbonoParcial !== 1 ? 's' : ''} con abono parcial —
+                          no está incluido en "Pagos restantes" ni se cobrará al renovar
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

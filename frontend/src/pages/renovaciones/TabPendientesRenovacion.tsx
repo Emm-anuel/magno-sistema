@@ -266,6 +266,16 @@ function TarjetaPendiente({
             </div>
           )}
 
+          {r.pagosConAbonoParcial > 0 && (
+            <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <p className="text-xs text-amber-700">
+                {r.pagosConAbonoParcial} pago{r.pagosConAbonoParcial !== 1 ? 's' : ''} con abono parcial incompleto —
+                no está incluido en el adeudo a liquidar
+              </p>
+            </div>
+          )}
+
           {r.garantiaDescripcion && (
             <div>
               <p className="text-xs text-gray-400 mb-0.5">Garantía material</p>

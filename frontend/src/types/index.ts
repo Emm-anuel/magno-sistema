@@ -659,6 +659,7 @@ export interface RenovacionCalculo {
   montoNuevo: number
   pagosRestantes: number
   montoPagosRestantes: number
+  pagosConAbonoParcial: number
   multasPendientes: number
   pagoAdelantadoNuevo: number
   montoDesembolso: number
@@ -689,6 +690,7 @@ export interface RenovacionDetalle {
   tipoPago: TipoPago
   pagosRestantes: number
   montoPagosRestantes: number
+  pagosConAbonoParcial: number
   multasPendientes: number
   multasCondonadas: number
   motivoCondonacion: string | null
