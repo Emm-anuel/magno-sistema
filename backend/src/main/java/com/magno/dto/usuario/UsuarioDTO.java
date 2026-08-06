@@ -42,7 +42,8 @@ public record UsuarioDTO(
                         String telefono,
                         Boolean activa) {
 
-                static SucursalInfo from(com.magno.model.Sucursal s) {
+                /** Convierte una entidad Sucursal a su representación resumida. */
+                public static SucursalInfo from(com.magno.model.Sucursal s) {
                         return new SucursalInfo(s.getId(), s.getNombre(), s.getDireccion(), s.getTelefono(), s.getActiva());
                 }
         }
