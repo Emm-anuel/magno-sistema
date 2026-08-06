@@ -1,6 +1,7 @@
 package com.magno.service;
 
 import com.magno.dto.usuario.UsuarioDTO;
+import com.magno.dto.usuario.UsuarioUpdateRequest;
 import com.magno.model.Rol;
 import com.magno.model.Sucursal;
 import com.magno.model.Usuario;
@@ -126,5 +127,55 @@ class UsuarioServiceTest {
         List<UsuarioDTO.SucursalInfo> resultado = service.getSucursalesAdicionales(USUARIO_ID);
 
         assertThat(resultado).extracting(UsuarioDTO.SucursalInfo::id).containsExactly(2L);
+    }
+
+    @Test
+    void actualizar_cambiaRolFueraDeSupervisorCampo_limpiaSucursalesAdicionales() {
+        supervisorCampo.setSucursalesAdicionales(new HashSet<>(List.of(adicional1)));
+        when(rolRepo.findByNombre("ADMINISTRADOR")).thenReturn(Optional.of(rolAdministrador));
+        when(sucursalRepo.findById(1L)).thenReturn(Optional.of(home));
+        when(usuarioRepo.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.actualizar(USUARIO_ID, usuarioUpdateRequest("ADMINISTRADOR", 1L));
+
+        assertThat(supervisorCampo.getSucursalesAdicionales()).isEmpty();
+    }
+
+    @Test
+    void actualizar_mantieneRolSupervisorCampo_noTocaSucursalesAdicionales() {
+        supervisorCampo.setSucursalesAdicionales(new HashSet<>(List.of(adicional1)));
+        when(rolRepo.findByNombre("SUPERVISOR_CAMPO")).thenReturn(Optional.of(rolSupervisorCampo));
+        when(sucursalRepo.findById(1L)).thenReturn(Optional.of(home));
+        when(usuarioRepo.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        service.actualizar(USUARIO_ID, usuarioUpdateRequest("SUPERVISOR_CAMPO", 1L));
+
+        assertThat(supervisorCampo.getSucursalesAdicionales()).containsExactly(adicional1);
+    }
+
+    private UsuarioUpdateRequest usuarioUpdateRequest(String rol, Long sucursalId) {
+        return new UsuarioUpdateRequest(
+                "Nombre Test",
+                "5555555555",
+                rol,
+                sucursalId,
+                "Calle Test",
+                "10",
+                null,
+                "Colonia Test",
+                "Municipio Test",
+                "Estado Test",
+                "12345",
+                "INE123",
+                "http://test/ine.jpg",
+                "http://test/ine-reverso.jpg",
+                "Ref1 Nombre",
+                "5551111111",
+                "Padre",
+                "Ref2 Nombre",
+                "5552222222",
+                "Madre",
+                null
+        );
     }
 }
