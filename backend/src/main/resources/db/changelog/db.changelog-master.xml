@@ -295,4 +295,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V37-usuario-sucursal-adicional" author="magno">
+        <sqlFile
+            path="db/changelog/V37__usuario_sucursal_adicional.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>
