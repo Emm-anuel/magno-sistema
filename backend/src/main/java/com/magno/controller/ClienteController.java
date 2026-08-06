@@ -428,7 +428,7 @@ public class ClienteController {
                     req.ref2Nombre(), req.ref2Telefono(), req.ref2Parentesco(),
                     req.avalNombre(), req.avalTelefono(), req.avalDireccion(), req.avalIdentificacion(),
                     req.asesorId(), // puede elegir asesor
-                    resolverSucursalEfectiva(req.sucursalId(), p)
+                    null // SUPERVISOR/SUPERVISOR_CAMPO nunca reasignan sucursal al editar — solo ADMINISTRADOR puede
                 );
             default -> req; // ADMINISTRADOR sin cambios
         };
