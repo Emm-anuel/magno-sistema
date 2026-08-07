@@ -166,3 +166,115 @@ function clasificarFila(args: {
   // de datos) se trata como un pago limpio en vez de dejar la fila sin clasificar.
   return 'LIMPIO'
 }
+
+export interface GrupoFilas {
+  tipo: 'grupo'
+  clasificacion: 'LIMPIO' | 'RENOVACION'
+  filas: FilaCalendario[]
+  fechaInicio: string
+  fechaFin: string
+  montoTotal: number
+}
+
+export interface FilaIndividual {
+  tipo: 'fila'
+  fila: FilaCalendario
+}
+
+export type FilaOGrupo = GrupoFilas | FilaIndividual
+
+/**
+ * Agrupa rachas consecutivas de pagos ya resueltos sin incidentes (LIMPIO o
+ * RENOVACION, nunca mezclados entre sí). Una fila con multa asociada nunca
+ * se agrupa, sin importar su clasificación — siempre debe verse su detalle.
+ * Los pendientes/vencidos tampoco se agrupan (no son LIMPIO ni RENOVACION).
+ */
+export function agruparFilas(filas: FilaCalendario[], umbralMinimo = 2): FilaOGrupo[] {
+  const resultado: FilaOGrupo[] = []
+  let racha: FilaCalendario[] = []
+  let clasificacionRacha: 'LIMPIO' | 'RENOVACION' | null = null
+
+  const cerrarRacha = () => {
+    if (racha.length === 0) return
+    if (racha.length >= umbralMinimo && clasificacionRacha) {
+      resultado.push({
+        tipo: 'grupo',
+        clasificacion: clasificacionRacha,
+        filas: racha,
+        fechaInicio: racha[0].fechaProgramada,
+        fechaFin: racha[racha.length - 1].fechaProgramada,
+        montoTotal: racha.reduce((sum, f) => sum + f.montoEsperado, 0),
+      })
+    } else {
+      for (const fila of racha) resultado.push({ tipo: 'fila', fila })
+    }
+    racha = []
+    clasificacionRacha = null
+  }
+
+  for (const fila of filas) {
+    const agrupable: 'LIMPIO' | 'RENOVACION' | null =
+      !fila.multa && (fila.clasificacion === 'LIMPIO' || fila.clasificacion === 'RENOVACION')
+        ? fila.clasificacion
+        : null
+
+    if (agrupable && (clasificacionRacha === null || clasificacionRacha === agrupable)) {
+      clasificacionRacha = agrupable
+      racha.push(fila)
+      continue
+    }
+
+    cerrarRacha()
+    if (agrupable) {
+      clasificacionRacha = agrupable
+      racha.push(fila)
+    } else {
+      resultado.push({ tipo: 'fila', fila })
+    }
+  }
+  cerrarRacha()
+
+  return resultado
+}
+
+export interface ResumenCalendario {
+  pagadosCount: number
+  parcialesCount: number
+  noPagaronCount: number
+  vencidosCount: number
+  pendientesCount: number
+  multasCondonadasMonto: number
+}
+
+export function resumirFilas(filas: FilaCalendario[]): ResumenCalendario {
+  let pagadosCount = 0
+  let parcialesCount = 0
+  let noPagaronCount = 0
+  let vencidosCount = 0
+  let pendientesCount = 0
+  let multasCondonadasMonto = 0
+
+  for (const fila of filas) {
+    if (
+      fila.estadoOriginal === 'PAGADO' ||
+      fila.estadoOriginal === 'ADELANTADO' ||
+      fila.estadoOriginal === 'RECUPERADO'
+    ) {
+      pagadosCount++
+    } else if (fila.estadoOriginal === 'PARCIAL' || fila.estadoOriginal === 'RECUPERADO_PARCIAL') {
+      parcialesCount++
+    } else if (fila.estadoOriginal === 'NO_PAGADO') {
+      noPagaronCount++
+    } else if (fila.clasificacion === 'VENCIDO') {
+      vencidosCount++
+    } else if (fila.clasificacion === 'PENDIENTE') {
+      pendientesCount++
+    }
+
+    if (fila.multa?.condonada) {
+      multasCondonadasMonto += fila.multa.monto
+    }
+  }
+
+  return { pagadosCount, parcialesCount, noPagaronCount, vencidosCount, pendientesCount, multasCondonadasMonto }
+}
