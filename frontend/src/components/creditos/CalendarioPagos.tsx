@@ -252,7 +252,7 @@ export default function CalendarioPagos({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2 max-w-7xl mx-auto">
         {LEYENDA.map((chip) => (
           <span
             key={chip.label}
@@ -264,7 +264,7 @@ export default function CalendarioPagos({
         ))}
       </div>
 
-      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2">
+      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2 max-w-7xl mx-auto">
         {itemsHistorial.map((item) => {
           const key = item.tipo === 'fila' ? `fila-${item.fila.id}` : `grupo-${claveGrupo(item)}`
 
@@ -309,7 +309,7 @@ export default function CalendarioPagos({
             <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-[#dbe2ea]">
               Próximos pagos
             </div>
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+            <div className="space-y-2">
               {filasPendientes.map((fila) => (
                 <FilaRow
                   key={fila.id}
@@ -325,7 +325,7 @@ export default function CalendarioPagos({
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 max-w-7xl mx-auto">
         <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-[#16a34a]">{resumen.pagadosCount}</div>
           <div className="text-[11px] text-gray-500">Pagados</div>
