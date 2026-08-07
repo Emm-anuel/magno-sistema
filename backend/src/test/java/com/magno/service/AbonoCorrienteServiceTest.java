@@ -348,6 +348,39 @@ class AbonoCorrienteServiceTest {
     }
 
     @Test
+    void adelantaDiasFuturos_cuandoCreditoEstaAlCorriente_sinDiasAtrasados() {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
+        BigDecimal cuota = new BigDecimal("416.00");
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        // Al corriente: ningún slot atrasado ni vencido hoy que cubrir.
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of());
+
+        CalendarioPago slotFuturo = slot(301L, 16, hoy.plusDays(1), cuota, EstadoCalendarioPago.PENDIENTE);
+        AbonoCoberturaDetalle coberturaFutura = AbonoCoberturaDetalle.builder()
+                .calendarioPago(slotFuturo)
+                .numeroPago(16)
+                .montoCuota(cuota)
+                .montoMulta(BigDecimal.ZERO)
+                .totalAplicado(cuota)
+                .esParcial(false)
+                .build();
+        when(abonoFuturoService.adelantarDiasFuturos(eq(credito), eq(cuota), any()))
+                .thenReturn(new AbonoFuturoService.ResultadoAdelanto(List.of(coberturaFutura), BigDecimal.ZERO));
+
+        when(abonoCorrienteRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AbonoCorrienteRequest req = new AbonoCorrienteRequest(42L, cuota, null);
+        AbonoCorrienteDTO result = service.registrarAbono(req, 10L);
+
+        assertThat(result.montoSobrante()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.coberturas()).hasSize(1);
+        assertThat(result.coberturas().get(0).numeroPago()).isEqualTo(16);
+    }
+
+    @Test
     void lanzaError400_cuandoNoHayDiasAtrasados() {
         when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
         when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));

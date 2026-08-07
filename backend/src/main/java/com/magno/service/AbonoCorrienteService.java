@@ -82,10 +82,6 @@ public class AbonoCorrienteService {
         LocalDate fechaOperacion = resolverFecha(req.fechaPago(), rol, hoy);
 
         List<CalendarioPago> slots = calendarioPagoRepo.findSlotsCubrir(credito.getId(), fechaOperacion);
-        if (slots.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "No hay días atrasados para cubrir en este crédito");
-        }
 
         generarMultasNoPagoFaltantes(credito, slots, fechaOperacion);
 
@@ -144,6 +140,10 @@ public class AbonoCorrienteService {
         }
 
         BigDecimal totalDistribuido = req.montoRecibido().subtract(saldo);
+        if (totalDistribuido.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "No hay días atrasados ni pagos futuros pendientes para cubrir en este crédito");
+        }
 
         AbonoCorriente abono = AbonoCorriente.builder()
                 .credito(credito)
