@@ -125,7 +125,7 @@ function FilaRow({
   const explicacion = explicacionFila(fila)
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-start gap-2 sm:gap-4 py-3 px-3 border-b border-[#f1f3f5] last:border-0">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-2.5 px-3 bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors">
       <div className="sm:w-32 shrink-0 text-sm">
         <div className="font-medium text-[#212529]">{fmtDate(fila.fechaProgramada)}</div>
         <div className="text-[11px] text-gray-400">pago #{fila.numeroPago}</div>
@@ -142,7 +142,7 @@ function FilaRow({
       <div className="sm:w-28 shrink-0 text-sm font-mono sm:text-right">
         {fila.montoRecibido != null ? fmtMoney(fila.montoRecibido) : <span className="text-gray-400">—</span>}
       </div>
-      <div className="sm:w-40 shrink-0 flex flex-wrap sm:justify-end gap-1.5">
+      <div className="sm:w-44 shrink-0 flex flex-wrap sm:justify-end gap-1.5 sm:pl-3 sm:border-l sm:border-[#e5e7eb]">
         {fila.pagoRegistrado && (
           <button type="button" className="btn btn-sm text-xs py-0.5 px-2" onClick={() => onVerPago(fila.pagoRegistrado!)}>
             Ver pago
@@ -178,7 +178,7 @@ function GrupoRow({ grupo, abierto, onToggle }: { grupo: GrupoFilas; abierto: bo
       type="button"
       onClick={onToggle}
       aria-expanded={abierto}
-      className="w-full flex items-center gap-2 py-2.5 px-3 text-left text-[13px] text-gray-500 italic hover:bg-[#f8f9fa] border-b border-[#f1f3f5]"
+      className="w-full flex items-center gap-2 py-2.5 px-3 text-left text-[13px] text-gray-500 italic bg-white hover:bg-[#f8f9fa] border border-[#e5e7eb] rounded-md shadow-sm transition-colors"
     >
       <span className="text-gray-400 not-italic">{abierto ? '▾' : '▸'}</span>
       <span>
@@ -259,7 +259,7 @@ export default function CalendarioPagos({
         ))}
       </div>
 
-      <div className="rounded-lg border border-[#e9ecef] overflow-hidden">
+      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2">
         {filasOGrupos.map((item) => {
           const primeraFila = item.tipo === 'fila' ? item.fila : item.filas[0]
           const esPrimerPendiente = !mostroDivisorPendientes && primeraFila.clasificacion === 'PENDIENTE'
@@ -268,9 +268,9 @@ export default function CalendarioPagos({
           const key = item.tipo === 'fila' ? `fila-${item.fila.id}` : `grupo-${claveGrupo(item)}`
 
           return (
-            <div key={key}>
+            <div key={key} className="space-y-2">
               {esPrimerPendiente && (
-                <div className="px-3 py-2 bg-[#f8f9fa] text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-[#dbe2ea]">
                   Próximos pagos
                 </div>
               )}
@@ -281,17 +281,20 @@ export default function CalendarioPagos({
                     abierto={gruposAbiertos.has(claveGrupo(item))}
                     onToggle={() => toggleGrupo(claveGrupo(item))}
                   />
-                  {gruposAbiertos.has(claveGrupo(item)) &&
-                    item.filas.map((fila) => (
-                      <FilaRow
-                        key={fila.id}
-                        fila={fila}
-                        esAdminSupervisor={esAdminSupervisor}
-                        onVerPago={onVerPago}
-                        onModificarPago={onModificarPago}
-                        onVerAbono={onVerAbono}
-                      />
-                    ))}
+                  {gruposAbiertos.has(claveGrupo(item)) && (
+                    <div className="space-y-2 pl-2 sm:pl-4 border-l-2 border-[#dbe2ea]">
+                      {item.filas.map((fila) => (
+                        <FilaRow
+                          key={fila.id}
+                          fila={fila}
+                          esAdminSupervisor={esAdminSupervisor}
+                          onVerPago={onVerPago}
+                          onModificarPago={onModificarPago}
+                          onVerAbono={onVerAbono}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </>
               ) : (
                 <FilaRow
