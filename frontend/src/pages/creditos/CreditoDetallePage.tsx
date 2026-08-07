@@ -15,6 +15,7 @@ import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
 import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
+import CalendarioPagos from '@/components/creditos/CalendarioPagos'
 import type { PagoCobroDTO, TipoPago, AbonoCorrienteDTO } from '@/types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -205,11 +206,6 @@ export default function CreditoDetallePage() {
 
   // ── Helpers de estado de calendario ──────────────────────────────
 
-  function esVencido(fechaProgramada: string, estado: string) {
-    const fechaIso = fechaProgramada?.slice(0, 10)
-    return estado === 'PENDIENTE' && Boolean(fechaIso) && fechaIso < hoyIso
-  }
-
   function esSlotAdeudoParaCorriente(pago: { estado: string; fechaProgramada?: string | null }) {
     const fechaIso = pago.fechaProgramada?.slice(0, 10)
     return pago.estado === 'NO_PAGADO' ||
@@ -284,34 +280,6 @@ export default function CreditoDetallePage() {
       (multaPreview) => !multaPreview.id || !multasCredito.some((multa) => multa.id === multaPreview.id),
     ),
   ]
-  const multasPorFecha = multasCalendario.reduce<Record<string, number>>((acc, multa) => {
-    const fecha = multa.fecha?.slice(0, 10)
-    const monto = Number(multa.monto ?? 0)
-    if (fecha && monto > 0) {
-      acc[fecha] = (acc[fecha] ?? 0) + monto
-    }
-    return acc
-  }, {})
-  const multasPagoPorNumero = pagosHistorialCredito.reduce<Record<number, number>>((acc, pago) => {
-    const monto = Number(pago.multaAplicada ?? 0)
-    if (pago.numeroPago != null && monto > 0) {
-      acc[pago.numeroPago] = Math.max(acc[pago.numeroPago] ?? 0, monto)
-    }
-    return acc
-  }, {})
-  const multasAbonoPorNumero = abonosCredito
-    .flatMap((abono) => abono.coberturas)
-    .reduce<Record<number, number>>((acc, cobertura) => {
-      const monto = Number(cobertura.montoMulta ?? 0)
-      if (monto > 0) {
-        acc[cobertura.numeroPago] = (acc[cobertura.numeroPago] ?? 0) + monto
-      }
-      return acc
-    }, {})
-  const hayMultasCalendario =
-    multasCalendario.some((multa) => Number(multa.monto ?? 0) > 0) ||
-    Object.values(multasPagoPorNumero).some((monto) => monto > 0) ||
-    Object.values(multasAbonoPorNumero).some((monto) => monto > 0)
   const abonosAplicadosPorNumero = abonosCredito
     .flatMap((abono) => abono.coberturas)
     .reduce<Record<number, number>>((acc, cobertura) => {
@@ -623,238 +591,36 @@ export default function CreditoDetallePage() {
           {/* ── Tab 2: Calendario ──────────────────────────────────── */}
           {tab === 'calendario' && (
             <div className="space-y-4">
-              <div className="overflow-x-auto -mx-4 sm:-mx-6">
-                <table className="tabla min-w-full table-fixed">
-                  <thead>
-                    <tr>
-                      <th className="w-12 !text-center px-2 py-3">#</th>
-                      <th className="w-44 !text-center px-2 py-3">Fecha</th>
-                      <th className="w-36 !text-center px-2 py-3 font-mono whitespace-nowrap">Monto esperado</th>
-                      <th className="w-36 !text-center px-2 py-3 font-mono whitespace-nowrap">Monto recibido</th>
-                      {hayMultasCalendario && (
-                        <th className="w-28 !text-center px-2 py-3 font-mono whitespace-nowrap">Multa</th>
-                      )}
-                      <th className="w-40 !text-center px-2 py-3">Estado</th>
-                      <th className="w-44 !text-center px-2 py-3">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {calendario.map((pago) => {
-                      const vencido = esVencido(pago.fechaProgramada, pago.estado)
-                      const pagoRegistrado = pagosHistorial.find(
-                        (p) => p.creditoId === numId && p.numeroPago === pago.numeroPago
-                      )
-
-                      let rowClass = ''
-                      if (pago.estado === 'RECUPERADO')        rowClass = 'bg-blue-50/60'
-                      else if (pago.estado === 'RECUPERADO_PARCIAL') rowClass = 'bg-amber-50'
-                      else if (pago.estado === 'ADELANTADO')   rowClass = 'bg-green-50'
-                      else if (pago.estado === 'PAGADO')       rowClass = 'bg-green-50/60'
-                      else if (pago.estado === 'PARCIAL')      rowClass = 'bg-amber-50'
-                      else if (pago.estado === 'NO_PAGADO')    rowClass = 'bg-red-50'
-                      else if (vencido)                        rowClass = 'bg-red-50'
-
-                      let badgeCls = ''
-                      let badgeLabel = ''
-                      if (pago.estado === 'RECUPERADO') {
-                        badgeCls = 'bg-blue-100 text-blue-700'
-                        badgeLabel = 'Abono ✓'
-                      } else if (pago.estado === 'RECUPERADO_PARCIAL') {
-                        badgeCls = 'bg-amber-100 text-amber-800'
-                        badgeLabel = 'Abono parcial'
-                      } else if (pago.estado === 'ADELANTADO') {
-                        badgeCls = 'bg-green-100 text-green-800'
-                        badgeLabel = 'Adelantado ✓'
-                      } else if (pago.estado === 'PAGADO') {
-                        badgeCls = 'bg-green-100 text-green-700'
-                        badgeLabel = 'Pagado'
-                      } else if (pago.estado === 'PARCIAL') {
-                        badgeCls = 'bg-amber-100 text-amber-800'
-                        badgeLabel = 'Parcial'
-                      } else if (pago.estado === 'NO_PAGADO') {
-                        badgeCls = 'bg-red-100 text-red-800'
-                        badgeLabel = 'No pagó'
-                      } else if (vencido) {
-                        badgeCls = 'bg-red-100 text-red-800'
-                        badgeLabel = 'Vencido'
-                      } else if ((pago.estado as string) === 'INHABILL' || (pago.estado as string) === 'INHABIL') {
-                        badgeCls = 'bg-gray-100 text-gray-500'
-                        badgeLabel = 'Inhábil'
-                      } else {
-                        badgeCls = 'bg-gray-100 text-gray-600'
-                        badgeLabel = 'Pendiente'
-                      }
-
-                      const tieneRegistro = ['PAGADO', 'PARCIAL', 'NO_PAGADO', 'ADELANTADO'].includes(pago.estado)
-                      const esAbono = pago.estado === 'RECUPERADO' || pago.estado === 'RECUPERADO_PARCIAL'
-                      const abonoDeEstaFila = esAbono
-                        ? abonosCredito.find((a) => a.coberturas.some((c) => c.numeroPago === pago.numeroPago))
-                        : null
-                      const fechaPagoProgramada = pago.fechaProgramada?.slice(0, 10) ?? ''
-                      const multaFila = Math.max(
-                        multasPorFecha[fechaPagoProgramada] ?? 0,
-                        multasPagoPorNumero[pago.numeroPago] ?? 0,
-                        multasAbonoPorNumero[pago.numeroPago] ?? 0,
-                      )
-                      const multaCubiertaAbono =
-                        esAbono
-                        && multaFila > 0
-                        && (multasAbonoPorNumero[pago.numeroPago] ?? 0) >= multaFila
-
-                      return (
-                        <tr key={pago.id} className={rowClass}>
-                          <td className="text-center font-mono text-sm px-2 py-3">{pago.numeroPago}</td>
-                          <td className="text-sm text-center px-2 py-3 whitespace-nowrap">{fmtDate(pago.fechaProgramada)}</td>
-                          <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">{fmtMoney(pago.montoEsperado)}</td>
-                          <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">
-                            {pagoRegistrado
-                              ? pagoRegistrado.razonNoPago
-                                ? <span className="text-[#dc2626] italic text-xs">No pagó</span>
-                                : fmtMoney(pagoRegistrado.montoRecibido)
-                              : (() => {
-                                  if (esAbono) {
-                                    const cobertura = abonosCredito
-                                      .flatMap((a) => a.coberturas)
-                                      .find((c) => c.numeroPago === pago.numeroPago)
-                                    return cobertura
-                                      ? <span className="text-blue-700 font-mono">{fmtMoney(cobertura.totalAplicado)}</span>
-                                      : <span className="text-gray-400">—</span>
-                                  }
-                                  return <span className="text-gray-400">—</span>
-                                })()
-                            }
-                          </td>
-                          {hayMultasCalendario && (
-                            <td className="text-center font-mono text-sm px-2 py-3 whitespace-nowrap">
-                              {multaFila > 0
-                                ? multaCubiertaAbono
-                                  ? (
-                                    <span className="text-blue-700" title="Multa cubierta con un abono">
-                                      {fmtMoney(multaFila)}
-                                      <span className="block text-[10px] font-sans font-normal leading-tight">
-                                        cubierta con abono
-                                      </span>
-                                    </span>
-                                  )
-                                  : <span className="text-[#dc2626]">{fmtMoney(multaFila)}</span>
-                                : <span className="text-gray-400">—</span>}
-                            </td>
-                          )}
-                          <td className="text-center px-2 py-3 whitespace-nowrap">
-                            <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${badgeCls}`}>
-                              {badgeLabel}
-                            </span>
-                          </td>
-                          <td className="text-center px-2 py-3 whitespace-nowrap">
-                            <div className="flex justify-center gap-1.5">
-                              {tieneRegistro && pagoRegistrado && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm text-xs py-0.5 px-2"
-                                  onClick={() => setPagoModal(pagoRegistrado)}
-                                >
-                                  Ver pago
-                                </button>
-                              )}
-                              {tieneRegistro && pagoRegistrado && esAdminSupervisor && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm text-xs py-0.5 px-2"
-                                  onClick={() => setPagoEditar(pagoRegistrado)}
-                                >
-                                  Modificar
-                                </button>
-                              )}
-                              {esAbono && abonoDeEstaFila && (
-                                <button
-                                  type="button"
-                                  className="btn btn-sm text-xs py-0.5 px-2 text-blue-700 border-blue-200 hover:bg-blue-50"
-                                  onClick={() => setAbonoDetalleModal(abonoDeEstaFila)}
-                                >
-                                  Ver abono
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+              <CalendarioPagos
+                calendario={calendario}
+                pagosHistorial={pagosHistorialCredito}
+                abonosCredito={abonosCredito}
+                multas={multasCalendario}
+                hoyIso={hoyIso}
+                liquidadoPorRenovacion={credito.liquidadoPorRenovacion != null}
+                esAdminSupervisor={esAdminSupervisor}
+                onVerPago={setPagoModal}
+                onModificarPago={setPagoEditar}
+                onVerAbono={setAbonoDetalleModal}
+              />
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
+                <span className="text-[#16a34a] font-semibold">
+                  Total cobrado: {fmtMoney(totalCobradoCredito)}
+                </span>
+                {multasPendientesVisual > 0 && (
+                  <span className="text-[#dc2626] font-semibold">
+                    Multas pendientes: {fmtMoney(multasPendientesVisual)}
+                  </span>
+                )}
+                {adeudoParaPonerseCorriente > 0 && (
+                  <span className="text-[#f59e0b] font-semibold">
+                    Adeudo para ponerse al corriente: {fmtMoney(adeudoParaPonerseCorriente)}
+                  </span>
+                )}
+                <span className="text-gray-700 font-semibold">
+                  Saldo restante crédito: {fmtMoney(saldoRestante)}
+                </span>
               </div>
-
-              {/* Enhanced summary */}
-              {(() => {
-                const pagadosCount = calendario.filter(
-                  (p) => p.estado === 'PAGADO' || p.estado === 'ADELANTADO' || p.estado === 'RECUPERADO'
-                ).length
-                const parcialesCount = calendario.filter(
-                  (p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL'
-                ).length
-                const noPagaronCount = calendario.filter((p) => p.estado === 'NO_PAGADO').length
-                const vencidosCount = calendario.filter(
-                  (p) =>
-                    p.estado === 'PENDIENTE' &&
-                    p.fechaProgramada != null &&
-                    p.fechaProgramada.slice(0, 10) < hoyIso
-                ).length
-                const pendientesCount = calendario.filter(
-                  (p) =>
-                    p.estado === 'PENDIENTE' &&
-                    p.fechaProgramada != null &&
-                    p.fechaProgramada.slice(0, 10) >= hoyIso
-                ).length
-                const multasPend = multasPendientesVisual
-
-                return (
-                  <>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
-                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-[#16a34a]">{pagadosCount}</div>
-                        <div className="text-[11px] text-gray-500">Pagados</div>
-                      </div>
-                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-amber-600">{parcialesCount}</div>
-                        <div className="text-[11px] text-gray-500">Parciales</div>
-                      </div>
-                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                        <div className={`text-lg font-bold ${noPagaronCount > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
-                          {noPagaronCount}
-                        </div>
-                        <div className="text-[11px] text-gray-500">No pagaron</div>
-                      </div>
-                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                        <div className={`text-lg font-bold ${vencidosCount > 0 ? 'text-red-600' : 'text-[#212529]'}`}>
-                          {vencidosCount}
-                        </div>
-                        <div className="text-[11px] text-gray-500">Vencidos</div>
-                      </div>
-                      <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-                        <div className="text-lg font-bold text-[#212529]">{pendientesCount}</div>
-                        <div className="text-[11px] text-gray-500">Pendientes</div>
-                      </div>
-                    </div>
-                    <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
-                      <span className="text-[#16a34a] font-semibold">
-                        Total cobrado: {fmtMoney(totalCobradoCredito)}
-                      </span>
-                      {multasPend > 0 && (
-                        <span className="text-[#dc2626] font-semibold">
-                          Multas pendientes: {fmtMoney(multasPend)}
-                        </span>
-                      )}
-                      {adeudoParaPonerseCorriente > 0 && (
-                        <span className="text-[#f59e0b] font-semibold">
-                          Adeudo para ponerse al corriente: {fmtMoney(adeudoParaPonerseCorriente)}
-                        </span>
-                      )}
-                      <span className="text-gray-700 font-semibold">
-                        Saldo restante crédito: {fmtMoney(saldoRestante)}
-                      </span>
-                    </div>
-                  </>
-                )
-              })()}
             </div>
           )}
 
