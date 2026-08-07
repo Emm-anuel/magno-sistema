@@ -366,18 +366,20 @@ export function agruparFilas(filas: FilaCalendario[], umbralMinimo = 2): FilaOGr
   }
 
   for (const fila of filas) {
-    const esAgrupable =
-      (fila.clasificacion === 'LIMPIO' || fila.clasificacion === 'RENOVACION') && !fila.multa
+    const agrupable: 'LIMPIO' | 'RENOVACION' | null =
+      !fila.multa && (fila.clasificacion === 'LIMPIO' || fila.clasificacion === 'RENOVACION')
+        ? fila.clasificacion
+        : null
 
-    if (esAgrupable && (clasificacionRacha === null || clasificacionRacha === fila.clasificacion)) {
-      clasificacionRacha = fila.clasificacion
+    if (agrupable && (clasificacionRacha === null || clasificacionRacha === agrupable)) {
+      clasificacionRacha = agrupable
       racha.push(fila)
       continue
     }
 
     cerrarRacha()
-    if (esAgrupable) {
-      clasificacionRacha = fila.clasificacion
+    if (agrupable) {
+      clasificacionRacha = agrupable
       racha.push(fila)
     } else {
       resultado.push({ tipo: 'fila', fila })
