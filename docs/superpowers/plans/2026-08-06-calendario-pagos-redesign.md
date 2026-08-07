@@ -492,6 +492,7 @@ function fmtDate(v?: string | null): string {
 const LEYENDA = [
   { label: 'Pagado', bg: '#dcfce7', text: '#15803d' },
   { label: 'Abono cubrió atraso', bg: '#dbeafe', text: '#1d4ed8' },
+  { label: 'Pago parcial', bg: '#fef3c7', text: '#92400e' },
   { label: 'Atrasado / no pagó', bg: '#fee2e2', text: '#b91c1c' },
   { label: 'Multa condonada', bg: '#f3e8ff', text: '#7e22ce' },
   { label: 'Cubierto por renovación', bg: '#ede9fe', text: '#6d28d9' },
@@ -635,6 +636,7 @@ function GrupoRow({ grupo, abierto, onToggle }: { grupo: GrupoFilas; abierto: bo
     <button
       type="button"
       onClick={onToggle}
+      aria-expanded={abierto}
       className="w-full flex items-center gap-2 py-2.5 px-3 text-left text-[13px] text-gray-500 italic hover:bg-[#f8f9fa] border-b border-[#f1f3f5]"
     >
       <span className="text-gray-400 not-italic">{abierto ? '▾' : '▸'}</span>
