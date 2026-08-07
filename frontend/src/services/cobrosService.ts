@@ -112,6 +112,12 @@ function normalizeMulta(raw: any): MultaCobroDTO {
     fecha: raw.fecha,
     cobrada: raw.cobrada,
     cobradaEnPagoId: raw.cobradaEnPagoId ?? raw.cobrada_en_pago_id ?? null,
+    cobradaEnAbonoId: raw.cobradaEnAbonoId ?? raw.cobrada_en_abono_id ?? null,
+    condonada: raw.condonada ?? false,
+    condonadaEnRenovacionId: raw.condonadaEnRenovacionId ?? raw.condonada_en_renovacion_id ?? null,
+    condonadaPorNombre: raw.condonadaPorNombre ?? raw.condonada_por_nombre ?? null,
+    fechaCondonacion: raw.fechaCondonacion ?? raw.fecha_condonacion ?? null,
+    motivoCondonacion: raw.motivoCondonacion ?? raw.motivo_condonacion ?? null,
   }
 }
 

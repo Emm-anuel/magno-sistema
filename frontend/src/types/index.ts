@@ -535,6 +535,12 @@ export interface MultaCobroDTO {
   fecha: string
   cobrada: boolean
   cobradaEnPagoId: number | null
+  cobradaEnAbonoId: number | null
+  condonada: boolean
+  condonadaEnRenovacionId: number | null
+  condonadaPorNombre: string | null
+  fechaCondonacion: string | null
+  motivoCondonacion: string | null
 }
 
 export interface AbonoCoberturaDTO {
