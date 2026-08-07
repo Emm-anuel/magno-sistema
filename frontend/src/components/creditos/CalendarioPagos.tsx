@@ -123,10 +123,11 @@ function FilaRow({
   const base = estiloClasificacion(fila)
   const estilo = fila.multa?.condonada ? { bg: '#f3e8ff', text: '#7e22ce', label: `${base.label} — multa condonada` } : base
   const explicacion = explicacionFila(fila)
+  const esPendiente = fila.clasificacion === 'PENDIENTE'
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 py-2.5 px-3 bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors">
-      <div className="sm:w-32 shrink-0 text-sm">
+    <div className={`flex items-center gap-3 bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors ${esPendiente ? 'py-2 px-3' : 'flex-col sm:flex-row py-2.5 px-3 sm:gap-4'}`}>
+      <div className={`${esPendiente ? 'w-28' : 'sm:w-32'} shrink-0 text-sm`}>
         <div className="font-medium text-[#212529]">{fmtDate(fila.fechaProgramada)}</div>
         <div className="text-[11px] text-gray-400">pago #{fila.numeroPago}</div>
       </div>
@@ -139,10 +140,12 @@ function FilaRow({
         </span>
         {explicacion && <p className="text-[12px] text-gray-600 mt-1 leading-relaxed max-w-xl">{explicacion}</p>}
       </div>
-      <div className="sm:w-28 shrink-0 text-sm font-mono sm:text-right">
-        {fila.montoRecibido != null ? fmtMoney(fila.montoRecibido) : <span className="text-gray-400">—</span>}
-      </div>
-      <div className="sm:w-44 shrink-0 flex flex-wrap sm:justify-end gap-1.5 sm:pl-3 sm:border-l sm:border-[#e5e7eb]">
+      {!esPendiente && (
+        <div className="sm:w-28 shrink-0 text-sm font-mono sm:text-right">
+          {fila.montoRecibido != null ? fmtMoney(fila.montoRecibido) : <span className="text-gray-400">—</span>}
+        </div>
+      )}
+      {!esPendiente && <div className="sm:w-44 shrink-0 flex flex-wrap sm:justify-end gap-1.5 sm:pl-3 sm:border-l sm:border-[#e5e7eb]">
         {fila.pagoRegistrado && (
           <button type="button" className="btn btn-sm text-xs py-0.5 px-2" onClick={() => onVerPago(fila.pagoRegistrado!)}>
             Ver pago
@@ -166,7 +169,7 @@ function FilaRow({
             Ver abono
           </button>
         )}
-      </div>
+      </div>}
     </div>
   )
 }
@@ -229,6 +232,10 @@ export default function CalendarioPagos({
   )
   const filasOGrupos = useMemo(() => agruparFilas(filas), [filas])
   const resumen = useMemo(() => resumirFilas(filas), [filas])
+  const itemsHistorial = filasOGrupos.filter((item) =>
+    (item.tipo === 'fila' ? item.fila : item.filas[0]).clasificacion !== 'PENDIENTE',
+  )
+  const filasPendientes = filas.filter((fila) => fila.clasificacion === 'PENDIENTE')
 
   function claveGrupo(grupo: GrupoFilas): string {
     return `${grupo.clasificacion}-${grupo.fechaInicio}-${grupo.fechaFin}`
@@ -242,8 +249,6 @@ export default function CalendarioPagos({
       return next
     })
   }
-
-  let mostroDivisorPendientes = false
 
   return (
     <div className="space-y-4">
@@ -260,20 +265,11 @@ export default function CalendarioPagos({
       </div>
 
       <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2">
-        {filasOGrupos.map((item) => {
-          const primeraFila = item.tipo === 'fila' ? item.fila : item.filas[0]
-          const esPrimerPendiente = !mostroDivisorPendientes && primeraFila.clasificacion === 'PENDIENTE'
-          if (esPrimerPendiente) mostroDivisorPendientes = true
-
+        {itemsHistorial.map((item) => {
           const key = item.tipo === 'fila' ? `fila-${item.fila.id}` : `grupo-${claveGrupo(item)}`
 
           return (
             <div key={key} className="space-y-2">
-              {esPrimerPendiente && (
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-[#dbe2ea]">
-                  Próximos pagos
-                </div>
-              )}
               {item.tipo === 'grupo' ? (
                 <>
                   <GrupoRow
@@ -308,6 +304,25 @@ export default function CalendarioPagos({
             </div>
           )
         })}
+        {filasPendientes.length > 0 && (
+          <div className="space-y-2">
+            <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-[#dbe2ea]">
+              Próximos pagos
+            </div>
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-2">
+              {filasPendientes.map((fila) => (
+                <FilaRow
+                  key={fila.id}
+                  fila={fila}
+                  esAdminSupervisor={esAdminSupervisor}
+                  onVerPago={onVerPago}
+                  onModificarPago={onModificarPago}
+                  onVerAbono={onVerAbono}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
