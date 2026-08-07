@@ -126,8 +126,8 @@ function FilaRow({
   const esPendiente = fila.clasificacion === 'PENDIENTE'
 
   return (
-    <div className={`flex items-center gap-3 bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors ${esPendiente ? 'py-2 px-3' : 'flex-col sm:flex-row py-2.5 px-3 sm:gap-4'}`}>
-      <div className={`${esPendiente ? 'w-28' : 'sm:w-32'} shrink-0 text-sm`}>
+    <div className={`flex bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors lg:grid lg:grid-cols-[10rem_minmax(22rem,40rem)_8rem_12rem] lg:justify-center lg:gap-x-6 lg:items-center ${esPendiente ? 'items-center gap-3 py-2 px-3' : 'flex-col gap-2 py-2.5 px-3'}`}>
+      <div className={`${esPendiente ? 'w-28' : ''} lg:w-auto shrink-0 text-sm`}>
         <div className="font-medium text-[#212529]">{fmtDate(fila.fechaProgramada)}</div>
         <div className="text-[11px] text-gray-400">pago #{fila.numeroPago}</div>
       </div>
@@ -141,11 +141,11 @@ function FilaRow({
         {explicacion && <p className="text-[12px] text-gray-600 mt-1 leading-relaxed max-w-xl">{explicacion}</p>}
       </div>
       {!esPendiente && (
-        <div className="sm:w-28 shrink-0 text-sm font-mono sm:text-right">
+        <div className="shrink-0 text-sm font-mono lg:text-right">
           {fila.montoRecibido != null ? fmtMoney(fila.montoRecibido) : <span className="text-gray-400">—</span>}
         </div>
       )}
-      {!esPendiente && <div className="sm:w-44 shrink-0 flex flex-wrap sm:justify-end gap-1.5 sm:pl-3 sm:border-l sm:border-[#e5e7eb]">
+      {!esPendiente && <div className="shrink-0 flex flex-wrap lg:justify-end gap-1.5 lg:pl-3 lg:border-l lg:border-[#e5e7eb]">
         {fila.pagoRegistrado && (
           <button type="button" className="btn btn-sm text-xs py-0.5 px-2" onClick={() => onVerPago(fila.pagoRegistrado!)}>
             Ver pago
@@ -252,7 +252,7 @@ export default function CalendarioPagos({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2 max-w-7xl mx-auto">
+      <div className="flex flex-wrap gap-2">
         {LEYENDA.map((chip) => (
           <span
             key={chip.label}
@@ -264,7 +264,13 @@ export default function CalendarioPagos({
         ))}
       </div>
 
-      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2 max-w-7xl mx-auto">
+      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2">
+        <div className="hidden lg:grid grid-cols-[10rem_minmax(22rem,40rem)_8rem_12rem] justify-center gap-x-6 px-3 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+          <div>Fecha</div>
+          <div>Estado y detalle</div>
+          <div className="text-right">Importe</div>
+          <div className="text-right">Acciones</div>
+        </div>
         {itemsHistorial.map((item) => {
           const key = item.tipo === 'fila' ? `fila-${item.fila.id}` : `grupo-${claveGrupo(item)}`
 
@@ -325,7 +331,7 @@ export default function CalendarioPagos({
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 max-w-7xl mx-auto">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
           <div className="text-lg font-bold text-[#16a34a]">{resumen.pagadosCount}</div>
           <div className="text-[11px] text-gray-500">Pagados</div>
