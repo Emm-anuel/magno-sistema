@@ -172,24 +172,26 @@ export default function ModalRegistrarPago({
         <div className="px-5 py-5 space-y-5">
 
           {/* ── Info: pago y multas ── */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
-              <p className="text-[11px] text-[#6c757d] mb-0.5">
-                {numeroPagoHoy ? `Pago #${numeroPagoHoy}` : 'Pago diario'}
-              </p>
-              <p className="text-[18px] font-bold text-[#212529]">
-                ${Number(pagoPeriodico).toLocaleString('es-MX')}
-              </p>
+          {!soloNoPago && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
+                <p className="text-[11px] text-[#6c757d] mb-0.5">
+                  {numeroPagoHoy ? `Pago #${numeroPagoHoy}` : 'Pago diario'}
+                </p>
+                <p className="text-[18px] font-bold text-[#212529]">
+                  ${Number(pagoPeriodico).toLocaleString('es-MX')}
+                </p>
+              </div>
+              <div className={`rounded-lg p-3 text-center ${multasPendientes > 0 ? 'bg-[#fef3c7]' : 'bg-[#f8f9fa]'}`}>
+                <p className="text-[11px] text-[#6c757d] mb-0.5">Multas pendientes</p>
+                <p className={`text-[18px] font-bold ${multasPendientes > 0 ? 'text-[#92400e]' : 'text-[#adb5bd]'}`}>
+                  {multasPendientes > 0
+                    ? `$${multasPendientes.toLocaleString('es-MX')}`
+                    : '$0'}
+                </p>
+              </div>
             </div>
-            <div className={`rounded-lg p-3 text-center ${multasPendientes > 0 ? 'bg-[#fef3c7]' : 'bg-[#f8f9fa]'}`}>
-              <p className="text-[11px] text-[#6c757d] mb-0.5">Multas pendientes</p>
-              <p className={`text-[18px] font-bold ${multasPendientes > 0 ? 'text-[#92400e]' : 'text-[#adb5bd]'}`}>
-                {multasPendientes > 0
-                  ? `$${multasPendientes.toLocaleString('es-MX')}`
-                  : '$0'}
-              </p>
-            </div>
-          </div>
+          )}
 
           {/* ── Toggle Pagó / No pagó ── */}
           {soloNoPago ? (
