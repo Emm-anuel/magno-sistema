@@ -354,6 +354,15 @@ function SeccionNomina({ cajaDiaId }: { cajaDiaId: number }) {
           </div>
           <p className="text-[12px] text-[#6c757d]">
             Registrado por {estado.pago.registradoPorNombre}
+            {estado.pago.createdAt ? ` · ${new Date(estado.pago.createdAt).toLocaleString('es-MX', {
+              timeZone: 'America/Mexico_City',
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            })}` : ''}
           </p>
           <button
             type="button"

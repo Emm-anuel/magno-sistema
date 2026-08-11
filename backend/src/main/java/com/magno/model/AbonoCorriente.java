@@ -1,5 +1,6 @@
 package com.magno.model;
 
+import com.magno.util.DateTimeUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -45,6 +46,6 @@ public class AbonoCorriente {
 
     @PrePersist
     void prePersist() {
-        createdAt = OffsetDateTime.now();
+        createdAt = DateTimeUtils.ahoraEnMagno();
     }
 }

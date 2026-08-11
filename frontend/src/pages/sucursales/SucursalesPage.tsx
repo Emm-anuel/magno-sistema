@@ -7,11 +7,12 @@ import toast from 'react-hot-toast'
 import { Plus, Pencil, Power, X, Building2 } from 'lucide-react'
 import { sucursalService } from '@/services/api'
 import type { Sucursal } from '@/types'
+import { normalizePhone, optionalPhoneSchema, sanitizePhoneInput } from '@/utils/phone'
 
 const formSchema = z.object({
   nombre: z.string().min(2, 'Requerido'),
   direccion: z.string().optional(),
-  telefono: z.string().optional(),
+  telefono: optionalPhoneSchema,
 })
 
 type SucursalForm = z.infer<typeof formSchema>
@@ -304,9 +305,11 @@ function SucursalModal({ sucursal, onClose, onSaved }: ModalProps) {
                 </Field>
                 <Field label="Teléfono" error={errors.telefono?.message}>
                   <input
-                    {...register('telefono')}
+                    {...register('telefono', { setValueAs: normalizePhone })}
                     className={`input ${errors.telefono ? 'input-error' : ''}`}
-                    placeholder="7710000000"
+                    placeholder="10 dígitos (opcional)"
+                    inputMode="numeric"
+                    onInput={sanitizePhoneInput}
                   />
                 </Field>
                 <Field label="Dirección" error={errors.direccion?.message}>

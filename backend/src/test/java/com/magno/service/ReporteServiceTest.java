@@ -4,6 +4,7 @@ import com.magno.dto.reporte.AsesorResumenDTO;
 import com.magno.dto.reporte.ReporteCarteraDTO;
 import com.magno.dto.reporte.ReporteIngresosEgresosDTO;
 import com.magno.dto.reporte.ReportePorAsesorDTO;
+import com.magno.dto.reporte.ReporteClientesDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.util.DateTimeUtils;
@@ -12,6 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -234,6 +236,99 @@ class ReporteServiceTest {
                 ReportePorAsesorDTO result = service.getPorAsesor(1L, desde, hasta, null);
 
                 assertThat(result.asesores().get(0).montoCobrado()).isEqualByComparingTo("3570.00");
+        }
+
+        @Test
+        void getClientes_incluyeFichaCompletaYDatosEsencialesDelCredito() {
+                Usuario asesor = usuario(5L, "ASESOR_COBRADOR", "Juan Pérez");
+                Sucursal sucursal = new Sucursal();
+                sucursal.setId(1L);
+                sucursal.setNombre("Centro");
+
+                Cliente cliente = Cliente.builder()
+                                .id(9L)
+                                .numeroCliente("CLI-009")
+                                .nombre("Ana")
+                                .apellidoPaterno("López")
+                                .apellidoMaterno("Ruiz")
+                                .fechaNacimiento(LocalDate.of(1988, 3, 14))
+                                .genero("FEMENINO")
+                                .estadoCivil("CASADO")
+                                .nombreConyuge("Luis Ruiz")
+                                .telefonoFijo("5550001111")
+                                .celular("5551112222")
+                                .ineTipo("INE")
+                                .ineNumero("INE123")
+                                .curp("LORA880314MDFPZN01")
+                                .rfc("LORA880314XX1")
+                                .domCalle("Juárez")
+                                .domNoExterior("10")
+                                .domColonia("Centro")
+                                .domMunicipio("Puebla")
+                                .domEstado("Puebla")
+                                .domCodigoPostal("72000")
+                                .domTipoVivienda("PROPIA")
+                                .negocioNombre("Abarrotes Ana")
+                                .negocioGiro("Abarrotes")
+                                .negocioAntiguedad("5 años")
+                                .ingresosSemanales(new BigDecimal("8000.00"))
+                                .gastosSemanales(new BigDecimal("3000.00"))
+                                .ref1Nombre("Referencia Uno")
+                                .ref1Telefono("5553334444")
+                                .ref1Parentesco("Hermana")
+                                .ref2Nombre("Referencia Dos")
+                                .ref2Telefono("5554445555")
+                                .ref2Parentesco("Amigo")
+                                .avalNombre("Aval Ejemplo")
+                                .asesor(asesor)
+                                .sucursal(sucursal)
+                                .activo(true)
+                                .createdAt(OffsetDateTime.parse("2026-01-05T10:00:00-06:00"))
+                                .updatedAt(OffsetDateTime.parse("2026-08-10T12:00:00-06:00"))
+                                .build();
+
+                Credito credito = new Credito();
+                credito.setId(21L);
+                credito.setCliente(cliente);
+                credito.setAsesor(asesor);
+                credito.setSucursal(sucursal);
+                credito.setTipo(TipoCredito.RENOVACION);
+                credito.setTipoPago(TipoPago.SEMANAL);
+                credito.setEstado(EstadoCredito.ACTIVO);
+                credito.setMontoSolicitado(new BigDecimal("12000.00"));
+                credito.setMontoAprobado(new BigDecimal("10000.00"));
+                credito.setMontoCapital(new BigDecimal("10000.00"));
+                credito.setTasaInteres(new BigDecimal("0.30"));
+                credito.setCargoFinanciero(new BigDecimal("3000.00"));
+                credito.setTotalAPagar(new BigDecimal("13000.00"));
+                credito.setPagoPeriodico(new BigDecimal("1000.00"));
+                credito.setPlazoDias(91);
+                credito.setFechaInicio(LocalDate.of(2026, 7, 1));
+                credito.setFechaVencimiento(LocalDate.of(2026, 9, 30));
+
+                when(clienteRepo.findBySucursalIdOrderByApellidoPaternoAscNombreAsc(1L))
+                                .thenReturn(List.of(cliente));
+                when(creditoRepo.findActivosBySucursalAndAsesor(1L, null)).thenReturn(List.of(credito));
+                when(creditoRepo.findForClientReport(1L)).thenReturn(List.of(credito));
+                when(calendarioRepo.countAtrasadosByCreditoId(eq(21L), any(LocalDate.class))).thenReturn(0L);
+                when(sucursalRepo.findById(1L)).thenReturn(java.util.Optional.of(sucursal));
+
+                ReporteClientesDTO result = service.getClientes(1L, null, "TODOS");
+
+                assertThat(result.clientes()).hasSize(1);
+                ReporteClientesDTO.ClienteItemDTO item = result.clientes().get(0);
+                assertThat(item.nombreCompleto()).isEqualTo("Ana López Ruiz");
+                assertThat(item.domCalle()).isEqualTo("Juárez");
+                assertThat(item.ref1Nombre()).isEqualTo("Referencia Uno");
+                assertThat(item.avalNombre()).isEqualTo("Aval Ejemplo");
+                assertThat(item.tipoCredito()).isEqualTo("RENOVACION");
+                assertThat(item.tipoPago()).isEqualTo("SEMANAL");
+                assertThat(item.montoCredito()).isEqualByComparingTo("10000.00");
+                assertThat(item.pagoPeriodico()).isEqualByComparingTo("1000.00");
+                assertThat(item.estadoCliente()).isEqualTo("ACTIVO");
+
+                assertThat(service.exportarClientesPdf(1L, null, "TODOS")).hasSizeGreaterThan(1_000);
+                assertThat(service.exportarClientesExcel(1L, null, "TODOS")).hasSizeGreaterThan(1_000);
         }
 
         private CajaDia cajaDia(Long id, LocalDate fecha,

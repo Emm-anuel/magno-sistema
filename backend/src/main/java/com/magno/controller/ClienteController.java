@@ -1,6 +1,7 @@
 package com.magno.controller;
 
 import com.magno.dto.cliente.ClienteCreateRequest;
+import com.magno.dto.cliente.ClienteCoincidenciaDTO;
 import com.magno.dto.cliente.ClienteDetalleDTO;
 import com.magno.dto.cliente.ClienteDocumentoDTO;
 import com.magno.dto.cliente.ClienteResumenDTO;
@@ -20,11 +21,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/clientes")
@@ -173,6 +176,21 @@ public class ClienteController {
             @RequestParam String celular,
             @RequestParam(required = false) Long excludeId) {
         return ResponseEntity.ok(Map.of("disponible", clienteService.celularDisponible(celular, excludeId)));
+    }
+
+    /** GET /api/clientes/posibles-duplicados */
+    @GetMapping("/posibles-duplicados")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ClienteCoincidenciaDTO>> posiblesDuplicados(
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String apellidoPaterno,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaNacimiento,
+            @RequestParam(required = false) String celular,
+            @RequestParam(required = false) String curp,
+            @RequestParam(required = false) String ineNumero) {
+        return ResponseEntity.ok(clienteService.buscarPosiblesDuplicados(
+                nombre, apellidoPaterno, fechaNacimiento, celular, curp, ineNumero));
     }
 
     /** GET /api/clientes/{id}/historial — Por implementar en Módulo 3 */

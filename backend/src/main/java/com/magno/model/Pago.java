@@ -1,5 +1,6 @@
 package com.magno.model;
 
+import com.magno.util.DateTimeUtils;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -84,7 +85,7 @@ public class Pago {
 
     @PrePersist
     void prePersist() {
-        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime now = DateTimeUtils.ahoraEnMagno();
         createdAt = now;
         updatedAt = now;
         if (esCompleto == null)
@@ -95,6 +96,6 @@ public class Pago {
 
     @PreUpdate
     void preUpdate() {
-        updatedAt = OffsetDateTime.now();
+        updatedAt = DateTimeUtils.ahoraEnMagno();
     }
 }

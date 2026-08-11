@@ -44,10 +44,6 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
 
         List<Credito> findByClienteIdOrderByCreatedAtDesc(Long clienteId);
 
-        /**
-         * Suma de multas pendientes (no cobradas) para un crédito.
-         * Devuelve 0 si no hay multas.
-         */
         @Query("SELECT c FROM Credito c " +
                         "WHERE c.deletedAt IS NULL " +
                         "AND c.tipo = com.magno.model.TipoCredito.NUEVO " +
@@ -62,11 +58,6 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
                         @Param("finTs") java.time.OffsetDateTime finTs,
                         @Param("asesorId") Long asesorId,
                         @Param("sucursalId") Long sucursalId);
-
-        @Query(value = "SELECT COALESCE(SUM(m.monto), 0) " +
-                        "FROM multas m " +
-                        "WHERE m.credito_id = :creditoId AND m.cobrada = false AND m.deleted_at IS NULL", nativeQuery = true)
-        java.math.BigDecimal sumMultasPendientes(@Param("creditoId") Long creditoId);
 
         @Query("SELECT COALESCE(SUM(c.montoCapital - c.pagoAdelantado), 0) FROM Credito c " +
                         "WHERE c.sucursal.id = :sucursalId " +
@@ -112,6 +103,12 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
         List<Credito> findActivosBySucursalAndAsesor(
                         @Param("sucursalId") Long sucursalId,
                         @Param("asesorId") Long asesorId);
+
+        @Query("SELECT c FROM Credito c " +
+                        "WHERE c.deletedAt IS NULL " +
+                        "AND c.sucursal.id = :sucursalId " +
+                        "ORDER BY c.createdAt DESC")
+        List<Credito> findForClientReport(@Param("sucursalId") Long sucursalId);
 
         @Query("SELECT COUNT(c) FROM Credito c " +
                         "WHERE c.estado = com.magno.model.EstadoCredito.ACTIVO " +

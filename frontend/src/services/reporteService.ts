@@ -107,14 +107,77 @@ export interface Sucursal {
 export interface ReporteClientesItem {
   id: number
   numeroCliente: string | null
+  nombre: string
+  apellidoPaterno: string
+  apellidoMaterno: string | null
   nombreCompleto: string
+  fechaNacimiento: string | null
+  genero: string | null
+  estadoCivil: string
+  nombreConyuge: string | null
+  telefonoFijo: string | null
   celular: string
+  ineTipo: string | null
+  ineNumero: string
   curp: string
+  rfc: string | null
+  domCalle: string
+  domNoExterior: string
+  domNoInterior: string | null
+  domColonia: string
+  domMunicipio: string
+  domEstado: string
+  domCodigoPostal: string
+  domTipoVivienda: string | null
+  domMontoRenta: number | null
   negocioNombre: string | null
   negocioGiro: string | null
+  negocioAntiguedad: string | null
+  negocioDireccion: string | null
+  negocioCalle: string | null
+  negocioNoExterior: string | null
+  negocioNoInterior: string | null
+  negocioColonia: string | null
+  negocioMunicipio: string | null
+  negocioEstado: string | null
+  negocioCp: string | null
+  negocioTipoLocal: string | null
+  negocioMontoRenta: number | null
+  negocioHorarios: string | null
+  negocioLat: number | null
+  negocioLng: number | null
+  ingresosSemanales: number | null
+  gastosSemanales: number | null
+  gastosRenta: number | null
+  gastosOtros: number | null
+  ref1Nombre: string
+  ref1Telefono: string
+  ref1Parentesco: string
+  ref2Nombre: string
+  ref2Telefono: string
+  ref2Parentesco: string
+  avalNombre: string | null
+  avalTelefono: string | null
+  avalDireccion: string | null
+  avalIdentificacion: string | null
   asesorNombre: string
+  sucursalNombre: string
   estadoCliente: string
   fechaAlta: string
+  fechaActualizacion: string
+  creditoId: number | null
+  tipoCredito: string | null
+  tipoPago: string | null
+  montoCredito: number | null
+  montoSolicitado: number | null
+  tasaInteres: number | null
+  cargoFinanciero: number | null
+  totalAPagar: number | null
+  pagoPeriodico: number | null
+  plazoDias: number | null
+  fechaInicio: string | null
+  fechaVencimiento: string | null
+  estadoCredito: string | null
 }
 
 export interface ReporteClientes {

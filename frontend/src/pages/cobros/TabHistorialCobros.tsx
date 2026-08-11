@@ -148,7 +148,7 @@ export default function TabHistorialCobros() {
     staleTime: 30_000,
   })
 
-  const pagos = data?.content ?? []
+  const pagos = useMemo(() => data?.content ?? [], [data?.content])
   const totalPages = data?.totalPages ?? data?.total_pages ?? 1
 
   const filtrados = useMemo(() => {
@@ -338,6 +338,11 @@ export default function TabHistorialCobros() {
                             Registrado por: {a.registradoPor.nombreCompleto}
                           </p>
                         )}
+                        {a.createdAt && (
+                          <p className="text-[10px] text-[#adb5bd] mt-0.5">
+                            Fecha y hora: {fmtDateTime(a.createdAt)}
+                          </p>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -364,7 +369,7 @@ export default function TabHistorialCobros() {
                       <th className="text-right">Multa</th>
                       <th>Estado</th>
                       <th>Fecha cobro</th>
-                      <th>Registrado</th>
+                      <th>Fecha y hora de registro</th>
                       <th>Registrado por</th>
                       <th />
                     </tr>
@@ -460,7 +465,7 @@ export default function TabHistorialCobros() {
                   )}
                   {p.createdAt && (
                     <p className="text-[10px] text-[#adb5bd] mt-0.5">
-                      Reg: {fmtDateTime(p.createdAt)}
+                      Fecha y hora: {fmtDateTime(p.createdAt)}
                     </p>
                   )}
                 </div>
@@ -507,7 +512,7 @@ export default function TabHistorialCobros() {
                   <th>Forma de Pago</th>
                   <th>Estado</th>
                   <th>Fecha cobro</th>
-                  <th>Registrado</th>
+                  <th>Fecha y hora de registro</th>
                   <th>Registrado por</th>
                   <th />
                 </tr>

@@ -39,6 +39,19 @@ function fmtDateShort(iso: string | null | undefined) {
   })
 }
 
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 // ── Payment cell ──────────────────────────────────────────────────────
 
 interface CellProps {
@@ -433,6 +446,7 @@ export default function Historial() {
                       <th className="text-right">Abono</th>
                       <th className="text-right">Multa</th>
                       <th>Estado</th>
+                      <th>Fecha y hora de registro</th>
                       <th>Registrado por</th>
                     </tr>
                   </thead>
@@ -468,6 +482,9 @@ export default function Historial() {
                             <span className={`badge ${esParcial ? 'badge-amarillo' : 'badge-verde'}`}>
                               {esParcial ? 'Parcial' : 'Cubierto'}
                             </span>
+                          </td>
+                          <td className="text-[12px] text-[#6c757d] whitespace-nowrap">
+                            {fmtDateTime(a.createdAt)}
                           </td>
                           <td className="text-[#6c757d]">{a.registradoPor?.nombreCompleto ?? '—'}</td>
                         </tr>

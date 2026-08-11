@@ -11,6 +11,19 @@ interface Props {
   onSuccess: () => void
 }
 
+function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) {
   const qc = useQueryClient()
 
@@ -58,6 +71,9 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
             <h2 className="text-[15px] font-semibold text-[#212529]">Modificar pago</h2>
             <p className="text-[12px] text-[#6c757d] mt-0.5">
               {pago.cliente.nombreCompleto} — Pago #{pago.numeroPago}
+            </p>
+            <p className="text-[11px] text-[#6c757d] mt-0.5">
+              Fecha y hora de registro: {fmtDateTime(pago.createdAt)}
             </p>
           </div>
           <button type="button" onClick={onClose} className="btn btn-sm p-1.5">

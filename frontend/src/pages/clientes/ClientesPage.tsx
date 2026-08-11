@@ -15,9 +15,11 @@ import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
 import SucursalSelector from '@/components/SucursalSelector'
 import { useSucursalScope } from '@/hooks/useSucursalScope'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
+import { normalizePhone, optionalPhoneSchema, requiredPhoneSchema, sanitizePhoneInput } from '@/utils/phone'
+import { curpSchema, normalizeCurp, normalizeRfc, optionalRfcSchema, sanitizeCurpInput, sanitizeRfcInput } from '@/utils/identifiers'
 import type {
   EstadoCliente,
-  ClienteResumen,
+  ClienteCoincidencia, ClienteResumen,
   ClienteDetalle, ClienteCreateRequest, ClienteUpdateRequest,
 } from '@/types'
 
@@ -42,12 +44,12 @@ const clienteSchema = z.object({
   fecha_nacimiento:    z.string().min(1, 'Requerido'),
   estado_civil:        z.enum(['SOLTERO', 'CASADO', 'UNION_LIBRE'] as const),
   nombre_conyuge:      z.string().optional(),
-  telefono_fijo:       z.string().optional(),
-  celular:             z.string().regex(/^\d{10}$/, '10 dígitos'),
+  telefono_fijo:       optionalPhoneSchema,
+  celular:             requiredPhoneSchema,
   ine_tipo:            z.string().optional(),
   ine_numero:          z.string().min(1, 'Requerido'),
-  curp:                z.string().length(18, 'Exactamente 18 caracteres'),
-  rfc:                 z.string().optional(),
+  curp:                curpSchema,
+  rfc:                 optionalRfcSchema,
   dom_calle:           z.string().min(1, 'Requerido'),
   dom_no_exterior:     z.string().min(1, 'Requerido'),
   dom_no_interior:     z.string().optional(),
@@ -78,13 +80,13 @@ const clienteSchema = z.object({
   gastos_renta:        z.coerce.number().optional(),
   gastos_otros:        z.coerce.number().optional(),
   ref1_nombre:         z.string().min(1, 'Requerido'),
-  ref1_telefono:       z.string().min(10, 'Mínimo 10 dígitos'),
+  ref1_telefono:       requiredPhoneSchema,
   ref1_parentesco:     z.string().min(1, 'Requerido'),
   ref2_nombre:         z.string().min(1, 'Requerido'),
-  ref2_telefono:       z.string().min(10, 'Mínimo 10 dígitos'),
+  ref2_telefono:       requiredPhoneSchema,
   ref2_parentesco:     z.string().min(1, 'Requerido'),
   aval_nombre:         z.string().optional(),
-  aval_telefono:       z.string().optional(),
+  aval_telefono:       optionalPhoneSchema,
   aval_direccion:      z.string().optional(),
   aval_identificacion: z.string().optional(),
   asesor_id:           z.coerce.number().optional(),
@@ -97,6 +99,20 @@ type ClienteForm = z.infer<typeof clienteSchema>
 function initials(name: string) {
   if (!name?.trim()) return 'CL'
   return name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+}
+
+function duplicateSearchParams(data: Partial<ClienteForm>) {
+  const celular = data.celular?.replace(/\D/g, '')
+  const curp = data.curp ? normalizeCurp(data.curp) : undefined
+  const ineNumero = data.ine_numero?.trim().toUpperCase()
+  return {
+    nombre: data.nombre?.trim() || undefined,
+    apellidoPaterno: data.apellido_paterno?.trim() || undefined,
+    fechaNacimiento: data.fecha_nacimiento || undefined,
+    celular: celular?.length === 10 ? celular : undefined,
+    curp: curp?.length === 18 ? curp : undefined,
+    ineNumero: ineNumero && ineNumero.length >= 6 ? ineNumero : undefined,
+  }
 }
 
 // ── Componente principal ──────────────────────────────────────────
@@ -487,6 +503,10 @@ export default function ClientesPage() {
           puedeAsignarAsesor={puedeAsignarAsesor}
           puedeAsignarSucursal={puedeAsignarSucursal}
           sucursalScopeId={sucursalScopeId}
+          onUseExisting={(match) => {
+            setModal({ open: false, cliente: null })
+            navigate(`/clientes/${match.id}`)
+          }}
           onClose={() => {
             setModal({ open: false, cliente: null })
             if (returnToPath) {
@@ -518,11 +538,12 @@ interface ModalProps {
   puedeAsignarAsesor: boolean
   puedeAsignarSucursal: boolean
   sucursalScopeId?: number
+  onUseExisting?: (cliente: ClienteCoincidencia) => void
   onClose: () => void
   onSaved: () => void
 }
 
-export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, sucursalScopeId, onClose, onSaved }: ModalProps) {
+export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, sucursalScopeId, onUseExisting, onClose, onSaved }: ModalProps) {
   const isEdit = !!cliente
   const { usuario: authUsuario } = useAuthStore()
   const [isProcessing, setIsProcessing] = useState(false)
@@ -535,6 +556,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   )
   const [curpStatus, setCurpStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
   const [celularStatus, setCelularStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
+  const [duplicateMatches, setDuplicateMatches] = useState<ClienteCoincidencia[]>([])
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false)
   const curpTimeout = useRef<ReturnType<typeof setTimeout>>()
   const celularTimeout = useRef<ReturnType<typeof setTimeout>>()
   const [docIneFrente, setDocIneFrente] = useState<string | null>(null)
@@ -609,6 +632,54 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   })
 
   const domTipoVivienda = watch('dom_tipo_vivienda')
+  const duplicateNombre = watch('nombre')
+  const duplicateApellido = watch('apellido_paterno')
+  const duplicateFechaNacimiento = watch('fecha_nacimiento')
+  const duplicateCelular = watch('celular')
+  const duplicateCurp = watch('curp')
+  const duplicateIne = watch('ine_numero')
+
+  useEffect(() => {
+    if (isEdit) return
+
+    const params = duplicateSearchParams({
+      nombre: duplicateNombre,
+      apellido_paterno: duplicateApellido,
+      fecha_nacimiento: duplicateFechaNacimiento,
+      celular: duplicateCelular,
+      curp: duplicateCurp,
+      ine_numero: duplicateIne,
+    })
+    const hasIdentity = Boolean(
+      params.celular || params.curp || params.ineNumero
+      || (params.nombre && params.apellidoPaterno && params.fechaNacimiento),
+    )
+
+    setDuplicateMatches([])
+    if (!hasIdentity) {
+      setCheckingDuplicates(false)
+      return
+    }
+
+    let cancelled = false
+    setCheckingDuplicates(true)
+    const timeout = setTimeout(() => {
+      clienteService.buscarPosiblesDuplicados(params)
+        .then((matches) => {
+          if (!cancelled) setDuplicateMatches(matches)
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setCheckingDuplicates(false)
+        })
+    }, 500)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+  }, [isEdit, duplicateNombre, duplicateApellido, duplicateFechaNacimiento,
+    duplicateCelular, duplicateCurp, duplicateIne])
 
   const createMutation = useMutation({
     mutationFn: (data: ClienteCreateRequest) => clienteService.crear(data),
@@ -651,6 +722,16 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
     onClose()
   }
 
+  const canUseExisting = (match: ClienteCoincidencia) => {
+    if (authUsuario?.rol === 'ADMINISTRADOR') return true
+    if (authUsuario?.rol === 'ASESOR_COBRADOR') return match.asesor_id === authUsuario.id
+    const allowedBranches = new Set([
+      authUsuario?.sucursal?.id,
+      ...(authUsuario?.sucursales_adicionales?.map((s) => s.id) ?? []),
+    ])
+    return allowedBranches.has(match.sucursal_id)
+  }
+
   const checkCurp = useCallback((curp: string) => {
     clearTimeout(curpTimeout.current)
     if (curp.length !== 18) { setCurpStatus('idle'); return }
@@ -675,6 +756,21 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
   const onSubmit = async (data: ClienteForm) => {
     setFormSubmitted(true)
+    if (!isEdit) {
+      setCheckingDuplicates(true)
+      try {
+        const matches = await clienteService.buscarPosiblesDuplicados(duplicateSearchParams(data))
+        setDuplicateMatches(matches)
+        if (matches.length > 0) {
+          toast.error('El cliente ya está registrado. Utiliza el registro existente.')
+          return
+        }
+      } catch {
+        // El backend vuelve a ejecutar la validación al crear; no se omite la protección.
+      } finally {
+        setCheckingDuplicates(false)
+      }
+    }
     if (curpStatus === 'taken') { toast.error('El CURP ya está registrado'); return }
     if (celularStatus === 'taken') { toast.error('El celular ya está registrado'); return }
 
@@ -779,17 +875,27 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                 <Field label="Celular *" error={errors.celular?.message}>
                   <div className="relative">
                     <input
-                      {...register('celular', { onChange: (e) => checkCelular(e.target.value) })}
+                      {...register('celular', {
+                        setValueAs: normalizePhone,
+                        onChange: (e) => checkCelular(normalizePhone(e.target.value)),
+                      })}
                       className={`input pr-7 ${errors.celular || celularStatus === 'taken' ? 'input-error' : ''}`}
                       placeholder="10 dígitos"
-                      maxLength={10}
+                      inputMode="numeric"
+                      onInput={sanitizePhoneInput}
                     />
                     <StatusIcon status={celularStatus} />
                   </div>
                   {celularStatus === 'taken' && <p className="text-[#dc2626] text-[11px] mt-0.5">Celular ya registrado</p>}
                 </Field>
-                <Field label="Teléfono fijo">
-                  <input {...register('telefono_fijo')} className="input" placeholder="Opcional" />
+                <Field label="Teléfono fijo" error={errors.telefono_fijo?.message}>
+                  <input
+                    {...register('telefono_fijo', { setValueAs: normalizePhone })}
+                    className={`input ${errors.telefono_fijo ? 'input-error' : ''}`}
+                    placeholder="10 dígitos (opcional)"
+                    inputMode="numeric"
+                    onInput={sanitizePhoneInput}
+                  />
                 </Field>
                 <Field label="Estado Civil *" error={errors.estado_civil?.message}>
                   <select {...register('estado_civil')} className={`input ${errors.estado_civil ? 'input-error' : ''}`}>
@@ -815,23 +921,77 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                 <Field label="CURP *" error={errors.curp?.message}>
                   <div className="relative">
                     <input
-                      {...register('curp', { onChange: (e) => checkCurp(e.target.value.toUpperCase()) })}
+                      {...register('curp', {
+                        setValueAs: normalizeCurp,
+                        onChange: (e) => checkCurp(normalizeCurp(e.target.value)),
+                      })}
                       className={`input pr-7 uppercase ${errors.curp || curpStatus === 'taken' ? 'input-error' : ''}`}
                       placeholder="18 caracteres"
-                      maxLength={18}
+                      inputMode="text"
+                      onInput={sanitizeCurpInput}
                     />
                     <StatusIcon status={curpStatus} />
                   </div>
                   {curpStatus === 'taken' && <p className="text-[#dc2626] text-[11px] mt-0.5">CURP ya registrada</p>}
                 </Field>
-                <Field label="RFC">
-                  <input {...register('rfc')} className="input uppercase" placeholder="Opcional" maxLength={13} />
+                <Field label="RFC" error={errors.rfc?.message}>
+                  <input
+                    {...register('rfc', { setValueAs: normalizeRfc })}
+                    className={`input uppercase ${errors.rfc ? 'input-error' : ''}`}
+                    placeholder="12 o 13 caracteres (opcional)"
+                    inputMode="text"
+                    onInput={sanitizeRfcInput}
+                  />
                 </Field>
                 <Field label="Tipo de identificación">
                   <input {...register('ine_tipo')} className="input" placeholder="INE, pasaporte..." />
                 </Field>
               </div>
             </section>
+
+            {!isEdit && checkingDuplicates && duplicateMatches.length === 0 && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-800">
+                Verificando si el cliente ya está registrado...
+              </div>
+            )}
+
+            {!isEdit && duplicateMatches.length > 0 && (
+              <div className="rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3 space-y-3" role="alert">
+                <div>
+                  <p className="text-[14px] font-semibold text-red-800">Este cliente ya podría estar registrado</p>
+                  <p className="text-[12px] text-red-700 mt-1">
+                    No se puede crear otro registro. Revisa la coincidencia y utiliza el cliente existente.
+                  </p>
+                </div>
+                {duplicateMatches.map((match) => (
+                  <div key={match.id} className="rounded-md border border-red-200 bg-white p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex-1 min-w-0 text-[12px] text-gray-700">
+                      <p className="font-semibold text-[13px] text-gray-900">
+                        {match.nombre_completo} {match.numero_cliente ? `· ${match.numero_cliente}` : ''}
+                      </p>
+                      <p>{match.celular} · {match.sucursal_nombre}</p>
+                      <p>Asesor: {match.asesor_nombre ?? 'Sin asignar'}</p>
+                      <p>
+                        {match.activo ? 'Cliente activo' : 'Cliente inactivo'}
+                        {match.tiene_credito_activo ? ' · Tiene crédito activo' : ' · Sin crédito activo'}
+                      </p>
+                      <p className="text-red-700 mt-1">
+                        Coincide en: {match.coincidencias.join(', ')}
+                      </p>
+                    </div>
+                    {canUseExisting(match) && onUseExisting ? (
+                      <button type="button" className="btn-primary btn-sm shrink-0" onClick={() => onUseExisting(match)}>
+                        Usar cliente registrado
+                      </button>
+                    ) : (
+                      <p className="text-[11px] text-amber-800 sm:max-w-[190px]">
+                        Pertenece a otra cartera. Contacta a un supervisor para utilizar o reasignar el registro.
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* ── SECCIÓN 3: Domicilio ── */}
             <section>
@@ -1021,7 +1181,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     <input {...register('ref1_nombre')} className={`input ${errors.ref1_nombre ? 'input-error' : ''}`} placeholder="Nombre" />
                   </Field>
                   <Field label="Teléfono *" error={errors.ref1_telefono?.message}>
-                    <input {...register('ref1_telefono')} className={`input ${errors.ref1_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" />
+                    <input {...register('ref1_telefono', { setValueAs: normalizePhone })} className={`input ${errors.ref1_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" inputMode="numeric" onInput={sanitizePhoneInput} />
                   </Field>
                   <Field label="Parentesco *" error={errors.ref1_parentesco?.message}>
                     <input {...register('ref1_parentesco')} className={`input ${errors.ref1_parentesco ? 'input-error' : ''}`} placeholder="Familiar, amigo..." />
@@ -1032,7 +1192,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     <input {...register('ref2_nombre')} className={`input ${errors.ref2_nombre ? 'input-error' : ''}`} placeholder="Nombre" />
                   </Field>
                   <Field label="Teléfono *" error={errors.ref2_telefono?.message}>
-                    <input {...register('ref2_telefono')} className={`input ${errors.ref2_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" />
+                    <input {...register('ref2_telefono', { setValueAs: normalizePhone })} className={`input ${errors.ref2_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" inputMode="numeric" onInput={sanitizePhoneInput} />
                   </Field>
                   <Field label="Parentesco *" error={errors.ref2_parentesco?.message}>
                     <input {...register('ref2_parentesco')} className={`input ${errors.ref2_parentesco ? 'input-error' : ''}`} placeholder="Familiar, amigo..." />
@@ -1056,8 +1216,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                   <Field label="Nombre del aval">
                     <input {...register('aval_nombre')} className="input" placeholder="Nombre completo" />
                   </Field>
-                  <Field label="Teléfono">
-                    <input {...register('aval_telefono')} className="input" placeholder="10 dígitos" />
+                  <Field label="Teléfono" error={errors.aval_telefono?.message}>
+                    <input {...register('aval_telefono', { setValueAs: normalizePhone })} className={`input ${errors.aval_telefono ? 'input-error' : ''}`} placeholder="10 dígitos (opcional)" inputMode="numeric" onInput={sanitizePhoneInput} />
                   </Field>
                   <Field label="Dirección">
                     <input {...register('aval_direccion')} className="input" placeholder="Dirección completa" />
@@ -1102,8 +1262,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
           {/* Footer */}
           <div className="modal-footer">
             <button type="button" onClick={requestClose} className="btn">Cancelar</button>
-            <button type="submit" disabled={isPending || hasPendingDocumentUpload || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
-              {hasPendingDocumentUpload ? 'Subiendo documentos...' : isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
+            <button type="submit" disabled={isPending || hasPendingDocumentUpload || checkingDuplicates || duplicateMatches.length > 0 || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
+              {checkingDuplicates ? 'Verificando cliente...' : hasPendingDocumentUpload ? 'Subiendo documentos...' : isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
             </button>
           </div>
         </form>

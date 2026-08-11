@@ -1,6 +1,7 @@
 package com.magno.dto.sucursal;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record SucursalUpdateRequest(
@@ -8,5 +9,5 @@ public record SucursalUpdateRequest(
 
         @Size(max = 255, message = "direccion excede 255 caracteres") String direccion,
 
-        @Size(max = 20, message = "telefono excede 20 caracteres") String telefono) {
+        @Pattern(regexp = "^$|\\d{10}", message = "telefono debe tener exactamente 10 dígitos") String telefono) {
 }

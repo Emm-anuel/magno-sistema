@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { AuthResponse, ApiError, ClienteDocumentoDTO } from '@/types'
+import type { AuthResponse, ApiError, ClienteCoincidencia, ClienteDocumentoDTO } from '@/types'
 import { useAuthStore } from '@/hooks/useAuthStore'
 
 function normalizeUsuario(raw: any): AuthResponse['usuario'] {
@@ -445,6 +445,30 @@ export const clienteService = {
   verificarCelular: (celular: string, excludeId?: number) =>
     api.get<{ disponible: boolean }>('/clientes/verificar-celular', { params: { celular, excludeId } })
        .then((r) => r.data.disponible),
+
+  buscarPosiblesDuplicados: (params: {
+    nombre?: string
+    apellidoPaterno?: string
+    fechaNacimiento?: string
+    celular?: string
+    curp?: string
+    ineNumero?: string
+  }): Promise<ClienteCoincidencia[]> =>
+    api.get<any[]>('/clientes/posibles-duplicados', { params }).then((r) =>
+      r.data.map((raw) => ({
+        id: raw.id,
+        numero_cliente: raw.numeroCliente ?? raw.numero_cliente,
+        nombre_completo: raw.nombreCompleto ?? raw.nombre_completo ?? '',
+        fecha_nacimiento: raw.fechaNacimiento ?? raw.fecha_nacimiento,
+        celular: raw.celular ?? '',
+        asesor_nombre: raw.asesorNombre ?? raw.asesor_nombre,
+        asesor_id: raw.asesorId ?? raw.asesor_id,
+        sucursal_nombre: raw.sucursalNombre ?? raw.sucursal_nombre ?? '',
+        sucursal_id: raw.sucursalId ?? raw.sucursal_id,
+        activo: raw.activo ?? true,
+        tiene_credito_activo: raw.tieneCreditoActivo ?? raw.tiene_credito_activo ?? false,
+        coincidencias: raw.coincidencias ?? [],
+      }))),
 
   historial: (id: number) =>
     api.get<any[]>(`/clientes/${id}/historial`).then((r) => r.data),

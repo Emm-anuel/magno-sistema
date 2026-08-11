@@ -1,5 +1,6 @@
 package com.magno.model;
 
+import com.magno.util.DateTimeUtils;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -43,6 +44,6 @@ public class NominaPago {
 
     @PrePersist
     void prePersist() {
-        createdAt = OffsetDateTime.now();
+        createdAt = DateTimeUtils.ahoraEnMagno();
     }
 }

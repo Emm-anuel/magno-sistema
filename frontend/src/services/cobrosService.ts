@@ -121,6 +121,28 @@ function normalizeMulta(raw: any): MultaCobroDTO {
   }
 }
 
+function normalizeAbono(raw: any): AbonoCorrienteDTO {
+  return {
+    abonoId: raw.abonoId ?? raw.abono_id,
+    creditoId: raw.creditoId ?? raw.credito_id,
+    fecha: raw.fecha,
+    createdAt: raw.createdAt ?? raw.created_at ?? null,
+    montoTotal: raw.montoTotal ?? raw.monto_total ?? 0,
+    montoDistribuido: raw.montoDistribuido ?? raw.monto_distribuido ?? 0,
+    montoSobrante: raw.montoSobrante ?? raw.monto_sobrante ?? 0,
+    diasCubiertos: raw.diasCubiertos ?? raw.dias_cubiertos ?? 0,
+    diasParciales: raw.diasParciales ?? raw.dias_parciales ?? 0,
+    coberturas: (raw.coberturas ?? []).map((c: any) => ({
+      numeroPago: c.numeroPago ?? c.numero_pago,
+      fechaProgramada: c.fechaProgramada ?? c.fecha_programada,
+      montoCuota: c.montoCuota ?? c.monto_cuota ?? 0,
+      montoMulta: c.montoMulta ?? c.monto_multa ?? 0,
+      totalAplicado: c.totalAplicado ?? c.total_aplicado ?? 0,
+      esParcial: c.esParcial ?? c.es_parcial ?? false,
+    })),
+  }
+}
+
 function normalizeAbonoHistorial(raw: any): AbonoCorrienteHistorialDTO {
   const cliente = raw.cliente ?? {}
   const registradoPor = raw.registradoPor ?? raw.registrado_por
@@ -221,17 +243,17 @@ export const cobrosService = {
 
   registrarAbonoCorrente: (req: AbonoCorrienteRequest): Promise<AbonoCorrienteDTO> =>
     api
-      .post<AbonoCorrienteDTO>('/cobros/abono-corriente', {
+      .post<any>('/cobros/abono-corriente', {
         credito_id: req.creditoId,
         monto_recibido: req.montoRecibido,
         fecha_pago: req.fechaPago,
       })
-      .then((r) => r.data),
+      .then((r) => normalizeAbono(r.data)),
 
   getAbonosPorCredito: (creditoId: number): Promise<AbonoCorrienteDTO[]> =>
     api
-      .get<AbonoCorrienteDTO[]>('/cobros/abono-corriente', {
+      .get<any[]>('/cobros/abono-corriente', {
         params: { credito_id: creditoId },
       })
-      .then((r) => r.data ?? []),
+      .then((r) => (r.data ?? []).map(normalizeAbono)),
 }

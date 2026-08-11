@@ -11,7 +11,7 @@ public class DateTimeUtils {
     public static final ZoneId MAGNO_ZONE = ZoneId.of("America/Mexico_City");
 
     /**
-     * Obtiene la fecha actual en zona horaria de MAGNO (Guatemala).
+     * Obtiene la fecha actual en zona horaria de MAGNO (Ciudad de México).
      * Reemplaza LocalDate.now() en todo el código de negocio.
      */
     public static java.time.LocalDate hoyEnMagno() {

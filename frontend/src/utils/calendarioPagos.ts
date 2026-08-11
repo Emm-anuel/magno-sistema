@@ -117,12 +117,12 @@ export function construirFilasCalendario(params: ConstruirFilasParams): FilaCale
     })
 
     const coberturaFila = abono?.coberturas.find((c) => c.numeroPago === pago.numeroPago) ?? null
-    const montoRecibido = pagoRegistrado
-      ? pagoRegistrado.razonNoPago
-        ? null
-        : Number(pagoRegistrado.montoRecibido)
-      : coberturaFila
-        ? Number(coberturaFila.totalAplicado)
+    const montoRecibido = coberturaFila
+      ? Number(coberturaFila.totalAplicado)
+      : pagoRegistrado
+        ? pagoRegistrado.razonNoPago
+          ? null
+          : Number(pagoRegistrado.montoRecibido)
         : null
 
     return {

@@ -2,6 +2,7 @@ package com.magno.dto.usuario;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.PastOrPresent;
@@ -13,6 +14,7 @@ public record UsuarioUpdateRequest(
         String nombreCompleto,
 
         @NotBlank(message = "telefono no debe estar vacío")
+        @Pattern(regexp = "\\d{10}", message = "telefono debe tener exactamente 10 dígitos")
         String telefono,
 
         @NotNull(message = "fechaNacimiento no debe ser nula")
@@ -45,10 +47,12 @@ public record UsuarioUpdateRequest(
 
         // Referencias
         @NotBlank(message = "ref1Nombre no debe estar vacío") String ref1Nombre,
-        @NotBlank(message = "ref1Telefono no debe estar vacío") String ref1Telefono,
+        @NotBlank(message = "ref1Telefono no debe estar vacío")
+        @Pattern(regexp = "\\d{10}", message = "ref1Telefono debe tener exactamente 10 dígitos") String ref1Telefono,
         @NotBlank(message = "ref1Parentesco no debe estar vacío") String ref1Parentesco,
         @NotBlank(message = "ref2Nombre no debe estar vacío") String ref2Nombre,
-        @NotBlank(message = "ref2Telefono no debe estar vacío") String ref2Telefono,
+        @NotBlank(message = "ref2Telefono no debe estar vacío")
+        @Pattern(regexp = "\\d{10}", message = "ref2Telefono debe tener exactamente 10 dígitos") String ref2Telefono,
         @NotBlank(message = "ref2Parentesco no debe estar vacío") String ref2Parentesco,
 
         /** Nueva contraseña. Si es null/blank, no se cambia. */

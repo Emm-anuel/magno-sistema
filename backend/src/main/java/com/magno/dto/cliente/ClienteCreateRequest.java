@@ -28,10 +28,12 @@ public record ClienteCreateRequest(
         String estadoCivil,
 
         String nombreConyuge,
+
+        @Pattern(regexp = "^$|\\d{10}", message = "telefonoFijo debe tener exactamente 10 dígitos")
         String telefonoFijo,
 
         @NotBlank(message = "celular no debe estar vacío")
-        @Pattern(regexp = "\\d{10}", message = "celular debe tener 10 dígitos")
+        @Pattern(regexp = "\\d{10}", message = "celular debe tener exactamente 10 dígitos")
         String celular,
 
         // ── Identificación ────────────────────────────────────────
@@ -42,8 +44,10 @@ public record ClienteCreateRequest(
 
         @NotBlank(message = "curp no debe estar vacía")
         @Size(min = 18, max = 18, message = "curp debe tener exactamente 18 caracteres")
+        @Pattern(regexp = "[A-Za-z0-9]{18}", message = "curp solo puede contener letras y números")
         String curp,
 
+        @Pattern(regexp = "^$|[A-Za-z0-9Ññ&]{12,13}", message = "rfc debe tener 12 o 13 caracteres válidos")
         String rfc,
 
         // ── Domicilio ─────────────────────────────────────────────
@@ -120,6 +124,7 @@ public record ClienteCreateRequest(
         String ref1Nombre,
 
         @NotBlank(message = "ref1Telefono no debe estar vacío")
+        @Pattern(regexp = "\\d{10}", message = "ref1Telefono debe tener exactamente 10 dígitos")
         String ref1Telefono,
 
         @NotBlank(message = "ref1Parentesco no debe estar vacío")
@@ -129,6 +134,7 @@ public record ClienteCreateRequest(
         String ref2Nombre,
 
         @NotBlank(message = "ref2Telefono no debe estar vacío")
+        @Pattern(regexp = "\\d{10}", message = "ref2Telefono debe tener exactamente 10 dígitos")
         String ref2Telefono,
 
         @NotBlank(message = "ref2Parentesco no debe estar vacío")
@@ -136,6 +142,7 @@ public record ClienteCreateRequest(
 
         // ── Aval ──────────────────────────────────────────────────
         String avalNombre,
+        @Pattern(regexp = "^$|\\d{10}", message = "avalTelefono debe tener exactamente 10 dígitos")
         String avalTelefono,
         String avalDireccion,
         String avalIdentificacion,

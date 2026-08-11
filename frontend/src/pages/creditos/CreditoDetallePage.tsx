@@ -225,7 +225,7 @@ export default function CreditoDetallePage() {
       .filter(Boolean),
   )
   const multasPendientesParaCorriente = multasPreviewAdeudo
-    .filter((multa) => !multa.cobrada && fechasAdeudoParaCorriente.has(multa.fecha?.slice(0, 10)))
+    .filter((multa) => !multa.cobrada && !multa.condonada && fechasAdeudoParaCorriente.has(multa.fecha?.slice(0, 10)))
     .reduce((sum, multa) => sum + Number(multa.monto ?? 0), 0)
   const multasPendientesVisual = Math.max(
     Number(stats.multasPendientes ?? 0),
@@ -257,22 +257,38 @@ export default function CreditoDetallePage() {
     credito.totalAPagar ??
     ((credito.montoCapital ?? 0) + (credito.cargoFinanciero ?? 0))
   const pagosHistorialCredito = pagosHistorial.filter((p) => p.creditoId === numId)
-  const totalCobradoPagosRuta = pagosHistorialCredito
-    .reduce((sum, p) => sum + Number(p.montoRecibido ?? 0), 0)
-  const totalCuotaPagosRuta = pagosHistorialCredito
-    .reduce((sum, p) => {
-      const recibido = Number(p.montoRecibido ?? 0)
-      const multa = Number(p.multaAplicada ?? 0)
-      return sum + Math.max(recibido - multa, 0)
-    }, 0)
-  const totalCobradoAbonos = abonosCredito
-    .reduce((sum, a) => sum + Number(a.montoDistribuido ?? 0), 0)
-  const totalCuotaAbonos = abonosCredito
-    .reduce((sum, a) => (
-      sum + a.coberturas.reduce((sub, c) => sub + Number(c.montoCuota ?? 0), 0)
+  const totalAplicadoACredito = calendario.reduce((sum, pagoCalendario) => {
+    const montoEsperado = Number(pagoCalendario.montoEsperado ?? 0)
+    const estadoCompleto = ['PAGADO', 'ADELANTADO', 'RECUPERADO'].includes(pagoCalendario.estado)
+
+    // El calendario es la fuente canónica: cada cuota completa cuenta una sola vez,
+    // aunque una migración manual haya dejado Pago + Abono para el mismo día.
+    if (estadoCompleto && credito.liquidadoPorRenovacion == null) {
+      return sum + montoEsperado
+    }
+
+    const cuotaAbonada = abonosCredito.reduce((total, abono) => (
+      total + abono.coberturas
+        .filter((cobertura) => cobertura.numeroPago === pagoCalendario.numeroPago)
+        .reduce((sub, cobertura) => sub + Number(cobertura.montoCuota ?? 0), 0)
     ), 0)
-  const totalCobradoCredito = totalCobradoPagosRuta + totalCobradoAbonos
-  const totalAplicadoACredito = totalCuotaPagosRuta + totalCuotaAbonos
+    const cuotaPagadaDirecta = pagosHistorialCredito
+      .filter((pago) => pago.numeroPago === pagoCalendario.numeroPago && !pago.razonNoPago)
+      .reduce((maximo, pago) => (
+        Math.max(maximo, Number(pago.montoRecibido ?? 0) - Number(pago.multaAplicada ?? 0))
+      ), 0)
+    const aplicadoConEvidencia = Math.min(montoEsperado, Math.max(cuotaAbonada, cuotaPagadaDirecta, 0))
+
+    if (estadoCompleto) return sum + aplicadoConEvidencia
+    if (pagoCalendario.estado === 'PARCIAL' || pagoCalendario.estado === 'RECUPERADO_PARCIAL') {
+      return sum + aplicadoConEvidencia
+    }
+    return sum
+  }, 0)
+  const totalMultasCobradasCredito = multasCredito
+    .filter((multa) => multa.cobrada && !multa.condonada)
+    .reduce((sum, multa) => sum + Number(multa.monto ?? 0), 0)
+  const totalCobradoCredito = totalAplicadoACredito + totalMultasCobradasCredito
   const saldoRestante = Math.max(totalAPagarCredito - totalAplicadoACredito, 0)
   const multasCalendario = [
     ...multasCredito,
@@ -287,7 +303,7 @@ export default function CreditoDetallePage() {
       return acc
     }, {})
   const multasPendientesPorFechaAdeudo = multasPreviewAdeudo
-    .filter((multa) => !multa.cobrada)
+    .filter((multa) => !multa.cobrada && !multa.condonada)
     .reduce<Record<string, number>>((acc, multa) => {
       const fecha = multa.fecha?.slice(0, 10)
       const monto = Number(multa.monto ?? 0)
@@ -354,7 +370,7 @@ export default function CreditoDetallePage() {
               Desembolsar
             </button>
           )}
-          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && !tieneAdeudoPendiente && (
+          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && (
             <button
               className="btn-primary btn btn-sm"
               onClick={() => setRegistrarPagoOpen(true)}
@@ -559,6 +575,11 @@ export default function CreditoDetallePage() {
                           <span className="text-[12px] text-blue-600 ml-2">
                             — {abono.diasCubiertos} días cubiertos{abono.diasParciales > 0 ? ` + ${abono.diasParciales} parcial` : ''}
                           </span>
+                          {abono.createdAt && (
+                            <span className="block text-[11px] text-blue-500 mt-0.5">
+                              Fecha y hora de registro: {fmtDateTime(abono.createdAt)}
+                            </span>
+                          )}
                         </div>
                         <div className="text-[13px] font-bold text-blue-800 shrink-0">
                           {fmtMoney(abono.montoTotal)}
@@ -605,7 +626,10 @@ export default function CreditoDetallePage() {
               />
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
                 <span className="text-[#16a34a] font-semibold">
-                  Total cobrado: {fmtMoney(totalCobradoCredito)}
+                  Total cobrado y aplicado: {fmtMoney(totalCobradoCredito)}
+                  <span className="block text-[11px] font-normal text-[#6c757d]">
+                    Cuotas {fmtMoney(totalAplicadoACredito)} + multas cobradas {fmtMoney(totalMultasCobradasCredito)}
+                  </span>
                 </span>
                 {multasPendientesVisual > 0 && (
                   <span className="text-[#dc2626] font-semibold">
@@ -831,7 +855,7 @@ export default function CreditoDetallePage() {
                 ['Monto recibido',    pagoModal.razonNoPago ? 'No pagó' : fmtMoney(pagoModal.montoRecibido)],
                 ['Razón no pago',     pagoModal.razonNoPago ?? '—'],
                 ['Registrado por',    pagoModal.registradoPor?.nombreCompleto ?? '—'],
-                ['Fecha de registro', fmtDateTime(pagoModal.createdAt)],
+                ['Fecha y hora de registro', fmtDateTime(pagoModal.createdAt)],
               ] as [string, string][]).map(([label, value]) => (
                 <div key={label} className="flex justify-between text-[13px]">
                   <span className="text-[#6c757d]">{label}</span>
@@ -843,7 +867,7 @@ export default function CreditoDetallePage() {
                   <p className="text-[11px] text-[#adb5bd] italic">
                     Modificado por {pagoModal.modificadoPor.nombreCompleto}
                     {pagoModal.fechaModificacion
-                      ? ` el ${fmtDate(pagoModal.fechaModificacion.slice(0, 10))}`
+                      ? ` el ${fmtDateTime(pagoModal.fechaModificacion)}`
                       : ''}
                   </p>
                 </div>
@@ -943,6 +967,16 @@ export default function CreditoDetallePage() {
               </button>
             </div>
             <div className="px-5 py-4 space-y-4">
+              <div className="rounded-lg border border-[#e9ecef] px-3 py-2.5 space-y-1">
+                <div className="flex justify-between gap-3 text-[12px]">
+                  <span className="text-[#6c757d]">Fecha del abono</span>
+                  <span className="font-medium text-[#212529]">{fmtDate(abonoDetalleModal.fecha)}</span>
+                </div>
+                <div className="flex justify-between gap-3 text-[12px]">
+                  <span className="text-[#6c757d]">Fecha y hora de registro</span>
+                  <span className="font-medium text-[#212529] text-right">{fmtDateTime(abonoDetalleModal.createdAt)}</span>
+                </div>
+              </div>
               <div className="grid grid-cols-3 gap-3 text-center">
                 <div className="bg-[#f8f9fa] rounded-lg p-3">
                   <p className="text-[11px] text-[#6c757d]">Total recibido</p>

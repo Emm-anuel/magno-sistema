@@ -210,7 +210,7 @@ function CreditoActivoCard({
         </div>
 
         <div className="flex gap-2 pt-1">
-          {puedeRegistrarCobro && !tieneAdeudoPendiente && (
+          {puedeRegistrarCobro && (
             <button
               type="button"
               className="btn flex-1 py-2 text-sm"
@@ -743,7 +743,7 @@ export default function ClienteDetallePage() {
                           <th>Pago #</th>
                           <th className="text-right">Monto</th>
                           <th>Estado</th>
-                          <th>Asesor</th>
+                          <th>Asesor / fecha y hora</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -777,7 +777,7 @@ export default function ClienteDetallePage() {
                                 {p.registradoPor?.nombreCompleto ?? '—'}
                                 {p.createdAt && (
                                   <span className="text-[10px] text-[#adb5bd]">
-                                    {' · '}Reg: {fmtDateTime(p.createdAt)}
+                                    {' · '}Fecha y hora: {fmtDateTime(p.createdAt)}
                                   </span>
                                 )}
                               </td>
@@ -813,7 +813,7 @@ export default function ClienteDetallePage() {
                           <th className="text-right">Monto</th>
                           <th className="text-right">Multa</th>
                           <th>Estado</th>
-                          <th>Registrado por</th>
+                          <th>Registrado por / fecha y hora</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -854,7 +854,7 @@ export default function ClienteDetallePage() {
                                 {a.registradoPor?.nombreCompleto ?? '—'}
                                 {a.createdAt && (
                                   <span className="text-[10px] text-[#adb5bd]">
-                                    {' · '}Reg: {fmtDateTime(a.createdAt)}
+                                    {' · '}Fecha y hora: {fmtDateTime(a.createdAt)}
                                   </span>
                                 )}
                               </td>

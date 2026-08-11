@@ -537,7 +537,7 @@ public class CreditoService {
                                 c.getId(), List.of(EstadoCalendarioPago.NO_PAGADO));
                 pagosVencidos += pagosNoPagados;
 
-                BigDecimal multasPendientes = creditoRepo.sumMultasPendientes(c.getId());
+                BigDecimal multasPendientes = multaRepo.sumMontosPendientesByCreditoId(c.getId());
 
                 boolean elegibleRenovacion = renovacionElegibilidadService.esElegible(c, pagosRealizados);
 
@@ -587,7 +587,7 @@ public class CreditoService {
                 if (c.getEstado() == EstadoCredito.ACTIVO) {
                         LocalDate hoy = DateTimeUtils.hoyEnMagno();
                         vencidos = calendarioPagoRepo.countAtrasadosByCreditoId(c.getId(), hoy);
-                        multas = creditoRepo.sumMultasPendientes(c.getId());
+                        multas = multaRepo.sumMontosPendientesByCreditoId(c.getId());
                 }
                 return CreditoResumenDTO.from(c, realizados, vencidos, multas);
         }

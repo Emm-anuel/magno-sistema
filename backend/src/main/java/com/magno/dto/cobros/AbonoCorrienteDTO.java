@@ -5,12 +5,14 @@ import com.magno.model.AbonoCorriente;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 public record AbonoCorrienteDTO(
         Long abonoId,
         Long creditoId,
         LocalDate fecha,
+        OffsetDateTime createdAt,
         BigDecimal montoTotal,
         BigDecimal montoDistribuido,
         BigDecimal montoSobrante,
@@ -49,6 +51,7 @@ public record AbonoCorrienteDTO(
                 a.getId(),
                 a.getCredito().getId(),
                 a.getFecha(),
+                a.getCreatedAt(),
                 a.getMontoTotal(),
                 a.getMontoDistribuido(),
                 a.getMontoSobrante(),

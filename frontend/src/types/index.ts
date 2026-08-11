@@ -195,6 +195,21 @@ export interface ClienteResumen {
   created_at: string
 }
 
+export interface ClienteCoincidencia {
+  id: number
+  numero_cliente?: string
+  nombre_completo: string
+  fecha_nacimiento: string
+  celular: string
+  asesor_nombre?: string
+  asesor_id?: number
+  sucursal_nombre: string
+  sucursal_id: number
+  activo: boolean
+  tiene_credito_activo: boolean
+  coincidencias: string[]
+}
+
 export interface ClienteDetalle {
   id: number
   numero_cliente?: string
@@ -556,6 +571,7 @@ export interface AbonoCorrienteDTO {
   abonoId: number
   creditoId: number
   fecha: string
+  createdAt: string | null
   montoTotal: number
   montoDistribuido: number
   montoSobrante: number

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/services/api'
 import MetricCard from '@/components/reportes/MetricCard'
@@ -49,6 +50,44 @@ function fmtFecha(s: string) {
   return fecha.toLocaleDateString('es-MX', {
     day: '2-digit', month: 'short', year: 'numeric',
   })
+}
+
+function fmtMoney(value: number | null | undefined) {
+  if (value == null) return '—'
+  return value.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+}
+
+function fmtEnum(value: string | null | undefined) {
+  if (!value) return '—'
+  const text = value.toLowerCase().replace(/_/g, ' ')
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+function joinParts(parts: Array<string | null | undefined>) {
+  return parts
+    .filter((part): part is string => Boolean(part?.trim()) && part !== '—')
+    .join(' · ') || '—'
+}
+
+function domicilio(c: ReporteClientes['clientes'][number]) {
+  return joinParts([
+    joinParts([c.domCalle, c.domNoExterior, c.domNoInterior ? `Int. ${c.domNoInterior}` : null]),
+    c.domColonia, c.domMunicipio, c.domEstado, c.domCodigoPostal ? `CP ${c.domCodigoPostal}` : null,
+  ])
+}
+
+function direccionNegocio(c: ReporteClientes['clientes'][number]) {
+  const separada = joinParts([
+    joinParts([c.negocioCalle, c.negocioNoExterior, c.negocioNoInterior ? `Int. ${c.negocioNoInterior}` : null]),
+    c.negocioColonia, c.negocioMunicipio, c.negocioEstado, c.negocioCp ? `CP ${c.negocioCp}` : null,
+  ])
+  return separada !== '—' ? separada : (c.negocioDireccion ?? '—')
+}
+
+function InfoLine({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div><span className="font-medium text-gray-500">{label}:</span> {children || '—'}</div>
+  )
 }
 
 interface Props { sucursalId: number | null }
@@ -190,51 +229,98 @@ export default function TabClientes({ sucursalId }: Props) {
             <div className="text-center py-12 text-gray-500">No hay clientes con ese filtro</div>
           ) : (
             <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="min-w-full text-sm">
+              <table className="min-w-[2400px] text-sm">
                 <thead className="bg-gray-50 text-gray-600 text-xs uppercase">
                   <tr>
                     <th className="px-4 py-3 text-left w-[90px]">No.</th>
-                    <th className="px-4 py-3 text-left">Nombre</th>
-                    <th className="px-4 py-3 text-left">Celular</th>
-                    <th className="px-4 py-3 text-left">CURP</th>
-                    <th className="px-4 py-3 text-left">Negocio</th>
-                    <th className="px-4 py-3 text-left">Asesor</th>
-                    <th className="px-4 py-3 text-center">Estado</th>
-                    <th className="px-4 py-3 text-left">Alta</th>
+                    <th className="px-4 py-3 text-left w-[250px]">Datos personales</th>
+                    <th className="px-4 py-3 text-left w-[280px]">Contacto e identificación</th>
+                    <th className="px-4 py-3 text-left w-[300px]">Domicilio</th>
+                    <th className="px-4 py-3 text-left w-[340px]">Negocio y finanzas</th>
+                    <th className="px-4 py-3 text-left w-[320px]">Referencias y aval</th>
+                    <th className="px-4 py-3 text-left w-[340px]">Crédito actual o reciente</th>
+                    <th className="px-4 py-3 text-left w-[220px]">Gestión</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {paginated.map(c => (
-                    <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 font-mono text-gray-500 text-xs">
+                    <tr key={c.id} className="hover:bg-gray-50 align-top">
+                      <td className="px-4 py-3 font-mono text-gray-500 text-xs whitespace-nowrap">
                         {c.numeroCliente ?? '—'}
                       </td>
-                      <td className="px-4 py-3 font-medium">{c.nombreCompleto}</td>
-                      <td className="px-4 py-3 text-gray-600">{c.celular}</td>
-                      <td className="px-4 py-3 font-mono text-xs text-gray-500">{c.curp}</td>
-                      <td className="px-4 py-3 text-gray-700">
-                        {c.negocioNombre ?? <span className="text-gray-400">—</span>}
-                        {c.negocioGiro && (
-                          <span className="ml-1 text-xs text-gray-400">({c.negocioGiro})</span>
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        <div className="font-semibold text-sm text-gray-900">{c.nombreCompleto}</div>
+                        <InfoLine label="Nacimiento">{fmtFecha(c.fechaNacimiento ?? '')}</InfoLine>
+                        <InfoLine label="Género">{fmtEnum(c.genero)}</InfoLine>
+                        <InfoLine label="Estado civil">{fmtEnum(c.estadoCivil)}</InfoLine>
+                        <InfoLine label="Cónyuge">{c.nombreConyuge ?? '—'}</InfoLine>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        <InfoLine label="Celular">{c.celular}</InfoLine>
+                        <InfoLine label="Tel. fijo">{c.telefonoFijo ?? '—'}</InfoLine>
+                        <InfoLine label="CURP"><span className="font-mono">{c.curp}</span></InfoLine>
+                        <InfoLine label="RFC"><span className="font-mono">{c.rfc ?? '—'}</span></InfoLine>
+                        <InfoLine label="Identificación">{joinParts([c.ineTipo, c.ineNumero])}</InfoLine>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        <div>{domicilio(c)}</div>
+                        <InfoLine label="Vivienda">{fmtEnum(c.domTipoVivienda)}</InfoLine>
+                        <InfoLine label="Renta">{fmtMoney(c.domMontoRenta)}</InfoLine>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        <div className="font-semibold text-gray-900">{c.negocioNombre ?? '—'}</div>
+                        <InfoLine label="Giro">{c.negocioGiro ?? '—'}</InfoLine>
+                        <InfoLine label="Antigüedad">{c.negocioAntiguedad ?? '—'}</InfoLine>
+                        <InfoLine label="Dirección">{direccionNegocio(c)}</InfoLine>
+                        <InfoLine label="Local">{joinParts([fmtEnum(c.negocioTipoLocal), fmtMoney(c.negocioMontoRenta)])}</InfoLine>
+                        <InfoLine label="Horario">{c.negocioHorarios ?? '—'}</InfoLine>
+                        <InfoLine label="Ubicación">{c.negocioLat != null && c.negocioLng != null ? `${c.negocioLat}, ${c.negocioLng}` : '—'}</InfoLine>
+                        <InfoLine label="Ingresos semanales">{fmtMoney(c.ingresosSemanales)}</InfoLine>
+                        <InfoLine label="Gastos semanales">{fmtMoney(c.gastosSemanales)}</InfoLine>
+                        <InfoLine label="Renta / otros">{joinParts([fmtMoney(c.gastosRenta), fmtMoney(c.gastosOtros)])}</InfoLine>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        <InfoLine label="Referencia 1">{joinParts([c.ref1Nombre, c.ref1Telefono, c.ref1Parentesco])}</InfoLine>
+                        <InfoLine label="Referencia 2">{joinParts([c.ref2Nombre, c.ref2Telefono, c.ref2Parentesco])}</InfoLine>
+                        <InfoLine label="Aval">{joinParts([c.avalNombre, c.avalTelefono])}</InfoLine>
+                        <InfoLine label="Dirección aval">{c.avalDireccion ?? '—'}</InfoLine>
+                        <InfoLine label="Identificación aval">{c.avalIdentificacion ?? '—'}</InfoLine>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        {c.creditoId == null ? (
+                          <span className="text-gray-400">Sin crédito registrado</span>
+                        ) : (
+                          <>
+                            <InfoLine label="Crédito">#{c.creditoId} · {fmtEnum(c.tipoCredito)}</InfoLine>
+                            <InfoLine label="Modalidad">{fmtEnum(c.tipoPago)}</InfoLine>
+                            <InfoLine label="Monto">{fmtMoney(c.montoCredito)}</InfoLine>
+                            <InfoLine label="Solicitado">{fmtMoney(c.montoSolicitado)}</InfoLine>
+                            <InfoLine label="Tasa">{c.tasaInteres != null ? `${c.tasaInteres * 100}%` : '—'}</InfoLine>
+                            <InfoLine label="Cargo financiero">{fmtMoney(c.cargoFinanciero)}</InfoLine>
+                            <InfoLine label="Total a pagar">{fmtMoney(c.totalAPagar)}</InfoLine>
+                            <InfoLine label="Pago periódico">{fmtMoney(c.pagoPeriodico)}</InfoLine>
+                            <InfoLine label="Plazo">{c.plazoDias != null ? `${c.plazoDias} días` : '—'}</InfoLine>
+                            <InfoLine label="Vigencia">{joinParts([c.fechaInicio ? fmtFecha(c.fechaInicio) : null, c.fechaVencimiento ? fmtFecha(c.fechaVencimiento) : null])}</InfoLine>
+                            <InfoLine label="Estado">{fmtEnum(c.estadoCredito)}</InfoLine>
+                          </>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-gray-600">{c.asesorNombre}</td>
-                      <td className="px-4 py-3 text-center">
-                        <EstadoBadge estado={c.estadoCliente} />
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
-                        {fmtFecha(c.fechaAlta)}
+                      <td className="px-4 py-3 text-xs text-gray-700 space-y-1">
+                        <div><EstadoBadge estado={c.estadoCliente} /></div>
+                        <InfoLine label="Asesor">{c.asesorNombre}</InfoLine>
+                        <InfoLine label="Sucursal">{c.sucursalNombre}</InfoLine>
+                        <InfoLine label="Alta">{fmtFecha(c.fechaAlta)}</InfoLine>
+                        <InfoLine label="Actualización">{fmtFecha(c.fechaActualizacion)}</InfoLine>
                       </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot className="bg-emerald-100 font-semibold text-emerald-900 text-sm">
                   <tr>
-                    <td colSpan={6} className="px-4 py-3">TOTAL ({data.clientes.length} clientes)</td>
-                    <td className="px-4 py-3 text-center text-xs">
+                    <td colSpan={7} className="px-4 py-3">TOTAL ({data.clientes.length} clientes)</td>
+                    <td className="px-4 py-3 text-xs">
                       {data.totalActivos} activos · {data.totalEnMora} mora
                     </td>
-                    <td />
                   </tr>
                 </tfoot>
               </table>

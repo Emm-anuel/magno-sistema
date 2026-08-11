@@ -12,6 +12,7 @@ import type { Rol, Usuario, UsuarioCreateRequest, UsuarioUpdateRequest } from '@
 import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
 import { todayLocalStr } from '@/utils/date'
+import { normalizePhone, requiredPhoneSchema, sanitizePhoneInput } from '@/utils/phone'
 
 // ── Tipos ─────────────────────────────────────────────────────────
 const ROLES: Rol[] = ['ADMINISTRADOR', 'SUPERVISOR', 'SUPERVISOR_CAMPO', 'ASESOR_COBRADOR']
@@ -21,7 +22,7 @@ const USUARIOS_OCULTOS = new Set(['admin@magno.mx'])
 const baseSchema = {
   nombre_completo: z.string().min(2, 'Requerido'),
   email:           z.string().email('Correo inválido'),
-  telefono:        z.string().min(10, 'Mínimo 10 dígitos'),
+  telefono:        requiredPhoneSchema,
   fecha_nacimiento: z.string().min(1, 'Requerido').refine(
     (fecha) => fecha < todayLocalStr(),
     'Debe ser anterior a hoy',
@@ -43,10 +44,10 @@ const baseSchema = {
   ine_imagen_url:  z.string().min(1, 'Requerido'),
   ine_imagen_reverso_url: z.string().min(1, 'Requerido'),
   ref1_nombre:     z.string().min(1, 'Requerido'),
-  ref1_telefono:   z.string().min(10, 'Mínimo 10 dígitos'),
+  ref1_telefono:   requiredPhoneSchema,
   ref1_parentesco: z.string().min(1, 'Requerido'),
   ref2_nombre:     z.string().min(1, 'Requerido'),
-  ref2_telefono:   z.string().min(10, 'Mínimo 10 dígitos'),
+  ref2_telefono:   requiredPhoneSchema,
   ref2_parentesco: z.string().min(1, 'Requerido'),
 }
 
@@ -602,7 +603,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                 </Field>
 
                 <Field label="Teléfono *" error={errors.telefono?.message}>
-                  <input {...register('telefono')} className={`input ${errors.telefono ? 'input-error' : ''}`} placeholder="10 dígitos" />
+                  <input {...register('telefono', { setValueAs: normalizePhone })} className={`input ${errors.telefono ? 'input-error' : ''}`} placeholder="10 dígitos" inputMode="numeric" onInput={sanitizePhoneInput} />
                 </Field>
 
                 <Field label="Fecha de nacimiento *" error={errors.fecha_nacimiento?.message}>
@@ -848,7 +849,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                     <input {...register('ref1_nombre')} className={`input ${errors.ref1_nombre ? 'input-error' : ''}`} placeholder="Nombre" />
                   </Field>
                   <Field label="Teléfono *" error={errors.ref1_telefono?.message}>
-                    <input {...register('ref1_telefono')} className={`input ${errors.ref1_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" />
+                    <input {...register('ref1_telefono', { setValueAs: normalizePhone })} className={`input ${errors.ref1_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" inputMode="numeric" onInput={sanitizePhoneInput} />
                   </Field>
                   <Field label="Parentesco *" error={errors.ref1_parentesco?.message}>
                     <input {...register('ref1_parentesco')} className={`input ${errors.ref1_parentesco ? 'input-error' : ''}`} placeholder="Familiar, amigo..." />
@@ -859,7 +860,7 @@ function UsuarioModal({ usuario, sucursales, onClose, onSaved }: ModalProps) {
                     <input {...register('ref2_nombre')} className={`input ${errors.ref2_nombre ? 'input-error' : ''}`} placeholder="Nombre" />
                   </Field>
                   <Field label="Teléfono *" error={errors.ref2_telefono?.message}>
-                    <input {...register('ref2_telefono')} className={`input ${errors.ref2_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" />
+                    <input {...register('ref2_telefono', { setValueAs: normalizePhone })} className={`input ${errors.ref2_telefono ? 'input-error' : ''}`} placeholder="10 dígitos" inputMode="numeric" onInput={sanitizePhoneInput} />
                   </Field>
                   <Field label="Parentesco *" error={errors.ref2_parentesco?.message}>
                     <input {...register('ref2_parentesco')} className={`input ${errors.ref2_parentesco ? 'input-error' : ''}`} placeholder="Familiar, amigo..." />

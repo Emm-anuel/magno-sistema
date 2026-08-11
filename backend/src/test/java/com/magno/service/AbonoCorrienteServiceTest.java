@@ -10,6 +10,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -150,6 +151,8 @@ class AbonoCorrienteServiceTest {
         savedAbono.setMontoDistribuido(new BigDecimal("1500.00"));
         savedAbono.setMontoSobrante(BigDecimal.ZERO);
         savedAbono.setRegistradoPor(asesor);
+        OffsetDateTime fechaHoraRegistro = OffsetDateTime.parse("2026-06-25T14:37:00-06:00");
+        savedAbono.setCreatedAt(fechaHoraRegistro);
         when(abonoCorrienteRepo.save(any())).thenReturn(savedAbono);
         when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(multaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -160,6 +163,7 @@ class AbonoCorrienteServiceTest {
         assertThat(result.diasCubiertos()).isEqualTo(7);
         assertThat(result.diasParciales()).isEqualTo(1);
         assertThat(result.montoSobrante()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.createdAt()).isEqualTo(fechaHoraRegistro);
 
         AbonoCorrienteDTO.CoberturaDetalleDTO dia8 = result.coberturas().get(7);
         assertThat(dia8.esParcial()).isTrue();

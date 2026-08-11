@@ -274,7 +274,7 @@ function ClienteCard({
   const puedeAbonarFuturo = !c.tieneAdeudoPendiente
     && !esFechaHistorica
     && (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'INHABIL' || c.estadoHoy === 'INHABILL')
-  const puedeRegistrarCorriente = puedeRegistrar && !puedePagarAdeudo
+  const puedeRegistrarCorriente = puedeRegistrar
 
   return (
     <div className="card p-4">
@@ -363,7 +363,7 @@ function ClienteRow({
   const puedeAbonarFuturo = !c.tieneAdeudoPendiente
     && !esFechaHistorica
     && (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'INHABIL' || c.estadoHoy === 'INHABILL')
-  const puedeRegistrarCorriente = puedeRegistrar && !puedePagarAdeudo
+  const puedeRegistrarCorriente = puedeRegistrar
 
   return (
     <tr>

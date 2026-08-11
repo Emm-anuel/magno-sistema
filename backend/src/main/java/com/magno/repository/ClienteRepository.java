@@ -16,11 +16,11 @@ import java.util.List;
 public interface ClienteRepository extends JpaRepository<Cliente, Long>,
         JpaSpecificationExecutor<Cliente> {
 
-    boolean existsByCurp(String curp);
+    boolean existsByCurpIgnoreCase(String curp);
 
     boolean existsByCelular(String celular);
 
-    boolean existsByCurpAndIdNot(String curp, Long id);
+    boolean existsByCurpIgnoreCaseAndIdNot(String curp, Long id);
 
     boolean existsByCelularAndIdNot(String celular, Long id);
 

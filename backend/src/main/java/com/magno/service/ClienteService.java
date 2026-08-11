@@ -1,6 +1,7 @@
 package com.magno.service;
 
 import com.magno.dto.cliente.ClienteCreateRequest;
+import com.magno.dto.cliente.ClienteCoincidenciaDTO;
 import com.magno.dto.cliente.ClienteDetalleDTO;
 import com.magno.dto.cliente.ClienteDocumentoDTO;
 import com.magno.dto.cliente.ClienteResumenDTO;
@@ -15,13 +16,20 @@ import com.magno.repository.SucursalRepository;
 import com.magno.repository.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @Transactional(readOnly = true)
@@ -99,16 +107,64 @@ public class ClienteService {
         return ClienteDetalleDTO.from(c, clienteRepo.tieneCredito(id));
     }
 
+    /** Busca coincidencias fuertes antes de dar de alta un cliente. */
+    public List<ClienteCoincidenciaDTO> buscarPosiblesDuplicados(
+            String nombre,
+            String apellidoPaterno,
+            LocalDate fechaNacimiento,
+            String celular,
+            String curp,
+            String ineNumero) {
+        String nombreNorm = normalizeIdentity(nombre);
+        String apellidoNorm = normalizeIdentity(apellidoPaterno);
+        String celularNorm = normalizeDigits(celular);
+        String curpNorm = normalizeCurp(curp);
+        String ineNorm = normalizeIdentity(ineNumero);
+
+        Specification<Cliente> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> matches = new ArrayList<>();
+
+            if (curpNorm != null && curpNorm.length() == 18) {
+                matches.add(cb.equal(cb.upper(cb.trim(root.<String>get("curp"))), curpNorm));
+            }
+            if (celularNorm != null && celularNorm.length() == 10) {
+                matches.add(cb.equal(root.get("celular"), celularNorm));
+            }
+            if (ineNorm != null && ineNorm.length() >= 6) {
+                matches.add(cb.equal(cb.upper(cb.trim(root.<String>get("ineNumero"))), ineNorm));
+            }
+            if (nombreNorm != null && apellidoNorm != null && fechaNacimiento != null) {
+                matches.add(cb.and(
+                        cb.equal(cb.upper(cb.trim(root.<String>get("nombre"))), nombreNorm),
+                        cb.equal(cb.upper(cb.trim(root.<String>get("apellidoPaterno"))), apellidoNorm),
+                        cb.equal(root.get("fechaNacimiento"), fechaNacimiento)));
+            }
+
+            return matches.isEmpty() ? cb.disjunction() : cb.or(matches.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return clienteRepo.findAll(spec, PageRequest.of(0, 5, Sort.by(Sort.Direction.DESC, "updatedAt")))
+                .stream()
+                .map(cliente -> new ClienteCoincidenciaDTO(
+                        cliente.getId(),
+                        cliente.getNumeroCliente(),
+                        cliente.getNombreCompleto(),
+                        cliente.getFechaNacimiento(),
+                        maskPhone(cliente.getCelular()),
+                        cliente.getAsesor() != null ? cliente.getAsesor().getNombreCompleto() : null,
+                        cliente.getAsesor() != null ? cliente.getAsesor().getId() : null,
+                        cliente.getSucursal().getNombre(),
+                        cliente.getSucursal().getId(),
+                        cliente.getActivo(),
+                        clienteRepo.tieneCredito(cliente.getId()),
+                        duplicateReasons(cliente, nombreNorm, apellidoNorm, fechaNacimiento,
+                                celularNorm, curpNorm, ineNorm)))
+                .toList();
+    }
+
     /** Crea un nuevo cliente. */
     @Transactional
     public ClienteDetalleDTO crearCliente(ClienteCreateRequest req, Long createdByUserId) {
-        if (clienteRepo.existsByCurp(req.curp())) {
-            throw new IllegalArgumentException("Ya existe un cliente registrado con ese CURP");
-        }
-        if (clienteRepo.existsByCelular(req.celular())) {
-            throw new IllegalArgumentException("El número de celular ya está registrado");
-        }
-
         // Resolver asesor primero para poder heredar su sucursal si no se especificó
         Usuario asesor = null;
         if (req.asesorId() != null) {
@@ -130,6 +186,17 @@ public class ClienteService {
         Sucursal sucursal = sucursalRepo.findByIdForUpdate(resolvedSucursalId)
                 .orElseThrow(() -> new EntityNotFoundException("Sucursal no encontrada: " + resolvedSucursalId));
 
+        List<ClienteCoincidenciaDTO> duplicados = buscarPosiblesDuplicados(
+                req.nombre(), req.apellidoPaterno(), req.fechaNacimiento(),
+                req.celular(), req.curp(), req.ineNumero());
+        if (!duplicados.isEmpty()) {
+            ClienteCoincidenciaDTO existente = duplicados.get(0);
+            String numero = existente.numeroCliente() != null ? " (" + existente.numeroCliente() + ")" : "";
+            throw new IllegalArgumentException(
+                    "Ya existe un cliente con esos datos: " + existente.nombreCompleto() + numero
+                            + ". Utiliza el registro existente.");
+        }
+
         Usuario creador = usuarioRepo.findById(createdByUserId).orElse(null);
 
         Cliente nuevo = Cliente.builder()
@@ -144,8 +211,8 @@ public class ClienteService {
                 .celular(req.celular())
                 .ineTipo(req.ineTipo())
                 .ineNumero(req.ineNumero())
-                .curp(req.curp())
-                .rfc(req.rfc())
+                .curp(normalizeCurp(req.curp()))
+                .rfc(normalizeRfc(req.rfc()))
                 .domCalle(req.domCalle())
                 .domNoExterior(req.domNoExterior())
                 .domNoInterior(req.domNoInterior())
@@ -201,11 +268,12 @@ public class ClienteService {
         Cliente c = clienteRepo.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado: " + id));
 
-        if (req.curp() != null && !req.curp().equals(c.getCurp())) {
-            if (clienteRepo.existsByCurpAndIdNot(req.curp(), id)) {
+        String curpNormalizada = normalizeCurp(req.curp());
+        if (curpNormalizada != null && !curpNormalizada.equals(c.getCurp())) {
+            if (clienteRepo.existsByCurpIgnoreCaseAndIdNot(curpNormalizada, id)) {
                 throw new IllegalArgumentException("Ya existe un cliente registrado con ese CURP");
             }
-            c.setCurp(req.curp());
+            c.setCurp(curpNormalizada);
         }
         if (req.celular() != null && !req.celular().equals(c.getCelular())) {
             if (clienteRepo.existsByCelularAndIdNot(req.celular(), id)) {
@@ -224,7 +292,7 @@ public class ClienteService {
         if (req.telefonoFijo() != null)       c.setTelefonoFijo(req.telefonoFijo());
         if (req.ineTipo() != null)            c.setIneTipo(req.ineTipo());
         if (req.ineNumero() != null)          c.setIneNumero(req.ineNumero());
-        if (req.rfc() != null)                c.setRfc(req.rfc());
+        if (req.rfc() != null)                c.setRfc(normalizeRfc(req.rfc()));
 
         if (req.domCalle() != null)           c.setDomCalle(req.domCalle());
         if (req.domNoExterior() != null)      c.setDomNoExterior(req.domNoExterior());
@@ -301,10 +369,11 @@ public class ClienteService {
 
     /** Verifica si un CURP ya existe (excluyendo un id dado para updates). */
     public boolean curpDisponible(String curp, Long excludeId) {
+        String normalizada = normalizeCurp(curp);
         if (excludeId != null) {
-            return !clienteRepo.existsByCurpAndIdNot(curp, excludeId);
+            return !clienteRepo.existsByCurpIgnoreCaseAndIdNot(normalizada, excludeId);
         }
-        return !clienteRepo.existsByCurp(curp);
+        return !clienteRepo.existsByCurpIgnoreCase(normalizada);
     }
 
     /** Verifica si un celular ya existe (excluyendo un id dado para updates). */
@@ -313,6 +382,48 @@ public class ClienteService {
             return !clienteRepo.existsByCelularAndIdNot(celular, excludeId);
         }
         return !clienteRepo.existsByCelular(celular);
+    }
+
+    private List<String> duplicateReasons(Cliente cliente,
+            String nombre, String apellidoPaterno, LocalDate fechaNacimiento,
+            String celular, String curp, String ineNumero) {
+        Set<String> reasons = new LinkedHashSet<>();
+        if (curp != null && curp.equals(normalizeCurp(cliente.getCurp()))) reasons.add("CURP");
+        if (celular != null && celular.equals(normalizeDigits(cliente.getCelular()))) reasons.add("celular");
+        if (ineNumero != null && ineNumero.equals(normalizeIdentity(cliente.getIneNumero()))) reasons.add("INE");
+        if (nombre != null && apellidoPaterno != null && fechaNacimiento != null
+                && nombre.equals(normalizeIdentity(cliente.getNombre()))
+                && apellidoPaterno.equals(normalizeIdentity(cliente.getApellidoPaterno()))
+                && fechaNacimiento.equals(cliente.getFechaNacimiento())) {
+            reasons.add("nombre y fecha de nacimiento");
+        }
+        return List.copyOf(reasons);
+    }
+
+    private String normalizeIdentity(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim().replaceAll("\\s+", " ").toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeCurp(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
+    }
+
+    private String normalizeRfc(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9Ñ&]", "");
+    }
+
+    private String normalizeDigits(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.replaceAll("\\D", "");
+    }
+
+    private String maskPhone(String value) {
+        String digits = normalizeDigits(value);
+        if (digits == null || digits.length() < 4) return "—";
+        return "*** *** " + digits.substring(digits.length() - 4);
     }
 
     /** Contadores para métricas del encabezado. */

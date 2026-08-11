@@ -1,6 +1,7 @@
 package com.magno.service;
 
 import com.itextpdf.kernel.colors.ColorConstants;
+import com.itextpdf.kernel.geom.PageSize;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -361,6 +362,10 @@ public class ReporteService {
                 .findActivosBySucursalAndAsesor(sucursalId, null).stream()
                 .collect(Collectors.toMap(c -> c.getCliente().getId(),
                         Function.identity(), (a, b) -> a));
+        Map<Long, Credito> ultimoCreditoPorCliente = creditoRepo
+                .findForClientReport(sucursalId).stream()
+                .collect(Collectors.toMap(c -> c.getCliente().getId(),
+                        Function.identity(), (masReciente, anterior) -> masReciente));
 
         LocalDate hoy = DateTimeUtils.hoyEnMagno();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM/yyyy");
@@ -370,6 +375,10 @@ public class ReporteService {
 
         for (Cliente c : todos) {
             boolean activo = Boolean.TRUE.equals(c.getActivo());
+            Credito creditoActivo = creditoPorCliente.get(c.getId());
+            Credito creditoReporte = creditoActivo != null
+                    ? creditoActivo
+                    : ultimoCreditoPorCliente.get(c.getId());
             String estadoCliente;
 
             if (!activo) {
@@ -379,8 +388,7 @@ public class ReporteService {
                 estadoCliente = "SIN_CREDITO";
                 totalSinCredito++;
             } else {
-                long atrasados = calendarioRepo.countAtrasadosByCreditoId(
-                        creditoPorCliente.get(c.getId()).getId(), hoy);
+                long atrasados = calendarioRepo.countAtrasadosByCreditoId(creditoActivo.getId(), hoy);
                 if (atrasados > 0) {
                     estadoCliente = "EN_MORA";
                     totalEnMora++;
@@ -395,19 +403,90 @@ public class ReporteService {
             items.add(new ReporteClientesDTO.ClienteItemDTO(
                     c.getId(),
                     c.getNumeroCliente(),
+                    c.getNombre(),
+                    c.getApellidoPaterno(),
+                    c.getApellidoMaterno(),
                     c.getNombreCompleto(),
+                    formatDate(c.getFechaNacimiento(), fmt),
+                    c.getGenero(),
+                    c.getEstadoCivil(),
+                    c.getNombreConyuge(),
+                    c.getTelefonoFijo(),
                     c.getCelular(),
+                    c.getIneTipo(),
+                    c.getIneNumero(),
                     c.getCurp(),
+                    c.getRfc(),
+                    c.getDomCalle(),
+                    c.getDomNoExterior(),
+                    c.getDomNoInterior(),
+                    c.getDomColonia(),
+                    c.getDomMunicipio(),
+                    c.getDomEstado(),
+                    c.getDomCodigoPostal(),
+                    c.getDomTipoVivienda(),
+                    c.getDomMontoRenta(),
                     c.getNegocioNombre(),
                     c.getNegocioGiro(),
+                    c.getNegocioAntiguedad(),
+                    c.getNegocioDireccion(),
+                    c.getNegocioCalle(),
+                    c.getNegocioNoExterior(),
+                    c.getNegocioNoInterior(),
+                    c.getNegocioColonia(),
+                    c.getNegocioMunicipio(),
+                    c.getNegocioEstado(),
+                    c.getNegocioCp(),
+                    c.getNegocioTipoLocal(),
+                    c.getNegocioMontoRenta(),
+                    c.getNegocioHorarios(),
+                    c.getNegocioLat(),
+                    c.getNegocioLng(),
+                    c.getIngresosSemanales(),
+                    c.getGastosSemanales(),
+                    c.getGastosRenta(),
+                    c.getGastosOtros(),
+                    c.getRef1Nombre(),
+                    c.getRef1Telefono(),
+                    c.getRef1Parentesco(),
+                    c.getRef2Nombre(),
+                    c.getRef2Telefono(),
+                    c.getRef2Parentesco(),
+                    c.getAvalNombre(),
+                    c.getAvalTelefono(),
+                    c.getAvalDireccion(),
+                    c.getAvalIdentificacion(),
                     c.getAsesor() != null ? c.getAsesor().getNombreCompleto() : "—",
+                    c.getSucursal() != null ? c.getSucursal().getNombre() : "—",
                     estadoCliente,
-                    c.getCreatedAt() != null ? c.getCreatedAt().toLocalDate().format(fmt) : "—"
+                    c.getCreatedAt() != null ? c.getCreatedAt().toLocalDate().format(fmt) : "—",
+                    c.getUpdatedAt() != null ? c.getUpdatedAt().toLocalDate().format(fmt) : "—",
+                    creditoReporte != null ? creditoReporte.getId() : null,
+                    creditoReporte != null && creditoReporte.getTipo() != null ? creditoReporte.getTipo().name() : null,
+                    creditoReporte != null && creditoReporte.getTipoPago() != null ? creditoReporte.getTipoPago().name() : null,
+                    creditoReporte != null
+                            ? (creditoReporte.getMontoAprobado() != null
+                                    ? creditoReporte.getMontoAprobado()
+                                    : creditoReporte.getMontoCapital())
+                            : null,
+                    creditoReporte != null ? creditoReporte.getMontoSolicitado() : null,
+                    creditoReporte != null ? creditoReporte.getTasaInteres() : null,
+                    creditoReporte != null ? creditoReporte.getCargoFinanciero() : null,
+                    creditoReporte != null ? creditoReporte.getTotalAPagar() : null,
+                    creditoReporte != null ? creditoReporte.getPagoPeriodico() : null,
+                    creditoReporte != null ? creditoReporte.getPlazoDias() : null,
+                    creditoReporte != null ? formatDate(creditoReporte.getFechaInicio(), fmt) : null,
+                    creditoReporte != null ? formatDate(creditoReporte.getFechaVencimiento(), fmt) : null,
+                    creditoReporte != null && creditoReporte.getEstado() != null ? creditoReporte.getEstado().name() : null
             ));
         }
 
         return new ReporteClientesDTO(items, todos.size(),
                 totalActivos, totalEnMora, totalSinCredito, totalInactivos);
+    }
+
+    private String formatDate(LocalDate fecha, DateTimeFormatter formatter) {
+        return fecha != null ? fecha.format(formatter) : null;
     }
 
     // ── PDF Clientes ──────────────────────────────────────────────────────
@@ -416,7 +495,9 @@ public class ReporteService {
         ReporteClientesDTO datos = getClientes(sucursalId, asesorId, estado);
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        Document doc = new Document(new PdfDocument(new PdfWriter(baos)));
+        PdfDocument pdf = new PdfDocument(new PdfWriter(baos));
+        pdf.setDefaultPageSize(PageSize.A4.rotate());
+        Document doc = new Document(pdf);
 
         doc.add(pdfHeader("MAGNO — Reporte de Clientes"));
         doc.add(pdfSubtitle(resolveSucursalLabel(sucursalId)));
@@ -432,31 +513,59 @@ public class ReporteService {
                 + "  |  Inactivos: " + datos.totalInactivos()).setFontSize(9));
         doc.add(new Paragraph(" "));
 
-        float[] cols = {30, 100, 65, 90, 85, 75, 55, 45};
-        Table t = new Table(UnitValue.createPercentArray(cols))
-                .setWidth(UnitValue.createPercentValue(100));
-
-        t.addHeaderCell(hCell("No."));
-        t.addHeaderCell(hCell("Nombre"));
-        t.addHeaderCell(hCell("Celular"));
-        t.addHeaderCell(hCell("CURP"));
-        t.addHeaderCell(hCell("Negocio"));
-        t.addHeaderCell(hCell("Asesor"));
-        t.addHeaderCell(hCell("Estado"));
-        t.addHeaderCell(hCell("Alta"));
-
         for (ReporteClientesDTO.ClienteItemDTO item : datos.clientes()) {
-            t.addCell(cell(item.numeroCliente()));
-            t.addCell(cell(item.nombreCompleto()));
-            t.addCell(cell(item.celular()));
-            t.addCell(cell(item.curp()));
-            t.addCell(cell(item.negocioNombre()));
-            t.addCell(cell(item.asesorNombre()));
-            t.addCell(cell(fmtEstadoCliente(item.estadoCliente())));
-            t.addCell(cell(item.fechaAlta()));
-        }
+            Table detalle = new Table(UnitValue.createPercentArray(new float[] {12, 21.33f, 12, 21.33f, 12, 21.34f}))
+                    .setWidth(UnitValue.createPercentValue(100))
+                    .setMarginBottom(8);
+            detalle.addCell(new Cell(1, 6)
+                    .add(new Paragraph((item.numeroCliente() != null ? item.numeroCliente() + " — " : "")
+                            + item.nombreCompleto()).setBold().setFontSize(9))
+                    .setBackgroundColor(ColorConstants.LIGHT_GRAY));
 
-        doc.add(t);
+            pdfDetailRow(detalle, "Nombre", item.nombre(), "Apellido paterno", item.apellidoPaterno(),
+                    "Apellido materno", item.apellidoMaterno());
+            pdfDetailRow(detalle, "Nacimiento", item.fechaNacimiento(), "Género", item.genero(),
+                    "Estado civil", item.estadoCivil());
+            pdfDetailRow(detalle, "Cónyuge", item.nombreConyuge(), "Celular", item.celular(),
+                    "Teléfono fijo", item.telefonoFijo());
+            pdfDetailRow(detalle, "CURP", item.curp(), "RFC", item.rfc(),
+                    "Identificación", joinValues(item.ineTipo(), item.ineNumero()));
+
+            pdfDetailRow(detalle, "Domicilio", formatAddress(item.domCalle(), item.domNoExterior(),
+                            item.domNoInterior(), item.domColonia(), item.domMunicipio(), item.domEstado(),
+                            item.domCodigoPostal()),
+                    "Tipo vivienda", item.domTipoVivienda(), "Renta vivienda", fmtNullableMonto(item.domMontoRenta()));
+
+            pdfDetailRow(detalle, "Negocio", item.negocioNombre(), "Giro", item.negocioGiro(),
+                    "Antigüedad", item.negocioAntiguedad());
+            pdfDetailRow(detalle, "Dirección negocio", businessAddress(item), "Tipo local", item.negocioTipoLocal(),
+                    "Renta local", fmtNullableMonto(item.negocioMontoRenta()));
+            pdfDetailRow(detalle, "Horario", item.negocioHorarios(), "Latitud", value(item.negocioLat()),
+                    "Longitud", value(item.negocioLng()));
+
+            pdfDetailRow(detalle, "Ingreso semanal", fmtNullableMonto(item.ingresosSemanales()),
+                    "Gasto semanal", fmtNullableMonto(item.gastosSemanales()),
+                    "Gasto renta/otros", joinValues(fmtNullableMonto(item.gastosRenta()), fmtNullableMonto(item.gastosOtros())));
+            pdfDetailRow(detalle, "Referencia 1", reference(item.ref1Nombre(), item.ref1Telefono(), item.ref1Parentesco()),
+                    "Referencia 2", reference(item.ref2Nombre(), item.ref2Telefono(), item.ref2Parentesco()),
+                    "Aval", guarantor(item));
+
+            pdfDetailRow(detalle, "Asesor", item.asesorNombre(), "Sucursal", item.sucursalNombre(),
+                    "Estado cliente", fmtEstadoCliente(item.estadoCliente()));
+            pdfDetailRow(detalle, "Alta", item.fechaAlta(), "Actualización", item.fechaActualizacion(),
+                    "Crédito", item.creditoId() != null ? "#" + item.creditoId() : "Sin crédito activo");
+            pdfDetailRow(detalle, "Tipo crédito", formatEnum(item.tipoCredito()),
+                    "Modalidad", formatEnum(item.tipoPago()), "Estado crédito", formatEnum(item.estadoCredito()));
+            pdfDetailRow(detalle, "Monto crédito", fmtNullableMonto(item.montoCredito()),
+                    "Monto solicitado", fmtNullableMonto(item.montoSolicitado()),
+                    "Tasa", formatRate(item.tasaInteres()));
+            pdfDetailRow(detalle, "Cargo financiero", fmtNullableMonto(item.cargoFinanciero()),
+                    "Total a pagar", fmtNullableMonto(item.totalAPagar()),
+                    "Pago periódico", fmtNullableMonto(item.pagoPeriodico()));
+            pdfDetailRow(detalle, "Plazo", item.plazoDias() != null ? item.plazoDias() + " días" : null,
+                    "Inicio", item.fechaInicio(), "Vencimiento", item.fechaVencimiento());
+            doc.add(detalle);
+        }
         doc.close();
         return baos.toByteArray();
     }
@@ -471,9 +580,8 @@ public class ReporteService {
 
             CellStyle title = xlTitle(wb);
             CellStyle hdr   = xlHeader(wb);
-
-            int[] widths = {3000, 8000, 5000, 8000, 7000, 5500, 7000, 4500, 4500};
-            for (int i = 0; i < widths.length; i++) sh.setColumnWidth(i, widths[i]);
+            CellStyle currency = xlCurrency(wb);
+            CellStyle percentage = xlPercentage(wb);
 
             int r = 0;
             r = xlInfo(sh, r, title, "MAGNO — Reporte de Clientes");
@@ -485,20 +593,105 @@ public class ReporteService {
                     + "  Sin crédito: " + datos.totalSinCredito()
                     + "  Inactivos: " + datos.totalInactivos());
             r++;
-            r = xlHRow(sh, r, hdr, "No.", "Nombre", "Celular", "CURP", "Negocio", "Giro", "Asesor", "Estado", "Alta");
+            r = xlHRow(sh, r, hdr,
+                    "No.", "Nombre", "Apellido paterno", "Apellido materno", "Nombre completo",
+                    "Fecha nacimiento", "Género", "Estado civil", "Cónyuge", "Teléfono fijo", "Celular",
+                    "Tipo identificación", "Número identificación", "CURP", "RFC",
+                    "Calle domicilio", "No. exterior", "No. interior", "Colonia", "Municipio", "Estado domicilio",
+                    "Código postal", "Tipo vivienda", "Renta vivienda",
+                    "Negocio", "Giro", "Antigüedad", "Dirección negocio", "Calle negocio", "No. exterior negocio",
+                    "No. interior negocio", "Colonia negocio", "Municipio negocio", "Estado negocio", "CP negocio",
+                    "Tipo local", "Renta local", "Horarios", "Latitud", "Longitud",
+                    "Ingresos semanales", "Gastos semanales", "Gastos renta", "Otros gastos",
+                    "Referencia 1", "Teléfono ref. 1", "Parentesco ref. 1", "Referencia 2", "Teléfono ref. 2",
+                    "Parentesco ref. 2", "Aval", "Teléfono aval", "Dirección aval", "Identificación aval",
+                    "Asesor", "Sucursal", "Estado cliente", "Alta", "Actualización",
+                    "ID crédito", "Tipo crédito", "Modalidad pago", "Monto crédito", "Monto solicitado",
+                    "Tasa interés", "Cargo financiero", "Total a pagar", "Pago periódico", "Plazo días",
+                    "Inicio crédito", "Vencimiento crédito", "Estado crédito");
 
             for (ReporteClientesDTO.ClienteItemDTO item : datos.clientes()) {
                 Row row = sh.createRow(r++);
-                xlText(row, 0, item.numeroCliente());
-                xlText(row, 1, item.nombreCompleto());
-                xlText(row, 2, item.celular());
-                xlText(row, 3, item.curp());
-                xlText(row, 4, item.negocioNombre());
-                xlText(row, 5, item.negocioGiro());
-                xlText(row, 6, item.asesorNombre());
-                xlText(row, 7, fmtEstadoCliente(item.estadoCliente()));
-                xlText(row, 8, item.fechaAlta());
+                int col = 0;
+                xlText(row, col++, item.numeroCliente());
+                xlText(row, col++, item.nombre());
+                xlText(row, col++, item.apellidoPaterno());
+                xlText(row, col++, item.apellidoMaterno());
+                xlText(row, col++, item.nombreCompleto());
+                xlText(row, col++, item.fechaNacimiento());
+                xlText(row, col++, item.genero());
+                xlText(row, col++, item.estadoCivil());
+                xlText(row, col++, item.nombreConyuge());
+                xlText(row, col++, item.telefonoFijo());
+                xlText(row, col++, item.celular());
+                xlText(row, col++, item.ineTipo());
+                xlText(row, col++, item.ineNumero());
+                xlText(row, col++, item.curp());
+                xlText(row, col++, item.rfc());
+                xlText(row, col++, item.domCalle());
+                xlText(row, col++, item.domNoExterior());
+                xlText(row, col++, item.domNoInterior());
+                xlText(row, col++, item.domColonia());
+                xlText(row, col++, item.domMunicipio());
+                xlText(row, col++, item.domEstado());
+                xlText(row, col++, item.domCodigoPostal());
+                xlText(row, col++, item.domTipoVivienda());
+                xlNullableNum(row, col++, item.domMontoRenta(), currency);
+                xlText(row, col++, item.negocioNombre());
+                xlText(row, col++, item.negocioGiro());
+                xlText(row, col++, item.negocioAntiguedad());
+                xlText(row, col++, item.negocioDireccion());
+                xlText(row, col++, item.negocioCalle());
+                xlText(row, col++, item.negocioNoExterior());
+                xlText(row, col++, item.negocioNoInterior());
+                xlText(row, col++, item.negocioColonia());
+                xlText(row, col++, item.negocioMunicipio());
+                xlText(row, col++, item.negocioEstado());
+                xlText(row, col++, item.negocioCp());
+                xlText(row, col++, item.negocioTipoLocal());
+                xlNullableNum(row, col++, item.negocioMontoRenta(), currency);
+                xlText(row, col++, item.negocioHorarios());
+                xlNullableNum(row, col++, item.negocioLat(), null);
+                xlNullableNum(row, col++, item.negocioLng(), null);
+                xlNullableNum(row, col++, item.ingresosSemanales(), currency);
+                xlNullableNum(row, col++, item.gastosSemanales(), currency);
+                xlNullableNum(row, col++, item.gastosRenta(), currency);
+                xlNullableNum(row, col++, item.gastosOtros(), currency);
+                xlText(row, col++, item.ref1Nombre());
+                xlText(row, col++, item.ref1Telefono());
+                xlText(row, col++, item.ref1Parentesco());
+                xlText(row, col++, item.ref2Nombre());
+                xlText(row, col++, item.ref2Telefono());
+                xlText(row, col++, item.ref2Parentesco());
+                xlText(row, col++, item.avalNombre());
+                xlText(row, col++, item.avalTelefono());
+                xlText(row, col++, item.avalDireccion());
+                xlText(row, col++, item.avalIdentificacion());
+                xlText(row, col++, item.asesorNombre());
+                xlText(row, col++, item.sucursalNombre());
+                xlText(row, col++, fmtEstadoCliente(item.estadoCliente()));
+                xlText(row, col++, item.fechaAlta());
+                xlText(row, col++, item.fechaActualizacion());
+                if (item.creditoId() != null) row.createCell(col).setCellValue(item.creditoId());
+                col++;
+                xlText(row, col++, formatEnum(item.tipoCredito()));
+                xlText(row, col++, formatEnum(item.tipoPago()));
+                xlNullableNum(row, col++, item.montoCredito(), currency);
+                xlNullableNum(row, col++, item.montoSolicitado(), currency);
+                xlNullableNum(row, col++, item.tasaInteres(), percentage);
+                xlNullableNum(row, col++, item.cargoFinanciero(), currency);
+                xlNullableNum(row, col++, item.totalAPagar(), currency);
+                xlNullableNum(row, col++, item.pagoPeriodico(), currency);
+                if (item.plazoDias() != null) row.createCell(col).setCellValue(item.plazoDias());
+                col++;
+                xlText(row, col++, item.fechaInicio());
+                xlText(row, col++, item.fechaVencimiento());
+                xlText(row, col, formatEnum(item.estadoCredito()));
             }
+
+            sh.createFreezePane(0, 6);
+            sh.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(5, 5, 0, 71));
+            for (int i = 0; i <= 71; i++) sh.setColumnWidth(i, i == 4 || i == 27 || i == 53 ? 9000 : 5000);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             wb.write(baos);
@@ -506,6 +699,62 @@ public class ReporteService {
         } catch (Exception e) {
             throw new RuntimeException("Error generando Excel de clientes", e);
         }
+    }
+
+    private void pdfDetailRow(Table table,
+            String label1, String value1, String label2, String value2, String label3, String value3) {
+        table.addCell(hCell(label1));
+        table.addCell(cell(value1));
+        table.addCell(hCell(label2));
+        table.addCell(cell(value2));
+        table.addCell(hCell(label3));
+        table.addCell(cell(value3));
+    }
+
+    private String joinValues(String... values) {
+        return java.util.Arrays.stream(values)
+                .filter(v -> v != null && !v.isBlank() && !"—".equals(v))
+                .collect(Collectors.joining(" · "));
+    }
+
+    private String formatAddress(String calle, String exterior, String interior,
+            String colonia, String municipio, String estado, String codigoPostal) {
+        String numero = joinValues(exterior, interior != null && !interior.isBlank() ? "Int. " + interior : null);
+        String calleNumero = joinValues(calle, numero);
+        String ubicacion = joinValues(colonia, municipio, estado, codigoPostal != null ? "CP " + codigoPostal : null);
+        return joinValues(calleNumero, ubicacion);
+    }
+
+    private String businessAddress(ReporteClientesDTO.ClienteItemDTO item) {
+        String separada = formatAddress(item.negocioCalle(), item.negocioNoExterior(), item.negocioNoInterior(),
+                item.negocioColonia(), item.negocioMunicipio(), item.negocioEstado(), item.negocioCp());
+        return !separada.isBlank() ? separada : item.negocioDireccion();
+    }
+
+    private String reference(String nombre, String telefono, String parentesco) {
+        return joinValues(nombre, telefono, parentesco);
+    }
+
+    private String guarantor(ReporteClientesDTO.ClienteItemDTO item) {
+        return joinValues(item.avalNombre(), item.avalTelefono(), item.avalDireccion(), item.avalIdentificacion());
+    }
+
+    private String value(Object value) {
+        return value != null ? value.toString() : null;
+    }
+
+    private String fmtNullableMonto(BigDecimal value) {
+        return value != null ? fmtMonto(value) : null;
+    }
+
+    private String formatRate(BigDecimal rate) {
+        return rate != null ? rate.multiply(BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString() + "%" : null;
+    }
+
+    private String formatEnum(String value) {
+        if (value == null || value.isBlank()) return null;
+        String normalized = value.toLowerCase().replace('_', ' ');
+        return Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
     }
 
     private String fmtEstadoCliente(String e) {
@@ -1033,6 +1282,13 @@ public class ReporteService {
         return s;
     }
 
+    private CellStyle xlPercentage(Workbook wb) {
+        CellStyle s = wb.createCellStyle();
+        DataFormat fmt = wb.createDataFormat();
+        s.setDataFormat(fmt.getFormat("0.00%"));
+        return s;
+    }
+
     private int xlInfo(Sheet sheet, int rowIdx, CellStyle style, String text) {
         Row row = sheet.createRow(rowIdx);
         var cell = row.createCell(0);
@@ -1064,6 +1320,12 @@ public class ReporteService {
     private void xlNum(Row row, int col, BigDecimal val, CellStyle style) {
         var cell = row.createCell(col);
         cell.setCellValue(val != null ? val.doubleValue() : 0.0);
+        if (style != null) cell.setCellStyle(style);
+    }
+
+    private void xlNullableNum(Row row, int col, BigDecimal val, CellStyle style) {
+        var cell = row.createCell(col);
+        if (val != null) cell.setCellValue(val.doubleValue());
         if (style != null) cell.setCellStyle(style);
     }
 }

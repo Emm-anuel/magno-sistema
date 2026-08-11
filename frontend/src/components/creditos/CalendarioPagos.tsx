@@ -30,6 +30,19 @@ function fmtDate(v?: string | null): string {
   })
 }
 
+function fmtDateTime(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+}
+
 const LEYENDA = [
   { label: 'Pagado', bg: '#dcfce7', text: '#15803d' },
   { label: 'Abono cubrió atraso', bg: '#dbeafe', text: '#1d4ed8' },
@@ -124,6 +137,7 @@ function FilaRow({
   const estilo = fila.multa?.condonada ? { bg: '#f3e8ff', text: '#7e22ce', label: `${base.label} — multa condonada` } : base
   const explicacion = explicacionFila(fila)
   const esPendiente = fila.clasificacion === 'PENDIENTE'
+  const fechaHoraRegistro = fila.pagoRegistrado?.createdAt ?? fila.abono?.createdAt
 
   return (
     <div className={`flex bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors lg:grid lg:grid-cols-[10rem_minmax(22rem,40rem)_8rem_12rem] lg:justify-center lg:gap-x-6 lg:items-center ${esPendiente ? 'items-center gap-3 py-2 px-3' : 'flex-col gap-2 py-2.5 px-3'}`}>
@@ -139,6 +153,11 @@ function FilaRow({
           {estilo.label}
         </span>
         {explicacion && <p className="text-[12px] text-gray-600 mt-1 leading-relaxed max-w-xl">{explicacion}</p>}
+        {fechaHoraRegistro && (
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Fecha y hora de registro: {fmtDateTime(fechaHoraRegistro)}
+          </p>
+        )}
       </div>
       {!esPendiente && (
         <div className="shrink-0 text-sm font-mono lg:text-right">
