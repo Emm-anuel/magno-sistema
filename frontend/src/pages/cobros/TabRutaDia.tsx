@@ -229,6 +229,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
           nombreCliente={pagoModal.nombreCompleto}
           fecha={fecha}
           numeroPagoHoy={pagoModal.numeroPagoHoy}
+          soloNoPago={pagoModal.tieneAdeudoPendiente}
           onClose={() => setPagoModal(null)}
           onSuccess={() => setPagoModal(null)}
         />
@@ -319,7 +320,9 @@ function ClienteCard({
               onClick={onCobrar}
               className="btn-primary py-3 px-4 text-[13px] min-w-[80px]"
             >
-              {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
+              {c.estadoHoy === 'SIN_REGISTRO'
+                ? c.tieneAdeudoPendiente ? 'Registrar no pago' : 'Cobrar'
+                : 'Modificar'}
             </button>
           )}
           {puedePagarAdeudo && (
@@ -393,7 +396,9 @@ function ClienteRow({
         <div className="flex gap-2">
           {puedeRegistrarCorriente && (
             <button type="button" onClick={onCobrar} className="btn btn-sm">
-              {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
+              {c.estadoHoy === 'SIN_REGISTRO'
+                ? c.tieneAdeudoPendiente ? 'Registrar no pago' : 'Cobrar'
+                : 'Modificar'}
             </button>
           )}
           {puedePagarAdeudo && (

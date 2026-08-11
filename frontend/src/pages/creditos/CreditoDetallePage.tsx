@@ -370,12 +370,12 @@ export default function CreditoDetallePage() {
               Desembolsar
             </button>
           )}
-          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && (
+          {credito.estado === 'ACTIVO' && puedeRegistrarCobro && pagoPendienteHoy && (
             <button
               className="btn-primary btn btn-sm"
               onClick={() => setRegistrarPagoOpen(true)}
             >
-              Registrar Pago
+              {tieneAdeudoPendiente ? 'Registrar no pago' : 'Registrar pago'}
             </button>
           )}
           {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) &&
@@ -890,6 +890,7 @@ export default function CreditoDetallePage() {
           nombreCliente={credito.cliente.nombreCompleto}
           fecha={fechaPago}
           numeroPagoHoy={numeroPagoHoy}
+          soloNoPago={tieneAdeudoPendiente}
           onClose={() => setRegistrarPagoOpen(false)}
           onSuccess={() => {
             setRegistrarPagoOpen(false)

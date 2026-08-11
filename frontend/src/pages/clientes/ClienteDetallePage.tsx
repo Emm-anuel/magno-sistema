@@ -145,6 +145,7 @@ interface CreditoActivoCardProps {
   onNavigate: (path: string) => void
   puedeRegistrarCobro: boolean
   tieneAdeudoPendiente: boolean
+  tienePagoPendienteHoy: boolean
   onRegistrarPago?: () => void
   onPagarAdeudo?: () => void
 }
@@ -154,6 +155,7 @@ function CreditoActivoCard({
   onNavigate,
   puedeRegistrarCobro,
   tieneAdeudoPendiente,
+  tienePagoPendienteHoy,
   onRegistrarPago,
   onPagarAdeudo,
 }: CreditoActivoCardProps) {
@@ -210,13 +212,13 @@ function CreditoActivoCard({
         </div>
 
         <div className="flex gap-2 pt-1">
-          {puedeRegistrarCobro && (
+          {puedeRegistrarCobro && tienePagoPendienteHoy && (
             <button
               type="button"
               className="btn flex-1 py-2 text-sm"
               onClick={() => onRegistrarPago ? onRegistrarPago() : onNavigate('/cobros')}
             >
-              Registrar Pago
+              {tieneAdeudoPendiente ? 'Registrar no pago' : 'Registrar pago'}
             </button>
           )}
           {puedeRegistrarCobro && tieneAdeudoPendiente && onPagarAdeudo && (
@@ -372,6 +374,10 @@ export default function ClienteDetallePage() {
   const tieneAdeudoCreditoActivo = creditoActivoDetalle
     ? creditoTieneAdeudoPendiente(creditoActivoDetalle)
     : cliente.estado_cliente === 'EN_MORA'
+  const hoyIso = todayLocalIso()
+  const pagoPendienteHoyCreditoActivo = creditoActivoDetalle?.calendario?.find(
+    (pago) => pago.estado === 'PENDIENTE' && pago.fechaProgramada?.slice(0, 10) === hoyIso,
+  )
 
   return (
     <div className="space-y-4">
@@ -453,7 +459,10 @@ export default function ClienteDetallePage() {
           onNavigate={navigate}
           puedeRegistrarCobro={puedeRegistrarCobro}
           tieneAdeudoPendiente={tieneAdeudoCreditoActivo}
-          onRegistrarPago={puedeRegistrarCobro ? () => setPagoModalOpen(true) : undefined}
+          tienePagoPendienteHoy={!!pagoPendienteHoyCreditoActivo}
+          onRegistrarPago={puedeRegistrarCobro && pagoPendienteHoyCreditoActivo
+            ? () => setPagoModalOpen(true)
+            : undefined}
           onPagarAdeudo={puedeRegistrarCobro ? () => setAdeudoModalOpen(true) : undefined}
         />
       ) : creditoEnProceso ? (
@@ -900,7 +909,9 @@ export default function ClienteDetallePage() {
           creditoId={creditoActivo.id}
           pagoPeriodico={creditoActivo.pagoPeriodico}
           nombreCliente={cliente.nombre_completo}
-          fecha={new Date().toISOString().slice(0, 10)}
+          fecha={hoyIso}
+          numeroPagoHoy={pagoPendienteHoyCreditoActivo?.numeroPago}
+          soloNoPago={tieneAdeudoCreditoActivo}
           onClose={() => setPagoModalOpen(false)}
           onSuccess={() => {
             setPagoModalOpen(false)

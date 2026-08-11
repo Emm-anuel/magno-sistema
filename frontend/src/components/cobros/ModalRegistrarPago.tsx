@@ -21,6 +21,7 @@ interface Props {
   nombreCliente: string
   fecha: string
   numeroPagoHoy?: number | null
+  soloNoPago?: boolean
   onClose: () => void
   onSuccess: () => void
 }
@@ -65,16 +66,18 @@ export default function ModalRegistrarPago({
   nombreCliente,
   fecha,
   numeroPagoHoy,
+  soloNoPago = false,
   onClose,
   onSuccess,
 }: Props) {
   const qc = useQueryClient()
 
   // ── Estado del form ───────────────────────────────────────────────
-  const [noPago, setNoPago] = useState(false)
+  const [noPago, setNoPago] = useState(soloNoPago)
   const [monto, setMonto] = useState(String(pagoPeriodico))
   const [razon, setRazon] = useState('')
   const [razonCustom, setRazonCustom] = useState('')
+  const esRegistroNoPago = soloNoPago || noPago
 
   // ── Multas pendientes ─────────────────────────────────────────────
   const { data: multas = [] } = useQuery({
@@ -84,7 +87,7 @@ export default function ModalRegistrarPago({
   })
 
   const multasPendientes = multas
-    .filter((m) => !m.cobrada)
+    .filter((m) => !m.cobrada && !m.condonada)
     .reduce((sum, m) => sum + Number(m.monto), 0)
 
   // Pre-fill monto al abrir (pagoPeriodico + multas pendientes)
@@ -108,14 +111,14 @@ export default function ModalRegistrarPago({
       const razonFinal = razon === 'Otro' ? razonCustom.trim() : razon
       return cobrosService.registrar({
         creditoId,
-        noPago,
-        montoRecibido: noPago ? undefined : Number(monto),
-        razonNoPago: noPago ? razonFinal : undefined,
+        noPago: esRegistroNoPago,
+        montoRecibido: esRegistroNoPago ? undefined : Number(monto),
+        razonNoPago: esRegistroNoPago ? razonFinal : undefined,
         fechaPago: fecha,
       })
     },
     onSuccess: () => {
-      toast.success(noPago ? 'No pago registrado' : 'Pago registrado')
+      toast.success(esRegistroNoPago ? 'No pago registrado' : 'Pago registrado')
       qc.invalidateQueries({ queryKey: ['ruta-dia'] })
       qc.invalidateQueries({ queryKey: ['historial-cobros'] })
       qc.invalidateQueries({ queryKey: ['multas-credito', creditoId] })
@@ -134,7 +137,7 @@ export default function ModalRegistrarPago({
   // ── Validación ────────────────────────────────────────────────────
   function canSubmit() {
     if (mutation.isPending) return false
-    if (noPago) {
+    if (esRegistroNoPago) {
       const r = razon === 'Otro' ? razonCustom.trim() : razon
       return r.length > 0
     }
@@ -144,7 +147,7 @@ export default function ModalRegistrarPago({
 
   const montoNum = Number(monto)
   const montoEsperado = Number(pagoPeriodico)
-  const esAbono = !noPago && Number.isFinite(montoNum) && montoNum > 0 && montoNum < montoEsperado
+  const esAbono = !esRegistroNoPago && Number.isFinite(montoNum) && montoNum > 0 && montoNum < montoEsperado
 
   return (
     <div
@@ -156,7 +159,9 @@ export default function ModalRegistrarPago({
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef] sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-[15px] font-semibold text-[#212529]">Registrar cobro</h2>
+            <h2 className="text-[15px] font-semibold text-[#212529]">
+              {soloNoPago ? 'Registrar no pago' : 'Registrar cobro'}
+            </h2>
             <p className="text-[12px] text-[#6c757d] mt-0.5">{nombreCliente}</p>
           </div>
           <button type="button" onClick={onClose} className="btn btn-sm p-1.5">
@@ -187,35 +192,44 @@ export default function ModalRegistrarPago({
           </div>
 
           {/* ── Toggle Pagó / No pagó ── */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setNoPago(false)}
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
-                !noPago
-                  ? 'bg-[#d1fae5] border-[#059669] text-[#065f46]'
-                  : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
-              }`}
-            >
-              <CheckCircle className="w-5 h-5" />
-              Sí pagó
-            </button>
-            <button
-              type="button"
-              onClick={() => setNoPago(true)}
-              className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
-                noPago
-                  ? 'bg-[#fee2e2] border-[#dc2626] text-[#991b1b]'
-                  : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
-              }`}
-            >
-              <AlertTriangle className="w-5 h-5" />
-              No pagó
-            </button>
-          </div>
+          {soloNoPago ? (
+            <div className="alert alert-warn flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>
+                El cliente tiene adeudos pendientes. Esta acción solo registrará que no pagó la cuota del día.
+              </span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNoPago(false)}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
+                  !noPago
+                    ? 'bg-[#d1fae5] border-[#059669] text-[#065f46]'
+                    : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
+                }`}
+              >
+                <CheckCircle className="w-5 h-5" />
+                Sí pagó
+              </button>
+              <button
+                type="button"
+                onClick={() => setNoPago(true)}
+                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
+                  noPago
+                    ? 'bg-[#fee2e2] border-[#dc2626] text-[#991b1b]'
+                    : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
+                }`}
+              >
+                <AlertTriangle className="w-5 h-5" />
+                No pagó
+              </button>
+            </div>
+          )}
 
           {/* ── SI PAGÓ: monto ── */}
-          {!noPago && (
+          {!esRegistroNoPago && (
             <div className="space-y-3">
               <div>
                 <label className="block text-[12px] font-medium text-[#495057] mb-1">
@@ -244,7 +258,7 @@ export default function ModalRegistrarPago({
           )}
 
           {/* ── SI NO PAGÓ: razón ── */}
-          {noPago && (
+          {esRegistroNoPago && (
             <div className="space-y-3">
               <div>
                 <label className="block text-[12px] font-medium text-[#495057] mb-2">
@@ -301,14 +315,14 @@ export default function ModalRegistrarPago({
             disabled={!canSubmit()}
             onClick={() => mutation.mutate()}
             className={`flex-1 py-3 rounded-lg border-2 text-[14px] font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              noPago
+              esRegistroNoPago
                 ? 'bg-[#dc2626] border-[#dc2626] text-white hover:bg-[#b91c1c]'
                 : 'bg-[#2d6a4f] border-[#2d6a4f] text-white hover:bg-[#1b4332]'
             }`}
           >
             {mutation.isPending
               ? 'Guardando...'
-              : noPago
+              : esRegistroNoPago
               ? 'Registrar no pago'
               : 'Confirmar pago'}
           </button>
