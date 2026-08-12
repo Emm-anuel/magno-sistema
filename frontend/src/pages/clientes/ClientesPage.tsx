@@ -3,7 +3,7 @@ import BusinessMap from '@/components/BusinessMap'
 import FileUpload from '@/components/FileUpload'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, type FieldErrors } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
@@ -97,6 +97,53 @@ const clienteSchema = z.object({
 })
 
 type ClienteForm = z.infer<typeof clienteSchema>
+
+const CLIENTE_FIELD_LABELS: Partial<Record<keyof ClienteForm, string>> = {
+  nombre: 'Nombre(s)',
+  apellido_paterno: 'Apellido paterno',
+  fecha_nacimiento: 'Fecha de nacimiento',
+  estado_civil: 'Estado civil',
+  telefono_fijo: 'Telefono fijo',
+  celular: 'Celular',
+  ine_numero: 'No. de INE',
+  curp: 'CURP',
+  rfc: 'RFC',
+  dom_calle: 'Domicilio - Calle',
+  dom_no_exterior: 'Domicilio - No. exterior',
+  dom_colonia: 'Domicilio - Colonia',
+  dom_municipio: 'Domicilio - Municipio',
+  dom_estado: 'Domicilio - Estado',
+  dom_codigo_postal: 'Domicilio - C.P.',
+  negocio_nombre: 'Nombre del negocio',
+  negocio_giro: 'Giro',
+  negocio_antiguedad: 'Antiguedad del negocio',
+  negocio_calle: 'Direccion del negocio - Calle',
+  negocio_no_exterior: 'Direccion del negocio - No. exterior',
+  negocio_colonia: 'Direccion del negocio - Colonia',
+  negocio_municipio: 'Direccion del negocio - Municipio',
+  negocio_estado: 'Direccion del negocio - Estado',
+  negocio_cp: 'Direccion del negocio - C.P.',
+  ref1_nombre: 'Referencia 1 - Nombre',
+  ref1_telefono: 'Referencia 1 - Telefono',
+  ref1_parentesco: 'Referencia 1 - Parentesco',
+  ref2_nombre: 'Referencia 2 - Nombre',
+  ref2_telefono: 'Referencia 2 - Telefono',
+  ref2_parentesco: 'Referencia 2 - Parentesco',
+  aval_telefono: 'Aval - Telefono',
+  sucursal_id: 'Sucursal',
+}
+
+function getFirstClienteFormError(formErrors: FieldErrors<ClienteForm>) {
+  const entry = Object.entries(formErrors)[0]
+  if (!entry) return null
+
+  const [field, error] = entry as [keyof ClienteForm, { message?: unknown }]
+  return {
+    field,
+    label: CLIENTE_FIELD_LABELS[field] ?? String(field).replace(/_/g, ' '),
+    message: typeof error?.message === 'string' ? error.message : 'Valor invalido',
+  }
+}
 
 // ── Helper ─────────────────────────────────────────────────────────
 function initials(name: string) {
@@ -551,6 +598,7 @@ interface ModalProps {
 export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor, puedeAsignarSucursal, sucursalScopeId, onUseExisting, onClose, onSaved }: ModalProps) {
   const isEdit = !!cliente
   const { usuario: authUsuario } = useAuthStore()
+  const formRef = useRef<HTMLFormElement>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [uploadingDocuments, setUploadingDocuments] = useState(false)
   const [avalOpen, setAvalOpen] = useState(!!cliente?.aval_nombre)
@@ -887,8 +935,21 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
     }
   }
 
-  const onInvalidSubmit = () => {
-    toast.error('Revisa los campos marcados en rojo y corrige la información antes de guardar.')
+  const firstFormError = getFirstClienteFormError(errors)
+
+  const onInvalidSubmit = (formErrors: FieldErrors<ClienteForm>) => {
+    const firstError = getFirstClienteFormError(formErrors)
+    if (!firstError) {
+      toast.error('No se pudo validar la informacion del cliente.')
+      return
+    }
+
+    toast.error(`Revisa "${firstError.label}": ${firstError.message}`)
+    requestAnimationFrame(() => {
+      const field = formRef.current?.querySelector<HTMLElement>(`[name="${firstError.field}"]`)
+      field?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      field?.focus({ preventScroll: true })
+    })
   }
 
   return (
@@ -911,8 +972,15 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>
+        <form ref={formRef} onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>
           <div className="px-5 py-4 space-y-5 max-h-[75vh] overflow-y-auto">
+
+            {firstFormError && (
+              <div className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-[12px] text-red-800" role="alert">
+                <span className="font-semibold">Campo pendiente:</span>{' '}
+                {firstFormError.label} - {firstFormError.message}
+              </div>
+            )}
 
             {/* ── SECCIÓN 1: Datos del Solicitante ── */}
             <section>
