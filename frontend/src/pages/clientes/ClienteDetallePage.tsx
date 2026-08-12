@@ -215,7 +215,7 @@ function CreditoActivoCard({
           {puedeRegistrarCobro && tienePagoPendienteHoy && (
             <button
               type="button"
-              className="btn flex-1 py-2 text-sm"
+              className={`${tieneAdeudoPendiente ? 'btn-no-payment' : 'btn'} flex-1 py-2 text-sm`}
               onClick={() => onRegistrarPago ? onRegistrarPago() : onNavigate('/cobros')}
             >
               {tieneAdeudoPendiente ? 'Registrar no pago' : 'Registrar pago'}

@@ -70,6 +70,15 @@
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
 
+  .btn-no-payment {
+    @apply inline-flex items-center justify-center gap-1.5
+           rounded-lg border border-[#dc2626]
+           bg-[#dc2626] text-white text-[13px] font-medium
+           transition-colors duration-150 cursor-pointer
+           hover:bg-[#b91c1c] hover:border-[#b91c1c]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
   /* ── Inputs ── */
   .input {
     @apply w-full border border-[#dee2e6] rounded-lg px-2.5 py-2

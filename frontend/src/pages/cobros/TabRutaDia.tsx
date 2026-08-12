@@ -318,7 +318,9 @@ function ClienteCard({
             <button
               type="button"
               onClick={onCobrar}
-              className="btn-primary py-3 px-4 text-[13px] min-w-[80px]"
+              className={`${c.estadoHoy === 'SIN_REGISTRO' && c.tieneAdeudoPendiente
+                ? 'btn-no-payment'
+                : 'btn-primary'} py-3 px-4 text-[13px] min-w-[80px]`}
             >
               {c.estadoHoy === 'SIN_REGISTRO'
                 ? c.tieneAdeudoPendiente ? 'Registrar no pago' : 'Cobrar'
@@ -395,7 +397,13 @@ function ClienteRow({
       <td>
         <div className="flex gap-2">
           {puedeRegistrarCorriente && (
-            <button type="button" onClick={onCobrar} className="btn btn-sm">
+            <button
+              type="button"
+              onClick={onCobrar}
+              className={c.estadoHoy === 'SIN_REGISTRO' && c.tieneAdeudoPendiente
+                ? 'btn-no-payment btn-sm'
+                : 'btn btn-sm'}
+            >
               {c.estadoHoy === 'SIN_REGISTRO'
                 ? c.tieneAdeudoPendiente ? 'Registrar no pago' : 'Cobrar'
                 : 'Modificar'}

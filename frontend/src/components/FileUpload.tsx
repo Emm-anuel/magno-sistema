@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useCallback, useEffect } from 'react'
 import { UploadCloud } from 'lucide-react'
 import { compressImage } from '@/utils/imageCompressor'
 import { fileService } from '@/services/api'
@@ -10,11 +10,13 @@ import SecurePreviewImage from './SecurePreviewImage'
 // ---------------------------------------------------------------------------
 
 export interface FileUploadProps {
-  onUploadComplete: (url: string) => void
+  onUploadComplete?: (url: string) => void
+  onFileReady?: (file: File | null) => void
   onBusyChange?: (busy: boolean) => void
   accept?: string
   folder?: string
   compress?: boolean
+  deferUpload?: boolean
   label?: string
   disabled?: boolean
 }
@@ -25,6 +27,7 @@ type UploadState =
   | { kind: 'loading-compressor' }
   | { kind: 'compressing-video'; progress: number }
   | { kind: 'uploading' }
+  | { kind: 'selected'; file: File; previewUrl: string; isVideo: boolean; isImage: boolean }
   | { kind: 'done'; url: string; isVideo: boolean }
   | { kind: 'error'; message: string }
 
@@ -79,16 +82,28 @@ function ProgressBar({ percent }: ProgressBarProps) {
 
 export default function FileUpload({
   onUploadComplete,
+  onFileReady,
   onBusyChange,
   accept = 'image/*,video/*',
   folder,
   compress = true,
+  deferUpload = false,
   label = 'Arrastra un archivo o haz clic para seleccionar',
   disabled = false,
 }: FileUploadProps) {
   const [state, setState] = useState<UploadState>({ kind: 'idle' })
   const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const previewUrlRef = useRef<string | null>(null)
+
+  const revokePreviewUrl = useCallback(() => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current)
+      previewUrlRef.current = null
+    }
+  }, [])
+
+  useEffect(() => revokePreviewUrl, [revokePreviewUrl])
 
   const processFile = useCallback(
     async (rawFile: File) => {
@@ -133,12 +148,23 @@ export default function FileUpload({
           }
         }
 
-        // 3. Upload
+        // 3. En modo diferido solo se conserva el archivo procesado localmente.
+        // El componente padre decidirá cuándo subirlo.
+        if (deferUpload) {
+          revokePreviewUrl()
+          const previewUrl = URL.createObjectURL(file)
+          previewUrlRef.current = previewUrl
+          setState({ kind: 'selected', file, previewUrl, isVideo, isImage })
+          onFileReady?.(file)
+          return
+        }
+
+        // 4. Upload
         setState({ kind: 'uploading' })
         const url = await fileService.upload(file, folder)
 
         setState({ kind: 'done', url, isVideo })
-        onUploadComplete(url)
+        onUploadComplete?.(url)
       } catch (err: unknown) {
         const message =
           err instanceof Error
@@ -151,7 +177,7 @@ export default function FileUpload({
         onBusyChange?.(false)
       }
     },
-    [compress, disabled, folder, onBusyChange, onUploadComplete],
+    [compress, deferUpload, disabled, folder, onBusyChange, onFileReady, onUploadComplete, revokePreviewUrl],
   )
 
   // ── Event handlers ────────────────────────────────────────────────
@@ -187,6 +213,8 @@ export default function FileUpload({
   }
 
   const handleReset = () => {
+    revokePreviewUrl()
+    onFileReady?.(null)
     setState({ kind: 'idle' })
   }
 
@@ -211,7 +239,7 @@ export default function FileUpload({
       : '',
     disabled ? 'opacity-50 cursor-not-allowed border-gray-300' : '',
     state.kind === 'error' ? 'border-red-300 bg-red-50' : '',
-    state.kind === 'done' ? 'border-gray-200 bg-gray-50' : '',
+    state.kind === 'done' || state.kind === 'selected' ? 'border-gray-200 bg-gray-50' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -290,6 +318,43 @@ export default function FileUpload({
           <div className="flex flex-col items-center gap-2">
             <Spinner />
             <p className="text-sm text-gray-600">Subiendo archivo...</p>
+          </div>
+        )}
+
+        {/* ── Selected locally (deferred upload) ── */}
+        {state.kind === 'selected' && (
+          <div className="flex flex-col items-center gap-3 w-full">
+            {state.isVideo ? (
+              <video
+                src={state.previewUrl}
+                controls
+                className="w-full max-h-48 rounded-lg"
+              />
+            ) : state.isImage ? (
+              <img
+                src={state.previewUrl}
+                alt="Vista previa local"
+                className="max-h-48 object-contain rounded-lg mx-auto"
+              />
+            ) : (
+              <div className="w-full rounded-lg bg-white border border-gray-200 px-3 py-4 text-center">
+                <p className="text-sm font-medium text-gray-700 break-all">{state.file.name}</p>
+                <p className="text-xs text-gray-500 mt-1">Archivo listo para guardar</p>
+              </div>
+            )}
+            <p className="text-xs text-[#3d6b35] font-medium">
+              Seleccionado; se subirá después de crear el cliente.
+            </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                handleReset()
+              }}
+              className="text-xs text-gray-500 underline hover:text-gray-700"
+            >
+              Cambiar archivo
+            </button>
           </div>
         )}
 

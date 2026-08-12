@@ -322,8 +322,24 @@ api.interceptors.response.use(
         ? (data.message ?? data.error ?? data.detail ?? '')
         : (typeof data === 'string' ? data : '')
 
+    const validationDetails =
+      typeof data === 'object' && data !== null
+      && typeof data.errors === 'object' && data.errors !== null
+        ? Object.values(data.errors)
+            .filter((detail): detail is string => typeof detail === 'string' && detail.trim().length > 0)
+            .map((detail) => {
+              const trimmed = detail.trim()
+              return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+            })
+        : []
+
     const normalizedMessage =
       typeof rawMessage === 'string' ? rawMessage.trim() : ''
+
+    const detailedValidationMessage =
+      normalizedMessage.toLowerCase() === 'validación fallida' && validationDetails.length > 0
+        ? validationDetails.join('. ')
+        : normalizedMessage
 
     const fallbackByStatus =
       status === 403
@@ -334,7 +350,7 @@ api.interceptors.response.use(
         ? 'Error interno del servidor'
         : 'Error de conexión'
 
-    const message = normalizedMessage || fallbackByStatus
+    const message = detailedValidationMessage || fallbackByStatus
 
     const apiError: ApiError = {
       status,

@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import toast from 'react-hot-toast'
 import { Plus, Search, Eye, Pencil, Power, X, ChevronLeft, ChevronRight, User } from 'lucide-react'
-import { api, clienteService } from '@/services/api'
+import { api, clienteService, fileService } from '@/services/api'
 import { useAuthStore } from '@/hooks/useAuthStore'
 import { useCajaOperativa } from '@/hooks/useCajaOperativa'
 import CajaOperativaBanner from '@/components/caja/CajaOperativaBanner'
@@ -114,6 +114,8 @@ function duplicateSearchParams(data: Partial<ClienteForm>) {
     ineNumero: ineNumero && ineNumero.length >= 6 ? ineNumero : undefined,
   }
 }
+
+type AvailabilityStatus = 'idle' | 'checking' | 'ok' | 'taken' | 'error'
 
 // ── Componente principal ──────────────────────────────────────────
 export default function ClientesPage() {
@@ -547,6 +549,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   const isEdit = !!cliente
   const { usuario: authUsuario } = useAuthStore()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [uploadingDocuments, setUploadingDocuments] = useState(false)
   const [avalOpen, setAvalOpen] = useState(!!cliente?.aval_nombre)
   const [mapLat, setMapLat] = useState<number | null>(
     cliente?.negocio_lat != null ? Number(cliente.negocio_lat) : null
@@ -554,15 +557,18 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   const [mapLng, setMapLng] = useState<number | null>(
     cliente?.negocio_lng != null ? Number(cliente.negocio_lng) : null
   )
-  const [curpStatus, setCurpStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
-  const [celularStatus, setCelularStatus] = useState<'idle' | 'checking' | 'ok' | 'taken'>('idle')
+  const [curpStatus, setCurpStatus] = useState<AvailabilityStatus>('idle')
+  const [celularStatus, setCelularStatus] = useState<AvailabilityStatus>('idle')
   const [duplicateMatches, setDuplicateMatches] = useState<ClienteCoincidencia[]>([])
   const [checkingDuplicates, setCheckingDuplicates] = useState(false)
+  const [duplicateCheckError, setDuplicateCheckError] = useState<string | null>(null)
   const curpTimeout = useRef<ReturnType<typeof setTimeout>>()
   const celularTimeout = useRef<ReturnType<typeof setTimeout>>()
-  const [docIneFrente, setDocIneFrente] = useState<string | null>(null)
-  const [docIneReverso, setDocIneReverso] = useState<string | null>(null)
-  const [docComprobante, setDocComprobante] = useState<string | null>(null)
+  const curpCheckVersion = useRef(0)
+  const celularCheckVersion = useRef(0)
+  const [docIneFrente, setDocIneFrente] = useState<File | null>(null)
+  const [docIneReverso, setDocIneReverso] = useState<File | null>(null)
+  const [docComprobante, setDocComprobante] = useState<File | null>(null)
   const [docIneFrenteBusy, setDocIneFrenteBusy] = useState(false)
   const [docIneReversoBusy, setDocIneReversoBusy] = useState(false)
   const [docComprobanteBusy, setDocComprobanteBusy] = useState(false)
@@ -656,6 +662,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
     )
 
     setDuplicateMatches([])
+    setDuplicateCheckError(null)
     if (!hasIdentity) {
       setCheckingDuplicates(false)
       return
@@ -668,7 +675,13 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
         .then((matches) => {
           if (!cancelled) setDuplicateMatches(matches)
         })
-        .catch(() => undefined)
+        .catch(() => {
+          if (!cancelled) {
+            setDuplicateCheckError(
+              'No se pudo verificar si el cliente ya está registrado. La validación se repetirá al guardar.',
+            )
+          }
+        })
         .finally(() => {
           if (!cancelled) setCheckingDuplicates(false)
         })
@@ -696,7 +709,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   })
 
   const isPending = createMutation.isPending || editMutation.isPending
-  const hasPendingDocumentUpload = !isEdit && (
+  const hasPendingDocumentProcessing = !isEdit && (
     docIneFrenteBusy ||
     docIneReversoBusy ||
     docComprobanteBusy
@@ -712,7 +725,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
     || mapLng !== initialMapLng
 
   const requestClose = () => {
-    if (isProcessing || isPending || hasPendingDocumentUpload) {
+    if (isProcessing || isPending || hasPendingDocumentProcessing) {
       toast.error('Espera a que termine el proceso antes de cerrar')
       return
     }
@@ -734,29 +747,40 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
   const checkCurp = useCallback((curp: string) => {
     clearTimeout(curpTimeout.current)
+    const version = ++curpCheckVersion.current
     if (curp.length !== 18) { setCurpStatus('idle'); return }
     if (isEdit && curp === cliente?.curp) { setCurpStatus('ok'); return }
     setCurpStatus('checking')
     curpTimeout.current = setTimeout(async () => {
-      const ok = await clienteService.verificarCurp(curp, isEdit ? cliente!.id : undefined)
-      setCurpStatus(ok ? 'ok' : 'taken')
+      try {
+        const ok = await clienteService.verificarCurp(curp, isEdit ? cliente!.id : undefined)
+        if (version === curpCheckVersion.current) setCurpStatus(ok ? 'ok' : 'taken')
+      } catch {
+        if (version === curpCheckVersion.current) setCurpStatus('error')
+      }
     }, 400)
   }, [isEdit, cliente])
 
   const checkCelular = useCallback((celular: string) => {
     clearTimeout(celularTimeout.current)
+    const version = ++celularCheckVersion.current
     if (celular.length !== 10) { setCelularStatus('idle'); return }
     if (isEdit && celular === cliente?.celular) { setCelularStatus('ok'); return }
     setCelularStatus('checking')
     celularTimeout.current = setTimeout(async () => {
-      const ok = await clienteService.verificarCelular(celular, isEdit ? cliente!.id : undefined)
-      setCelularStatus(ok ? 'ok' : 'taken')
+      try {
+        const ok = await clienteService.verificarCelular(celular, isEdit ? cliente!.id : undefined)
+        if (version === celularCheckVersion.current) setCelularStatus(ok ? 'ok' : 'taken')
+      } catch {
+        if (version === celularCheckVersion.current) setCelularStatus('error')
+      }
     }, 400)
   }, [isEdit, cliente])
 
   const onSubmit = async (data: ClienteForm) => {
     setFormSubmitted(true)
     if (!isEdit) {
+      setDuplicateCheckError(null)
       setCheckingDuplicates(true)
       try {
         const matches = await clienteService.buscarPosiblesDuplicados(duplicateSearchParams(data))
@@ -766,7 +790,9 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
           return
         }
       } catch {
-        // El backend vuelve a ejecutar la validación al crear; no se omite la protección.
+        const message = 'No se pudo comprobar previamente si el cliente está duplicado. El servidor lo validará al guardar.'
+        setDuplicateCheckError(message)
+        toast.error(message)
       } finally {
         setCheckingDuplicates(false)
       }
@@ -779,13 +805,13 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       return
     }
 
-    if (hasPendingDocumentUpload) {
-      toast.error('Espera a que terminen de subir los documentos')
+    if (hasPendingDocumentProcessing) {
+      toast.error('Espera a que terminen de procesarse los documentos')
       return
     }
 
     if (!isEdit && (!docIneFrente || !docIneReverso || !docComprobante)) {
-      toast.error('Sube los tres documentos: INE frente, INE reverso y comprobante de domicilio')
+      toast.error('Selecciona los tres documentos: INE frente, INE reverso y comprobante de domicilio')
       return
     }
 
@@ -811,16 +837,34 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
         await editMutation.mutateAsync({ id: cliente!.id, data: payload })
       } else {
         const nuevoCliente = await createMutation.mutateAsync(payload)
-        try {
-          await Promise.all([
-            clienteService.agregarDocumento(nuevoCliente.id, 'INE_FRENTE', docIneFrente!),
-            clienteService.agregarDocumento(nuevoCliente.id, 'INE_REVERSO', docIneReverso!),
-            clienteService.agregarDocumento(nuevoCliente.id, 'COMPROBANTE_DOMICILIO', docComprobante!),
-          ])
+        setUploadingDocuments(true)
+
+        const documentos = [
+          { tipo: 'INE_FRENTE', etiqueta: 'INE frente', archivo: docIneFrente! },
+          { tipo: 'INE_REVERSO', etiqueta: 'INE reverso', archivo: docIneReverso! },
+          { tipo: 'COMPROBANTE_DOMICILIO', etiqueta: 'comprobante de domicilio', archivo: docComprobante! },
+        ] as const
+
+        const resultados = await Promise.allSettled(
+          documentos.map(async ({ tipo, archivo }) => {
+            const folder = `clientes-documentos/${nuevoCliente.id}/${tipo}`
+            const url = await fileService.upload(archivo, folder)
+            await clienteService.agregarDocumento(nuevoCliente.id, tipo, url, archivo.name)
+          }),
+        )
+        const documentosFallidos: string[] = resultados.flatMap((resultado, index) =>
+          resultado.status === 'rejected' ? [documentos[index].etiqueta] : [],
+        )
+
+        if (documentosFallidos.length === 0) {
           toast.success('Cliente creado')
-        } catch {
-          toast.error('Cliente creado. No se pudieron guardar los documentos; agrégalos desde la pestaña Documentos.', { duration: 8000 })
+        } else {
+          toast.error(
+            `Cliente creado. No se pudieron guardar: ${documentosFallidos.join(', ')}. Agrégalos desde la pestaña Documentos.`,
+            { duration: 8000 },
+          )
         }
+        setUploadingDocuments(false)
         onSaved()
       }
     } catch (e: any) {
@@ -829,8 +873,13 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
         toast.error(msg, { duration: 5000 })
       }
     } finally {
+      setUploadingDocuments(false)
       setIsProcessing(false)
     }
+  }
+
+  const onInvalidSubmit = () => {
+    toast.error('Revisa los campos marcados en rojo y corrige la información antes de guardar.')
   }
 
   return (
@@ -853,7 +902,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
           </button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit, onInvalidSubmit)}>
           <div className="px-5 py-4 space-y-5 max-h-[75vh] overflow-y-auto">
 
             {/* ── SECCIÓN 1: Datos del Solicitante ── */}
@@ -887,6 +936,11 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     <StatusIcon status={celularStatus} />
                   </div>
                   {celularStatus === 'taken' && <p className="text-[#dc2626] text-[11px] mt-0.5">Celular ya registrado</p>}
+                  {celularStatus === 'error' && (
+                    <p className="text-amber-700 text-[11px] mt-0.5">
+                      No se pudo verificar el celular ahora; se volverá a validar al guardar.
+                    </p>
+                  )}
                 </Field>
                 <Field label="Teléfono fijo" error={errors.telefono_fijo?.message}>
                   <input
@@ -933,6 +987,11 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     <StatusIcon status={curpStatus} />
                   </div>
                   {curpStatus === 'taken' && <p className="text-[#dc2626] text-[11px] mt-0.5">CURP ya registrada</p>}
+                  {curpStatus === 'error' && (
+                    <p className="text-amber-700 text-[11px] mt-0.5">
+                      No se pudo verificar la CURP ahora; se volverá a validar al guardar.
+                    </p>
+                  )}
                 </Field>
                 <Field label="RFC" error={errors.rfc?.message}>
                   <input
@@ -952,6 +1011,12 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
             {!isEdit && checkingDuplicates && duplicateMatches.length === 0 && (
               <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[12px] text-blue-800">
                 Verificando si el cliente ya está registrado...
+              </div>
+            )}
+
+            {!isEdit && duplicateCheckError && duplicateMatches.length === 0 && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[12px] text-amber-800" role="alert">
+                {duplicateCheckError}
               </div>
             )}
 
@@ -1123,17 +1188,18 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
               <section>
                 <p className="sec-title">Documentos</p>
                 <p className="text-[12px] text-[#6c757d] mb-3">
-                  Los tres documentos son obligatorios para registrar al cliente.
+                  Los tres documentos son obligatorios. Primero se validará y creará al cliente;
+                  después se subirán los archivos seleccionados.
                 </p>
                 <div className="space-y-4">
                   <div>
                     <p className="text-[12px] font-medium text-[#495057] mb-1.5">INE — Frente *</p>
                     <FileUpload
                       accept="image/*,.pdf"
-                      folder="clientes-documentos/nuevos/INE_FRENTE"
                       compress
+                      deferUpload
                       label="Foto del frente del INE"
-                      onUploadComplete={(url) => setDocIneFrente(url)}
+                      onFileReady={setDocIneFrente}
                       onBusyChange={setDocIneFrenteBusy}
                     />
                     {formSubmitted && !docIneFrente && (
@@ -1144,10 +1210,10 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     <p className="text-[12px] font-medium text-[#495057] mb-1.5">INE — Reverso *</p>
                     <FileUpload
                       accept="image/*,.pdf"
-                      folder="clientes-documentos/nuevos/INE_REVERSO"
                       compress
+                      deferUpload
                       label="Foto del reverso del INE"
-                      onUploadComplete={(url) => setDocIneReverso(url)}
+                      onFileReady={setDocIneReverso}
                       onBusyChange={setDocIneReversoBusy}
                     />
                     {formSubmitted && !docIneReverso && (
@@ -1158,10 +1224,10 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     <p className="text-[12px] font-medium text-[#495057] mb-1.5">Comprobante de domicilio *</p>
                     <FileUpload
                       accept="image/*,.pdf"
-                      folder="clientes-documentos/nuevos/COMPROBANTE_DOMICILIO"
                       compress
+                      deferUpload
                       label="Foto o PDF del comprobante de domicilio"
-                      onUploadComplete={(url) => setDocComprobante(url)}
+                      onFileReady={setDocComprobante}
                       onBusyChange={setDocComprobanteBusy}
                     />
                     {formSubmitted && !docComprobante && (
@@ -1262,8 +1328,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
           {/* Footer */}
           <div className="modal-footer">
             <button type="button" onClick={requestClose} className="btn">Cancelar</button>
-            <button type="submit" disabled={isPending || hasPendingDocumentUpload || checkingDuplicates || duplicateMatches.length > 0 || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
-              {checkingDuplicates ? 'Verificando cliente...' : hasPendingDocumentUpload ? 'Subiendo documentos...' : isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
+            <button type="submit" disabled={isPending || isProcessing || hasPendingDocumentProcessing || checkingDuplicates || duplicateMatches.length > 0 || curpStatus === 'taken' || celularStatus === 'taken'} className="btn-primary">
+              {checkingDuplicates ? 'Verificando cliente...' : hasPendingDocumentProcessing ? 'Procesando documentos...' : isPending ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Guardar Cliente'}
             </button>
           </div>
         </form>
@@ -1271,8 +1337,10 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
       <ProcessingOverlay
         visible={isProcessing || isPending}
-        title={isEdit ? 'Actualizando cliente' : 'Creando cliente'}
-        message="Estamos guardando la información. Este proceso puede tardar unos segundos."
+        title={uploadingDocuments ? 'Guardando documentos' : isEdit ? 'Actualizando cliente' : 'Creando cliente'}
+        message={uploadingDocuments
+          ? 'El cliente ya fue creado. Estamos subiendo y asociando sus documentos.'
+          : 'Estamos validando y guardando la información. Los documentos todavía no se han enviado.'}
       />
     </div>
   )
@@ -1290,13 +1358,14 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 }
 
 // ── Status icon para CURP/celular ─────────────────────────────────
-function StatusIcon({ status }: { status: 'idle' | 'checking' | 'ok' | 'taken' }) {
+function StatusIcon({ status }: { status: AvailabilityStatus }) {
   if (status === 'idle') return null
   return (
     <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[13px]">
       {status === 'checking' && <span className="text-[#adb5bd]">⟳</span>}
       {status === 'ok'       && <span className="text-[#16a34a]">✓</span>}
       {status === 'taken'    && <span className="text-[#dc2626]">✗</span>}
+      {status === 'error'    && <span className="text-amber-600">!</span>}
     </span>
   )
 }
