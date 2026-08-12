@@ -90,7 +90,10 @@ const clienteSchema = z.object({
   aval_direccion:      z.string().optional(),
   aval_identificacion: z.string().optional(),
   asesor_id:           z.coerce.number().optional(),
-  sucursal_id:         z.coerce.number().min(1, 'Requerido'),
+  // Solo ADMINISTRADOR elige sucursal en el formulario. Para los demas
+  // roles el backend la fuerza a partir del JWT, por lo que no debe bloquear
+  // el submit un campo que ni siquiera se muestra.
+  sucursal_id:         z.coerce.number().optional(),
 })
 
 type ClienteForm = z.infer<typeof clienteSchema>
@@ -577,6 +580,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
   const {
     register,
     handleSubmit,
+    setError,
     watch,
     formState: { errors, isDirty },
   } = useForm<ClienteForm>({
@@ -779,6 +783,11 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
 
   const onSubmit = async (data: ClienteForm) => {
     setFormSubmitted(true)
+    if (puedeAsignarSucursal && !data.sucursal_id) {
+      setError('sucursal_id', { type: 'manual', message: 'Requerido' }, { shouldFocus: true })
+      toast.error('Selecciona la sucursal del cliente')
+      return
+    }
     if (!isEdit) {
       setDuplicateCheckError(null)
       setCheckingDuplicates(true)
@@ -825,7 +834,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       gastos_renta:        data.gastos_renta         || undefined,
       gastos_otros:        data.gastos_otros         || undefined,
       asesor_id:    puedeAsignarAsesor    ? (data.asesor_id || undefined)    : authUsuario?.id,
-      sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : (sucursalScopeId ?? authUsuario!.sucursal.id),
+      sucursal_id:  puedeAsignarSucursal  ? data.sucursal_id                 : (sucursalScopeId ?? authUsuario?.sucursal?.id),
       negocio_lat:  mapLat ?? undefined,
       negocio_lng:  mapLng ?? undefined,
     }

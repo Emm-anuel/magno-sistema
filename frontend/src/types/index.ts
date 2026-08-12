@@ -338,7 +338,7 @@ export interface ClienteCreateRequest {
   aval_direccion?: string
   aval_identificacion?: string
   asesor_id?: number
-  sucursal_id: number
+  sucursal_id?: number
 }
 
 export interface ClienteUpdateRequest extends Partial<ClienteCreateRequest> {}
