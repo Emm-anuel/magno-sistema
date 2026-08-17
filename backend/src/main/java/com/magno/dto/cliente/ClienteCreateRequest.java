@@ -37,6 +37,7 @@ public record ClienteCreateRequest(
         String celular,
 
         // ── Identificación ────────────────────────────────────────
+        @NotBlank(message = "ineTipo no debe estar vacío")
         String ineTipo,
 
         @NotBlank(message = "ineNumero no debe estar vacío")
@@ -71,6 +72,7 @@ public record ClienteCreateRequest(
         @NotBlank(message = "domCodigoPostal no debe estar vacío")
         String domCodigoPostal,
 
+        @NotBlank(message = "domTipoVivienda no debe estar vacío")
         String domTipoVivienda,
         BigDecimal domMontoRenta,
 
@@ -107,6 +109,7 @@ public record ClienteCreateRequest(
         @NotBlank(message = "negocioCp no debe estar vacío")
         String negocioCp,
 
+        @NotBlank(message = "negocioTipoLocal no debe estar vacío")
         String negocioTipoLocal,
         BigDecimal negocioMontoRenta,
         String negocioHorarios,
@@ -114,6 +117,7 @@ public record ClienteCreateRequest(
         BigDecimal negocioLng,
 
         // ── Finanzas ──────────────────────────────────────────────
+        @NotNull(message = "ingresosSemanales no debe ser nulo")
         BigDecimal ingresosSemanales,
         BigDecimal gastosSemanales,
         BigDecimal gastosRenta,

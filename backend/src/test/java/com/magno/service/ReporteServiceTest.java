@@ -1,5 +1,8 @@
 package com.magno.service;
 
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor;
 import com.magno.dto.reporte.AsesorResumenDTO;
 import com.magno.dto.reporte.ReporteCarteraDTO;
 import com.magno.dto.reporte.ReporteIngresosEgresosDTO;
@@ -8,9 +11,12 @@ import com.magno.dto.reporte.ReporteClientesDTO;
 import com.magno.model.*;
 import com.magno.repository.*;
 import com.magno.util.DateTimeUtils;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -239,7 +245,7 @@ class ReporteServiceTest {
         }
 
         @Test
-        void getClientes_incluyeFichaCompletaYDatosEsencialesDelCredito() {
+        void getClientes_incluyeFichaCompletaYDatosEsencialesDelCredito() throws Exception {
                 Usuario asesor = usuario(5L, "ASESOR_COBRADOR", "Juan Pérez");
                 Sucursal sucursal = new Sucursal();
                 sucursal.setId(1L);
@@ -327,8 +333,27 @@ class ReporteServiceTest {
                 assertThat(item.pagoPeriodico()).isEqualByComparingTo("1000.00");
                 assertThat(item.estadoCliente()).isEqualTo("ACTIVO");
 
-                assertThat(service.exportarClientesPdf(1L, null, "TODOS")).hasSizeGreaterThan(1_000);
-                assertThat(service.exportarClientesExcel(1L, null, "TODOS")).hasSizeGreaterThan(1_000);
+                byte[] pdfBytes = service.exportarClientesPdf(1L, null, "TODOS");
+                assertThat(pdfBytes).hasSizeGreaterThan(1_000);
+                try (PdfDocument pdf = new PdfDocument(new PdfReader(new ByteArrayInputStream(pdfBytes)))) {
+                        StringBuilder pdfText = new StringBuilder();
+                        for (int page = 1; page <= pdf.getNumberOfPages(); page++) {
+                                pdfText.append(PdfTextExtractor.getTextFromPage(pdf.getPage(page)));
+                        }
+                        assertThat(pdfText.toString())
+                                        .contains("Ingreso semanal")
+                                        .doesNotContain("Género", "Gasto semanal", "Gasto renta/otros");
+                }
+
+                byte[] excelBytes = service.exportarClientesExcel(1L, null, "TODOS");
+                assertThat(excelBytes).hasSizeGreaterThan(1_000);
+                try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(excelBytes))) {
+                        Row headers = workbook.getSheet("Clientes").getRow(5);
+                        assertThat(headers.getLastCellNum()).isEqualTo((short) 68);
+                        assertThat(headers).extracting(cell -> cell.getStringCellValue())
+                                        .contains("Ingresos semanales")
+                                        .doesNotContain("Género", "Gastos semanales", "Gastos renta", "Otros gastos");
+                }
         }
 
         private CajaDia cajaDia(Long id, LocalDate fecha,

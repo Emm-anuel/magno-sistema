@@ -511,7 +511,7 @@ export default function Historial() {
                 <table className="text-[12px] border-collapse w-full">
                   <thead>
                     <tr className="bg-[#f8f9fa] text-[#6c757d]">
-                      <th className="sticky left-0 z-20 bg-[#f8f9fa] text-left px-3 py-2 border-b border-r border-[#e9ecef] whitespace-nowrap min-w-[160px]">
+                      <th className="sticky left-0 z-20 w-[240px] min-w-[240px] bg-[#f8f9fa] text-left px-3 py-2 border-b border-r border-[#e9ecef] whitespace-nowrap sm:w-[280px] sm:min-w-[280px]">
                         Cliente
                       </th>
                       <th className="text-right px-2 py-2 border-b border-[#e9ecef] whitespace-nowrap">
@@ -557,9 +557,9 @@ export default function Historial() {
                           className="hover:bg-[#f8f9fa] border-b border-[#f1f3f5]"
                         >
                           {/* Sticky first column */}
-                          <td className="sticky left-0 z-10 bg-white px-3 py-2 border-r border-[#e9ecef] shadow-[1px_0_0_#e9ecef]">
-                            <div className="flex items-center gap-1.5 max-w-[148px]">
-                              <span className="font-medium text-[#212529] truncate">
+                          <td className="sticky left-0 z-10 w-[240px] min-w-[240px] bg-white px-3 py-2 border-r border-[#e9ecef] shadow-[1px_0_0_#e9ecef] sm:w-[280px] sm:min-w-[280px]">
+                            <div className="flex min-w-0 items-start gap-1.5">
+                              <span className="min-w-0 flex-1 whitespace-normal break-words font-medium leading-4 text-[#212529]">
                                 {credito?.cliente.nombreCompleto ?? creditoResumen.cliente.nombreCompleto}
                               </span>
                               <Link

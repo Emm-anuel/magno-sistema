@@ -524,12 +524,12 @@ public class ReporteService {
 
             pdfDetailRow(detalle, "Nombre", item.nombre(), "Apellido paterno", item.apellidoPaterno(),
                     "Apellido materno", item.apellidoMaterno());
-            pdfDetailRow(detalle, "Nacimiento", item.fechaNacimiento(), "Género", item.genero(),
-                    "Estado civil", item.estadoCivil());
-            pdfDetailRow(detalle, "Cónyuge", item.nombreConyuge(), "Celular", item.celular(),
-                    "Teléfono fijo", item.telefonoFijo());
-            pdfDetailRow(detalle, "CURP", item.curp(), "RFC", item.rfc(),
-                    "Identificación", joinValues(item.ineTipo(), item.ineNumero()));
+            pdfDetailRow(detalle, "Nacimiento", item.fechaNacimiento(), "Estado civil", item.estadoCivil(),
+                    "Cónyuge", item.nombreConyuge());
+            pdfDetailRow(detalle, "Celular", item.celular(), "Teléfono fijo", item.telefonoFijo(),
+                    "CURP", item.curp());
+            pdfDetailRow(detalle, "RFC", item.rfc(), "Identificación", joinValues(item.ineTipo(), item.ineNumero()),
+                    "Ingreso semanal", fmtNullableMonto(item.ingresosSemanales()));
 
             pdfDetailRow(detalle, "Domicilio", formatAddress(item.domCalle(), item.domNoExterior(),
                             item.domNoInterior(), item.domColonia(), item.domMunicipio(), item.domEstado(),
@@ -543,9 +543,6 @@ public class ReporteService {
             pdfDetailRow(detalle, "Horario", item.negocioHorarios(), "Latitud", value(item.negocioLat()),
                     "Longitud", value(item.negocioLng()));
 
-            pdfDetailRow(detalle, "Ingreso semanal", fmtNullableMonto(item.ingresosSemanales()),
-                    "Gasto semanal", fmtNullableMonto(item.gastosSemanales()),
-                    "Gasto renta/otros", joinValues(fmtNullableMonto(item.gastosRenta()), fmtNullableMonto(item.gastosOtros())));
             pdfDetailRow(detalle, "Referencia 1", reference(item.ref1Nombre(), item.ref1Telefono(), item.ref1Parentesco()),
                     "Referencia 2", reference(item.ref2Nombre(), item.ref2Telefono(), item.ref2Parentesco()),
                     "Aval", guarantor(item));
@@ -595,14 +592,14 @@ public class ReporteService {
             r++;
             r = xlHRow(sh, r, hdr,
                     "No.", "Nombre", "Apellido paterno", "Apellido materno", "Nombre completo",
-                    "Fecha nacimiento", "Género", "Estado civil", "Cónyuge", "Teléfono fijo", "Celular",
+                    "Fecha nacimiento", "Estado civil", "Cónyuge", "Teléfono fijo", "Celular",
                     "Tipo identificación", "Número identificación", "CURP", "RFC",
                     "Calle domicilio", "No. exterior", "No. interior", "Colonia", "Municipio", "Estado domicilio",
                     "Código postal", "Tipo vivienda", "Renta vivienda",
                     "Negocio", "Giro", "Antigüedad", "Dirección negocio", "Calle negocio", "No. exterior negocio",
                     "No. interior negocio", "Colonia negocio", "Municipio negocio", "Estado negocio", "CP negocio",
                     "Tipo local", "Renta local", "Horarios", "Latitud", "Longitud",
-                    "Ingresos semanales", "Gastos semanales", "Gastos renta", "Otros gastos",
+                    "Ingresos semanales",
                     "Referencia 1", "Teléfono ref. 1", "Parentesco ref. 1", "Referencia 2", "Teléfono ref. 2",
                     "Parentesco ref. 2", "Aval", "Teléfono aval", "Dirección aval", "Identificación aval",
                     "Asesor", "Sucursal", "Estado cliente", "Alta", "Actualización",
@@ -619,7 +616,6 @@ public class ReporteService {
                 xlText(row, col++, item.apellidoMaterno());
                 xlText(row, col++, item.nombreCompleto());
                 xlText(row, col++, item.fechaNacimiento());
-                xlText(row, col++, item.genero());
                 xlText(row, col++, item.estadoCivil());
                 xlText(row, col++, item.nombreConyuge());
                 xlText(row, col++, item.telefonoFijo());
@@ -654,9 +650,6 @@ public class ReporteService {
                 xlNullableNum(row, col++, item.negocioLat(), null);
                 xlNullableNum(row, col++, item.negocioLng(), null);
                 xlNullableNum(row, col++, item.ingresosSemanales(), currency);
-                xlNullableNum(row, col++, item.gastosSemanales(), currency);
-                xlNullableNum(row, col++, item.gastosRenta(), currency);
-                xlNullableNum(row, col++, item.gastosOtros(), currency);
                 xlText(row, col++, item.ref1Nombre());
                 xlText(row, col++, item.ref1Telefono());
                 xlText(row, col++, item.ref1Parentesco());
@@ -690,8 +683,8 @@ public class ReporteService {
             }
 
             sh.createFreezePane(0, 6);
-            sh.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(5, 5, 0, 71));
-            for (int i = 0; i <= 71; i++) sh.setColumnWidth(i, i == 4 || i == 27 || i == 53 ? 9000 : 5000);
+            sh.setAutoFilter(new org.apache.poi.ss.util.CellRangeAddress(5, 5, 0, 67));
+            for (int i = 0; i <= 67; i++) sh.setColumnWidth(i, i == 4 || i == 26 || i == 49 ? 9000 : 5000);
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             wb.write(baos);

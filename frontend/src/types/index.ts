@@ -294,7 +294,7 @@ export interface ClienteCreateRequest {
   nombre_conyuge?: string
   telefono_fijo?: string
   celular: string
-  ine_tipo?: string
+  ine_tipo: string
   ine_numero: string
   curp: string
   rfc?: string
@@ -305,7 +305,7 @@ export interface ClienteCreateRequest {
   dom_municipio: string
   dom_estado: string
   dom_codigo_postal: string
-  dom_tipo_vivienda?: string
+  dom_tipo_vivienda: string
   dom_monto_renta?: number
   negocio_nombre: string
   negocio_giro: string
@@ -318,12 +318,12 @@ export interface ClienteCreateRequest {
   negocio_municipio: string
   negocio_estado: string
   negocio_cp: string
-  negocio_tipo_local?: string
+  negocio_tipo_local: string
   negocio_monto_renta?: number
   negocio_horarios?: string
   negocio_lat?: number | null
   negocio_lng?: number | null
-  ingresos_semanales?: number
+  ingresos_semanales: number
   gastos_semanales?: number
   gastos_renta?: number
   gastos_otros?: number

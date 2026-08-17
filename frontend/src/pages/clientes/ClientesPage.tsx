@@ -37,6 +37,11 @@ function EstadoBadge({ estado }: { estado: EstadoCliente }) {
 }
 
 // ── Esquema de validación ─────────────────────────────────────────
+const requiredNumberSchema = z.preprocess(
+  (value) => value === '' || value === null || value === undefined ? undefined : value,
+  z.coerce.number({ required_error: 'Requerido', invalid_type_error: 'Requerido' }),
+)
+
 const clienteSchema = z.object({
   nombre:              z.string().min(1, 'Requerido'),
   apellido_paterno:    z.string().min(1, 'Requerido'),
@@ -46,7 +51,7 @@ const clienteSchema = z.object({
   nombre_conyuge:      z.string().optional(),
   telefono_fijo:       optionalPhoneSchema,
   celular:             requiredPhoneSchema,
-  ine_tipo:            z.string().optional(),
+  ine_tipo:            z.string().min(1, 'Requerido'),
   ine_numero:          z.string().min(1, 'Requerido'),
   curp:                curpSchema,
   rfc:                 optionalRfcSchema,
@@ -57,7 +62,7 @@ const clienteSchema = z.object({
   dom_municipio:       z.string().min(1, 'Requerido'),
   dom_estado:          z.string().min(1, 'Requerido'),
   dom_codigo_postal:   z.string().min(4, 'Requerido'),
-  dom_tipo_vivienda:   z.string().optional(),
+  dom_tipo_vivienda:   z.string().min(1, 'Requerido'),
   dom_monto_renta:     z.coerce.number().optional(),
   negocio_nombre:         z.string().min(1, 'Requerido'),
   negocio_giro:           z.string().min(1, 'Requerido'),
@@ -70,12 +75,12 @@ const clienteSchema = z.object({
   negocio_municipio:      z.string().min(1, 'Requerido'),
   negocio_estado:         z.string().min(1, 'Requerido'),
   negocio_cp:             z.string().min(4, 'Requerido'),
-  negocio_tipo_local:  z.string().optional(),
+  negocio_tipo_local:  z.string().min(1, 'Requerido'),
   negocio_monto_renta: z.coerce.number().optional(),
   negocio_horarios:    z.string().optional(),
   negocio_lat:         z.coerce.number().optional(),
   negocio_lng:         z.coerce.number().optional(),
-  ingresos_semanales:  z.coerce.number().optional(),
+  ingresos_semanales:  requiredNumberSchema,
   gastos_semanales:    z.coerce.number().optional(),
   gastos_renta:        z.coerce.number().optional(),
   gastos_otros:        z.coerce.number().optional(),
@@ -877,7 +882,7 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
       fecha_nacimiento:    data.fecha_nacimiento,
       dom_monto_renta:     data.dom_monto_renta     || undefined,
       negocio_monto_renta: data.negocio_monto_renta || undefined,
-      ingresos_semanales:  data.ingresos_semanales  || undefined,
+      ingresos_semanales:  data.ingresos_semanales,
       gastos_semanales:    data.gastos_semanales     || undefined,
       gastos_renta:        data.gastos_renta         || undefined,
       gastos_otros:        data.gastos_otros         || undefined,
@@ -1079,8 +1084,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                     onInput={sanitizeRfcInput}
                   />
                 </Field>
-                <Field label="Tipo de identificación">
-                  <input {...register('ine_tipo')} className="input" placeholder="INE, pasaporte..." />
+                <Field label="Tipo de identificación *" error={errors.ine_tipo?.message}>
+                  <input {...register('ine_tipo')} className={`input ${errors.ine_tipo ? 'input-error' : ''}`} placeholder="INE, pasaporte..." />
                 </Field>
               </div>
             </section>
@@ -1162,8 +1167,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                 <Field label="C.P. *" error={errors.dom_codigo_postal?.message}>
                   <input {...register('dom_codigo_postal')} className={`input ${errors.dom_codigo_postal ? 'input-error' : ''}`} placeholder="00000" maxLength={5} />
                 </Field>
-                <Field label="Tipo de vivienda">
-                  <select {...register('dom_tipo_vivienda')} className="input">
+                <Field label="Tipo de vivienda *" error={errors.dom_tipo_vivienda?.message}>
+                  <select {...register('dom_tipo_vivienda')} className={`input ${errors.dom_tipo_vivienda ? 'input-error' : ''}`}>
                     <option value="">Seleccionar</option>
                     <option value="PROPIA">Propia</option>
                     <option value="RENTADA">Rentada</option>
@@ -1223,8 +1228,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
-                <Field label="Tipo de local">
-                  <select {...register('negocio_tipo_local')} className="input">
+                <Field label="Tipo de local *" error={errors.negocio_tipo_local?.message}>
+                  <select {...register('negocio_tipo_local')} className={`input ${errors.negocio_tipo_local ? 'input-error' : ''}`}>
                     <option value="">Seleccionar</option>
                     <option value="PROPIO">Propio</option>
                     <option value="RENTADO">Rentado</option>
@@ -1236,8 +1241,8 @@ export function ClienteModal({ cliente, sucursales, asesores, puedeAsignarAsesor
                 <Field label="Horarios">
                   <input {...register('negocio_horarios')} className="input" placeholder="Ej. Lun-Vie 9-18h" />
                 </Field>
-                <Field label="Ingresos semanales">
-                  <input {...register('ingresos_semanales')} type="number" className="input" placeholder="$ estimado" />
+                <Field label="Ingresos semanales *" error={errors.ingresos_semanales?.message}>
+                  <input {...register('ingresos_semanales')} type="number" className={`input ${errors.ingresos_semanales ? 'input-error' : ''}`} placeholder="$ estimado" />
                 </Field>
               </div>
 
