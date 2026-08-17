@@ -8,6 +8,8 @@ import { formatLocalDate, todayLocalStr } from '@/utils/date'
 
 type RangeMode = 'hoy' | 'semana' | 'mes' | 'custom'
 
+const PAGOS_VISIBLES_ANTES_SCROLL = 8
+
 function noopOnChange() {
   // no-op: la sucursal es fija para roles no admin (modo readonly)
 }
@@ -156,6 +158,7 @@ export default function DashboardPage() {
     (total, movimiento) => total + Number(movimiento.monto ?? 0),
     0,
   )
+  const pagosConScroll = pagosRecibidosHoy.length > PAGOS_VISIBLES_ANTES_SCROLL
 
   return (
     <div className="space-y-5">
@@ -309,16 +312,19 @@ export default function DashboardPage() {
             <div className="card-header flex flex-wrap items-center justify-between gap-2">
               <div>
                 <span className="card-title">Pagos recibidos hoy</span>
-                <p className="mt-1 text-[12px] text-gray-500">Pagos de ruta y abonos</p>
+                <p className="mt-1 text-[12px] text-gray-500">
+                  Pagos de ruta y abonos
+                  {pagosConScroll && ` · ${PAGOS_VISIBLES_ANTES_SCROLL} visibles a la vez`}
+                </p>
               </div>
               <span className="text-[12px] font-semibold text-[#2d6a4f]">
                 {pagosRecibidosHoy.length} movimientos · {fmtMoney(totalRecibidoHoy)}
               </span>
             </div>
-            <div className="max-h-[360px] overflow-auto">
+            <div className={`overflow-auto ${pagosConScroll ? 'max-h-[424px]' : ''}`}>
               <table className="tabla">
-                <thead>
-                  <tr>
+                <thead className={pagosConScroll ? 'sticky top-0 z-10 bg-[#f8f9fa] shadow-sm' : ''}>
+                  <tr className="h-10">
                     <th>Cliente</th>
                     <th>Asesor</th>
                     <th>Tipo</th>
@@ -334,9 +340,9 @@ export default function DashboardPage() {
                     </tr>
                   ) : (
                     pagosRecibidosHoy.map((item) => (
-                      <tr key={`${item.tipoMovimiento}-${item.movimientoId}`}>
-                        <td>{item.clienteNombre}</td>
-                        <td>{item.asesorNombre}</td>
+                      <tr key={`${item.tipoMovimiento}-${item.movimientoId}`} className="h-12">
+                        <td className="whitespace-nowrap">{item.clienteNombre}</td>
+                        <td className="whitespace-nowrap">{item.asesorNombre}</td>
                         <td>
                           <span className={item.tipoMovimiento === 'ABONO_CORRIENTE' ? 'badge badge-azul' : 'badge badge-verde'}>
                             {mapTipoMovimientoLabel(item.tipoMovimiento)}
