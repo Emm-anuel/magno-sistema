@@ -17,6 +17,20 @@ public interface AbonoCorrienteRepository extends JpaRepository<AbonoCorriente, 
 
     boolean existsByCreditoId(Long creditoId);
 
+    /** Abonos recibidos del dia, con las relaciones necesarias para el dashboard. */
+    @Query("SELECT a FROM AbonoCorriente a " +
+            "JOIN FETCH a.credito c " +
+            "JOIN FETCH c.cliente " +
+            "JOIN FETCH c.asesor " +
+            "WHERE c.sucursal.id = :sucursalId " +
+            "AND (:asesorId IS NULL OR c.asesor.id = :asesorId) " +
+            "AND a.fecha = :fecha " +
+            "AND a.montoTotal > 0 " +
+            "ORDER BY a.createdAt DESC, a.id DESC")
+    List<AbonoCorriente> findRecibidosByScopeAndFecha(@Param("sucursalId") Long sucursalId,
+            @Param("asesorId") Long asesorId,
+            @Param("fecha") LocalDate fecha);
+
     @Query("SELECT a FROM AbonoCorriente a " +
             "WHERE (:asesorId IS NULL OR a.credito.asesor.id = :asesorId) " +
             "AND (:clienteId IS NULL OR a.credito.cliente.id = :clienteId) " +

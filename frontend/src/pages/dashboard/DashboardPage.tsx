@@ -56,6 +56,10 @@ function mapEstadoLabel(estado?: string | null) {
   }
 }
 
+function mapTipoMovimientoLabel(tipo?: string | null) {
+  return tipo === 'ABONO_CORRIENTE' ? 'Abono' : 'Pago'
+}
+
 export default function DashboardPage() {
   const { usuario } = useAuthStore()
 
@@ -144,9 +148,14 @@ export default function DashboardPage() {
   })
 
   const kpis = data?.kpis
+  const pagosRecibidosHoy = data?.pagosRecibidosHoy ?? []
   const cobrosPendientes = data?.cobrosPendientes ?? []
   const renovaciones = data?.renovaciones ?? []
   const ingresoPorAsesor = data?.ingresoPorAsesor ?? []
+  const totalRecibidoHoy = pagosRecibidosHoy.reduce(
+    (total, movimiento) => total + Number(movimiento.monto ?? 0),
+    0,
+  )
 
   return (
     <div className="space-y-5">
@@ -293,6 +302,52 @@ export default function DashboardPage() {
               <p className="metric-label">En mora</p>
               <p className="metric-val text-[#dc2626]">{kpis?.creditosEnMora ?? '—'}</p>
               <p className="metric-sub">Clientes en atraso</p>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-header flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="card-title">Pagos recibidos hoy</span>
+                <p className="mt-1 text-[12px] text-gray-500">Pagos de ruta y abonos</p>
+              </div>
+              <span className="text-[12px] font-semibold text-[#2d6a4f]">
+                {pagosRecibidosHoy.length} movimientos · {fmtMoney(totalRecibidoHoy)}
+              </span>
+            </div>
+            <div className="max-h-[360px] overflow-auto">
+              <table className="tabla">
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>Asesor</th>
+                    <th>Tipo</th>
+                    <th>Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagosRecibidosHoy.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="text-center text-[#adb5bd] py-6 text-[13px]">
+                        Sin pagos recibidos hoy
+                      </td>
+                    </tr>
+                  ) : (
+                    pagosRecibidosHoy.map((item) => (
+                      <tr key={`${item.tipoMovimiento}-${item.movimientoId}`}>
+                        <td>{item.clienteNombre}</td>
+                        <td>{item.asesorNombre}</td>
+                        <td>
+                          <span className={item.tipoMovimiento === 'ABONO_CORRIENTE' ? 'badge badge-azul' : 'badge badge-verde'}>
+                            {mapTipoMovimientoLabel(item.tipoMovimiento)}
+                          </span>
+                        </td>
+                        <td className="font-semibold text-[#2d6a4f]">{fmtMoney(item.monto)}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 

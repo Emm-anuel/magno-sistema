@@ -56,6 +56,20 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
                      @Param("asesorId") Long asesorId,
                      @Param("fecha") LocalDate fecha);
 
+       /** Entradas de dinero del dia, con cliente y asesor precargados para el dashboard. */
+       @Query("SELECT p FROM Pago p " +
+                     "JOIN FETCH p.cliente " +
+                     "JOIN FETCH p.asesor " +
+                     "WHERE p.credito.sucursal.id = :sucursalId " +
+                     "AND (:asesorId IS NULL OR p.asesor.id = :asesorId) " +
+                     "AND p.fechaPago = :fecha " +
+                     "AND p.montoRecibido > 0 " +
+                     "AND p.deletedAt IS NULL " +
+                     "ORDER BY p.createdAt DESC, p.id DESC")
+       List<Pago> findRecibidosByScopeAndFecha(@Param("sucursalId") Long sucursalId,
+                     @Param("asesorId") Long asesorId,
+                     @Param("fecha") LocalDate fecha);
+
        /** Historial filtrable — lista completa para merge con pendientes. */
        @Query("SELECT p FROM Pago p " +
                      "WHERE (:asesorId IS NULL OR p.asesor.id = :asesorId) " +

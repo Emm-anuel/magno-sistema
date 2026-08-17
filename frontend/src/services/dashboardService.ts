@@ -24,6 +24,18 @@ export interface DashboardCobroPendiente {
   estado: string
 }
 
+export interface DashboardPagoRecibido {
+  movimientoId: number
+  tipoMovimiento: 'PAGO' | 'ABONO_CORRIENTE'
+  clienteId: number
+  clienteNombre: string
+  asesorId: number
+  asesorNombre: string
+  monto: number
+  fecha: string
+  registradoEn: string
+}
+
 export interface DashboardRenovacion {
   renovacionId: number
   clienteNombre: string
@@ -48,6 +60,7 @@ export interface DashboardAsesorIngreso {
 
 export interface DashboardResponse {
   kpis: DashboardKpis
+  pagosRecibidosHoy: DashboardPagoRecibido[]
   cobrosPendientes: DashboardCobroPendiente[]
   renovaciones: DashboardRenovacion[]
   ingresoPorAsesor: DashboardAsesorIngreso[]

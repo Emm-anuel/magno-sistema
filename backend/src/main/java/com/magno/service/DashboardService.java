@@ -3,12 +3,15 @@ package com.magno.service;
 import com.magno.dto.dashboard.DashboardAsesorIngresoDTO;
 import com.magno.dto.dashboard.DashboardCobroPendienteDTO;
 import com.magno.dto.dashboard.DashboardKpisDTO;
+import com.magno.dto.dashboard.DashboardPagoRecibidoDTO;
 import com.magno.dto.dashboard.DashboardRenovacionDTO;
 import com.magno.dto.dashboard.DashboardResponseDTO;
+import com.magno.model.AbonoCorriente;
 import com.magno.model.CalendarioPago;
 import com.magno.model.ConfigSucursal;
 import com.magno.model.EstadoCalendarioPago;
 import com.magno.model.EstadoCredito;
+import com.magno.model.Pago;
 import com.magno.model.Renovacion;
 import com.magno.model.Usuario;
 import com.magno.repository.CalendarioPagoRepository;
@@ -31,6 +34,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -132,6 +136,9 @@ public class DashboardService {
                 desembolsos,
                 creditosEnMora);
 
+        List<DashboardPagoRecibidoDTO> pagosRecibidosHoy = buildPagosRecibidosHoy(
+                sucursalId, asesorId, hoy);
+
         List<CalendarioPago> pendientes = calendarioRepo.findPendientesByFechaAndScope(
                 hoy,
                 ESTADOS_PENDIENTE,
@@ -165,7 +172,46 @@ public class DashboardService {
         List<DashboardAsesorIngresoDTO> ingresoPorAsesor = buildIngresoPorAsesor(
                 sucursalId, asesorId, desdeSafe, hastaSafe, principal);
 
-        return new DashboardResponseDTO(kpis, cobrosPendientes, renovaciones, ingresoPorAsesor);
+        return new DashboardResponseDTO(kpis, pagosRecibidosHoy, cobrosPendientes, renovaciones, ingresoPorAsesor);
+    }
+
+    private List<DashboardPagoRecibidoDTO> buildPagosRecibidosHoy(Long sucursalId,
+            Long asesorId,
+            LocalDate hoy) {
+        List<DashboardPagoRecibidoDTO> movimientos = new ArrayList<>();
+
+        for (Pago pago : pagoRepo.findRecibidosByScopeAndFecha(sucursalId, asesorId, hoy)) {
+            movimientos.add(new DashboardPagoRecibidoDTO(
+                    pago.getId(),
+                    "PAGO",
+                    pago.getCliente().getId(),
+                    pago.getCliente().getNombreCompleto(),
+                    pago.getAsesor().getId(),
+                    pago.getAsesor().getNombreCompleto(),
+                    pago.getMontoRecibido(),
+                    pago.getFechaPago(),
+                    pago.getCreatedAt()));
+        }
+
+        for (AbonoCorriente abono : abonoCorrienteRepo.findRecibidosByScopeAndFecha(
+                sucursalId, asesorId, hoy)) {
+            movimientos.add(new DashboardPagoRecibidoDTO(
+                    abono.getId(),
+                    "ABONO_CORRIENTE",
+                    abono.getCredito().getCliente().getId(),
+                    abono.getCredito().getCliente().getNombreCompleto(),
+                    abono.getCredito().getAsesor().getId(),
+                    abono.getCredito().getAsesor().getNombreCompleto(),
+                    abono.getMontoTotal(),
+                    abono.getFecha(),
+                    abono.getCreatedAt()));
+        }
+
+        movimientos.sort(Comparator
+                .comparing(DashboardPagoRecibidoDTO::registradoEn,
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(DashboardPagoRecibidoDTO::movimientoId, Comparator.reverseOrder()));
+        return movimientos;
     }
 
     private List<DashboardAsesorIngresoDTO> buildIngresoPorAsesor(Long sucursalId,
