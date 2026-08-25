@@ -8,10 +8,13 @@ import com.magno.dto.cliente.ClienteResumenDTO;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.model.Cliente;
 import com.magno.model.ClienteDocumento;
+import com.magno.model.Credito;
+import com.magno.model.EstadoCredito;
 import com.magno.model.Sucursal;
 import com.magno.model.Usuario;
 import com.magno.repository.ClienteDocumentoRepository;
 import com.magno.repository.ClienteRepository;
+import com.magno.repository.CreditoRepository;
 import com.magno.repository.SucursalRepository;
 import com.magno.repository.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -36,15 +39,18 @@ import java.util.Set;
 public class ClienteService {
 
     private final ClienteRepository clienteRepo;
+    private final CreditoRepository creditoRepo;
     private final UsuarioRepository usuarioRepo;
     private final SucursalRepository sucursalRepo;
     private final ClienteDocumentoRepository clienteDocumentoRepository;
 
     public ClienteService(ClienteRepository clienteRepo,
+                          CreditoRepository creditoRepo,
                           UsuarioRepository usuarioRepo,
                           SucursalRepository sucursalRepo,
                           ClienteDocumentoRepository clienteDocumentoRepository) {
         this.clienteRepo = clienteRepo;
+        this.creditoRepo = creditoRepo;
         this.usuarioRepo = usuarioRepo;
         this.sucursalRepo = sucursalRepo;
         this.clienteDocumentoRepository = clienteDocumentoRepository;
@@ -347,7 +353,21 @@ public class ClienteService {
         if (req.asesorId() != null) {
             Usuario asesor = usuarioRepo.findById(req.asesorId())
                     .orElseThrow(() -> new EntityNotFoundException("Asesor no encontrado: " + req.asesorId()));
+
+            boolean cambioAsesor = c.getAsesor() == null
+                    || !req.asesorId().equals(c.getAsesor().getId());
             c.setAsesor(asesor);
+
+            // La ruta de cobro se construye con el asesor del crédito activo.
+            // Al transferir la cartera del cliente, mantener ambos registros sincronizados.
+            if (cambioAsesor) {
+                List<Credito> creditosActivos = creditoRepo
+                        .findByClienteIdAndEstadoAndDeletedAtIsNull(id, EstadoCredito.ACTIVO);
+                creditosActivos.forEach(credito -> credito.setAsesor(asesor));
+                if (!creditosActivos.isEmpty()) {
+                    creditoRepo.saveAll(creditosActivos);
+                }
+            }
         }
 
         return ClienteDetalleDTO.from(clienteRepo.save(c), clienteRepo.tieneCredito(id));

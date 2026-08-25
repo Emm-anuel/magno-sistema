@@ -311,4 +311,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V39-sync-asesor-creditos-activos" author="magno">
+        <sqlFile
+            path="db/changelog/V39__sync_asesor_creditos_activos.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -21,6 +21,8 @@ public interface CreditoRepository extends JpaRepository<Credito, Long>,
 
         Optional<Credito> findByClienteIdAndEstado(Long clienteId, EstadoCredito estado);
 
+        List<Credito> findByClienteIdAndEstadoAndDeletedAtIsNull(Long clienteId, EstadoCredito estado);
+
         boolean existsByClienteIdAndEstadoIn(Long clienteId, List<EstadoCredito> estados);
 
         boolean existsByClienteIdAndEstadoInAndTipoPago(Long clienteId, List<EstadoCredito> estados, TipoPago tipoPago);

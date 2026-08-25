@@ -4,11 +4,14 @@ import com.magno.dto.cliente.ClienteCoincidenciaDTO;
 import com.magno.dto.cliente.ClienteCreateRequest;
 import com.magno.dto.cliente.ClienteUpdateRequest;
 import com.magno.model.Cliente;
+import com.magno.model.Credito;
+import com.magno.model.EstadoCredito;
 import com.magno.model.Rol;
 import com.magno.model.Sucursal;
 import com.magno.model.Usuario;
 import com.magno.repository.ClienteDocumentoRepository;
 import com.magno.repository.ClienteRepository;
+import com.magno.repository.CreditoRepository;
 import com.magno.repository.SucursalRepository;
 import com.magno.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,6 +36,7 @@ import static org.mockito.AdditionalAnswers.returnsFirstArg;
 class ClienteServiceTest {
 
     private ClienteRepository clienteRepo;
+    private CreditoRepository creditoRepo;
     private UsuarioRepository usuarioRepo;
     private SucursalRepository sucursalRepo;
     private ClienteService service;
@@ -41,9 +45,10 @@ class ClienteServiceTest {
     @BeforeEach
     void setUp() {
         clienteRepo = mock(ClienteRepository.class);
+        creditoRepo = mock(CreditoRepository.class);
         usuarioRepo = mock(UsuarioRepository.class);
         sucursalRepo = mock(SucursalRepository.class);
-        service = new ClienteService(clienteRepo, usuarioRepo, sucursalRepo,
+        service = new ClienteService(clienteRepo, creditoRepo, usuarioRepo, sucursalRepo,
                 mock(ClienteDocumentoRepository.class));
 
         Sucursal sucursal = new Sucursal();
@@ -128,5 +133,34 @@ class ClienteServiceTest {
 
         assertThat(existente.getCurp()).isEqualTo("LOSM900520MDFPTA01");
         assertThat(existente.getRfc()).isEqualTo("LOSM900520AB1");
+    }
+
+    @Test
+    void actualizarCliente_alCambiarAsesor_transfiereLosCreditosActivos() {
+        ClienteUpdateRequest request = mock(ClienteUpdateRequest.class);
+        Usuario asesorNuevo = new Usuario();
+        asesorNuevo.setId(11L);
+        asesorNuevo.setNombreCompleto("Asesor Nuevo");
+        asesorNuevo.setRol(existente.getAsesor().getRol());
+        Credito creditoActivo = Credito.builder()
+                .id(40L)
+                .cliente(existente)
+                .asesor(existente.getAsesor())
+                .estado(EstadoCredito.ACTIVO)
+                .build();
+
+        when(request.asesorId()).thenReturn(11L);
+        when(request.sucursalId()).thenReturn(null);
+        when(clienteRepo.findById(25L)).thenReturn(Optional.of(existente));
+        when(usuarioRepo.findById(11L)).thenReturn(Optional.of(asesorNuevo));
+        when(creditoRepo.findByClienteIdAndEstadoAndDeletedAtIsNull(25L, EstadoCredito.ACTIVO))
+                .thenReturn(List.of(creditoActivo));
+        when(clienteRepo.save(any(Cliente.class))).then(returnsFirstArg());
+
+        service.actualizarCliente(25L, request);
+
+        assertThat(existente.getAsesor()).isSameAs(asesorNuevo);
+        assertThat(creditoActivo.getAsesor()).isSameAs(asesorNuevo);
+        verify(creditoRepo).saveAll(List.of(creditoActivo));
     }
 }
