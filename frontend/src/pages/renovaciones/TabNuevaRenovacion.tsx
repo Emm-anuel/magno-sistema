@@ -54,10 +54,11 @@ function fmt(n: number | null | undefined): string {
 
 interface Props {
   initialCliente?: ClienteResumen | null
+  initialCreditoId?: number | null
   onClearInitial?: () => void
 }
 
-export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: Props) {
+export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, onClearInitial }: Props) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>(1)
@@ -118,7 +119,7 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  async function handleSelectCliente(c: ClienteResumen) {
+  async function handleSelectCliente(c: ClienteResumen, creditoIdPreferido?: number | null) {
     setClienteSeleccionado(c)
     setSearchQuery('')
     setSearchOpen(false)
@@ -130,14 +131,21 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
 
     setCreditoLoading(true)
     try {
-      const creditos = await creditoService.getCreditosCliente(c.id)
-      const activo = creditos.find((cr) => cr.estado === 'ACTIVO')
-      if (activo) {
-        const detalle = await creditoService.obtener(activo.id)
+      if (creditoIdPreferido != null) {
+        const detalle = await creditoService.obtener(creditoIdPreferido)
+        if (detalle.cliente.id !== c.id || detalle.estado !== 'ACTIVO') {
+          throw new Error('El crédito seleccionado ya no está activo para esta clienta')
+        }
         setCreditoActivo(detalle)
+      } else {
+        const creditos = await creditoService.getCreditosCliente(c.id)
+        const activos = creditos.filter((cr) => cr.estado === 'ACTIVO')
+        const detalles = await Promise.all(activos.map((cr) => creditoService.obtener(cr.id)))
+        const detalleElegible = detalles.find((detalle) => detalle.estadisticas.elegibleRenovacion)
+        setCreditoActivo(detalleElegible ?? detalles[0] ?? null)
       }
-    } catch {
-      toast.error('Error al cargar el crédito activo')
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Error al cargar el crédito activo')
     } finally {
       setCreditoLoading(false)
     }
@@ -145,11 +153,11 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
 
   useEffect(() => {
     if (initialCliente && !clienteSeleccionado) {
-      handleSelectCliente(initialCliente)
+      handleSelectCliente(initialCliente, initialCreditoId)
       onClearInitial?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCliente])
+  }, [initialCliente, initialCreditoId])
 
   // ── Monto / calculo ────────────────────────────────────────────
 
@@ -260,7 +268,9 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
                   {creditoActivo && (
                     <div className="text-xs pl-5 space-y-0.5">
                       <div className="text-gray-600">
-                        Crédito activo: {fmt(creditoActivo.montoCapital)} — pago {fmt(creditoActivo.pagoPeriodico)}/día
+                        Crédito seleccionado: {creditoActivo.tipoPago === 'SEMANAL' ? 'Semanal' : 'Diario'}
+                        {' · '}{fmt(creditoActivo.montoCapital)}
+                        {' · '}pago {fmt(creditoActivo.pagoPeriodico)}/{creditoActivo.tipoPago === 'SEMANAL' ? 'semana' : 'día'}
                       </div>
                       <div className={elegible ? 'text-green-700 font-medium' : 'text-amber-700 font-medium'}>
                         {elegible
@@ -549,7 +559,9 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
             <div className="font-medium text-gray-800">{clienteSeleccionado?.nombre_completo}</div>
             <div className="text-gray-500">📱 {clienteSeleccionado?.celular}</div>
             <div className="text-gray-500">
-              Crédito anterior: {fmt(creditoActivo?.montoCapital)} — {creditoActivo?.plazoDias} días
+              Crédito anterior: {creditoActivo?.tipoPago === 'SEMANAL' ? 'Semanal' : 'Diario'}
+              {' · '}{fmt(creditoActivo?.montoCapital)}
+              {' · '}{creditoActivo?.plazoDias} {creditoActivo?.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}
             </div>
           </div>
         </div>

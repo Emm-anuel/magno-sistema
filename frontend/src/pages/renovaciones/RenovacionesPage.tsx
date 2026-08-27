@@ -16,13 +16,20 @@ export default function RenovacionesPage() {
   const { bannerVariant, horaLimite, bloqueado } = useCajaOperativa()
   const [activeTab, setActiveTab] = useState<Tab>('listos')
   const [clientePreseleccionado, setClientePreseleccionado] = useState<ClienteResumen | null>(null)
+  const [creditoPreseleccionadoId, setCreditoPreseleccionadoId] = useState<number | null>(null)
 
   const isGerente = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const puedeCrear  = usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
 
-  function handleRenovar(cliente: ClienteResumen) {
+  function handleRenovar(cliente: ClienteResumen, creditoId: number) {
     setClientePreseleccionado(cliente)
+    setCreditoPreseleccionadoId(creditoId)
     setActiveTab('nueva')
+  }
+
+  function clearPreseleccion() {
+    setClientePreseleccionado(null)
+    setCreditoPreseleccionadoId(null)
   }
 
   const tabs: { id: Tab; label: string; visible: boolean }[] = [
@@ -78,7 +85,8 @@ export default function RenovacionesPage() {
       {activeTab === 'nueva' && puedeCrear && (
         <TabNuevaRenovacion
           initialCliente={clientePreseleccionado}
-          onClearInitial={() => setClientePreseleccionado(null)}
+          initialCreditoId={creditoPreseleccionadoId}
+          onClearInitial={clearPreseleccion}
         />
       )}
       {activeTab === 'mis-solicitudes' && puedeCrear && (

@@ -14,7 +14,7 @@ function fmt(n: number | null | undefined): string {
 }
 
 interface Props {
-  onRenovar: (cliente: ClienteResumen) => void
+  onRenovar: (cliente: ClienteResumen, creditoId: number) => void
 }
 
 export default function TabListosRenovar({ onRenovar }: Props) {
@@ -80,7 +80,7 @@ export default function TabListosRenovar({ onRenovar }: Props) {
       estado_cliente: 'ACTIVO',
       created_at: '',
     }
-    onRenovar(cliente)
+    onRenovar(cliente, item.creditoId)
   }
 
   return (
