@@ -30,6 +30,17 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
        boolean existsByCreditoIdAndDeletedAtIsNull(Long creditoId);
 
        /**
+        * Capital aplicado por pagos directos a una cuota. La multa forma parte
+        * del dinero recibido, pero no amortiza el monto esperado de la cuota.
+        */
+       @Query("SELECT COALESCE(SUM(p.montoRecibido - p.multaAplicada), 0) FROM Pago p " +
+                     "WHERE p.calendarioPago.id = :calendarioPagoId " +
+                     "AND (p.razonNoPago IS NULL OR p.razonNoPago = '') " +
+                     "AND p.deletedAt IS NULL")
+       java.math.BigDecimal sumMontoCuotaAplicadoByCalendarioPagoId(
+                     @Param("calendarioPagoId") Long calendarioPagoId);
+
+       /**
         * Cuenta pagos incompletos (abonos) de un crédito, excluyendo los "no pagó".
         */
        @Query("SELECT COUNT(p) FROM Pago p " +

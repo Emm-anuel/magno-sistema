@@ -73,7 +73,11 @@ public record CreditoDetalleDTO(
                         long pagosPendientes,
                         long pagosVencidos,
                         BigDecimal multasPendientes,
-                        boolean elegibleRenovacion) {
+                        boolean elegibleRenovacion,
+                        int umbralRenovacion,
+                        long pagosFaltantesRenovacion,
+                        long abonosParcialesPendientes,
+                        BigDecimal saldoAbonosParciales) {
         }
 
         public static CreditoDetalleDTO from(Credito c,

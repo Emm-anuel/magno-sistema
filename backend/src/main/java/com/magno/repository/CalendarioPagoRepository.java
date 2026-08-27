@@ -32,7 +32,7 @@ public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, 
 
         @Query("SELECT COUNT(cp) FROM CalendarioPago cp " +
                         "WHERE cp.credito.id = :creditoId " +
-                        "AND cp.estado IN ('NO_PAGADO', 'PARCIAL') " +
+                        "AND cp.estado IN ('NO_PAGADO', 'PARCIAL', 'RECUPERADO_PARCIAL') " +
                         "AND cp.fechaProgramada <= :hoy")
         long countAtrasadosByCreditoId(
                         @Param("creditoId") Long creditoId,
@@ -81,7 +81,7 @@ public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, 
         @Query("SELECT COUNT(DISTINCT cp.credito.id) FROM CalendarioPago cp " +
                         "WHERE cp.credito.estado = com.magno.model.EstadoCredito.ACTIVO " +
                         "AND cp.credito.deletedAt IS NULL " +
-                        "AND cp.estado IN ('NO_PAGADO', 'PARCIAL') " +
+                        "AND cp.estado IN ('NO_PAGADO', 'PARCIAL', 'RECUPERADO_PARCIAL') " +
                         "AND cp.fechaProgramada <= :hoy " +
                         "AND (:sucursalId IS NULL OR cp.credito.sucursal.id = :sucursalId) " +
                         "AND (:asesorId IS NULL OR cp.credito.asesor.id = :asesorId)")
@@ -92,6 +92,7 @@ public interface CalendarioPagoRepository extends JpaRepository<CalendarioPago, 
 
         @Query("SELECT cp FROM CalendarioPago cp WHERE cp.credito.id = :creditoId " +
                         "AND (cp.estado = com.magno.model.EstadoCalendarioPago.NO_PAGADO " +
+                        "OR cp.estado = com.magno.model.EstadoCalendarioPago.PARCIAL " +
                         "OR cp.estado = com.magno.model.EstadoCalendarioPago.RECUPERADO_PARCIAL " +
                         "OR (cp.estado = com.magno.model.EstadoCalendarioPago.PENDIENTE AND cp.fechaProgramada <= :hoy)) " +
                         "ORDER BY cp.numeroPago ASC")

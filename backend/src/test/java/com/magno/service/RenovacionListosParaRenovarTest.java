@@ -51,7 +51,8 @@ class RenovacionListosParaRenovarTest {
                 multaRepo,
                 usuarioRepo,
                 calculoService,
-                new RenovacionElegibilidadService(configUmbralRepo));
+                new RenovacionElegibilidadService(configUmbralRepo),
+                mock(SaldoCuotaService.class));
     }
 
     @Test

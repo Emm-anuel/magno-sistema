@@ -135,7 +135,9 @@ function creditoTieneAdeudoPendiente(credito?: CreditoDetalle | null): boolean {
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada?.slice(0, 10) < hoyIso,
   ).length
   const pagosVencidos = Math.max(credito.estadisticas.pagosVencidos ?? 0, pagosVencidosVisuales)
-  const tieneRecuperadoParcial = calendario.some((p) => p.estado === 'RECUPERADO_PARCIAL')
+  const tieneRecuperadoParcial = calendario.some(
+    (p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL',
+  )
 
   return pagosVencidos > 0 || tieneRecuperadoParcial || (credito.estadisticas.multasPendientes ?? 0) > 0
 }
@@ -146,6 +148,8 @@ interface CreditoActivoCardProps {
   puedeRegistrarCobro: boolean
   tieneAdeudoPendiente: boolean
   tienePagoPendienteHoy: boolean
+  abonosParcialesPendientes?: number
+  saldoAbonosParciales?: number
   onRegistrarPago?: () => void
   onPagarAdeudo?: () => void
 }
@@ -156,6 +160,8 @@ function CreditoActivoCard({
   puedeRegistrarCobro,
   tieneAdeudoPendiente,
   tienePagoPendienteHoy,
+  abonosParcialesPendientes = 0,
+  saldoAbonosParciales = 0,
   onRegistrarPago,
   onPagarAdeudo,
 }: CreditoActivoCardProps) {
@@ -174,6 +180,13 @@ function CreditoActivoCard({
           </p>
           <CreditoEstadoBadge estado="ACTIVO" size="sm" />
         </div>
+
+        {abonosParcialesPendientes > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <strong>{abonosParcialesPendientes} cuota{abonosParcialesPendientes !== 1 ? 's' : ''} parcial{abonosParcialesPendientes !== 1 ? 'es' : ''}</strong>
+            {' · '}faltan {fmtC(saldoAbonosParciales)} de capital por recuperar.
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
           <div>
@@ -227,7 +240,7 @@ function CreditoActivoCard({
               className="btn-primary flex-1 py-2 text-sm"
               onClick={onPagarAdeudo}
             >
-              Pagar adeudo
+              {abonosParcialesPendientes > 0 ? 'Completar parciales' : 'Pagar adeudo'}
             </button>
           )}
           <button
@@ -460,6 +473,8 @@ export default function ClienteDetallePage() {
           puedeRegistrarCobro={puedeRegistrarCobro}
           tieneAdeudoPendiente={tieneAdeudoCreditoActivo}
           tienePagoPendienteHoy={!!pagoPendienteHoyCreditoActivo}
+          abonosParcialesPendientes={creditoActivoDetalle?.estadisticas.abonosParcialesPendientes}
+          saldoAbonosParciales={creditoActivoDetalle?.estadisticas.saldoAbonosParciales}
           onRegistrarPago={puedeRegistrarCobro && pagoPendienteHoyCreditoActivo
             ? () => setPagoModalOpen(true)
             : undefined}

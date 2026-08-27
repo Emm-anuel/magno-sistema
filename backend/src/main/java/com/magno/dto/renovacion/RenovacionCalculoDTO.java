@@ -17,6 +17,7 @@ public record RenovacionCalculoDTO(
         int pagosRestantes,
         BigDecimal montoPagosRestantes,
         int pagosConAbonoParcial,
+        BigDecimal saldoAbonosParciales,
         BigDecimal multasPendientes,
         BigDecimal pagoAdelantadoNuevo,
         BigDecimal montoDesembolso,

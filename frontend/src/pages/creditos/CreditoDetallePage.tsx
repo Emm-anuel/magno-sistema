@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { ArrowLeft, ChevronRight, Play, ExternalLink, X } from 'lucide-react'
+import { ArrowLeft, AlertTriangle, ChevronRight, Play, ExternalLink, X } from 'lucide-react'
 import { creditoService } from '@/services/creditoService'
 import { cobrosService } from '@/services/cobrosService'
 import { useAuthStore } from '@/hooks/useAuthStore'
@@ -209,6 +209,7 @@ export default function CreditoDetallePage() {
   function esSlotAdeudoParaCorriente(pago: { estado: string; fechaProgramada?: string | null }) {
     const fechaIso = pago.fechaProgramada?.slice(0, 10)
     return pago.estado === 'NO_PAGADO' ||
+      pago.estado === 'PARCIAL' ||
       pago.estado === 'RECUPERADO_PARCIAL' ||
       (pago.estado === 'PENDIENTE' && typeof fechaIso === 'string' && fechaIso <= hoyIso)
   }
@@ -235,7 +236,9 @@ export default function CreditoDetallePage() {
     (p) => p.estado === 'PENDIENTE' && p.fechaProgramada != null && p.fechaProgramada.slice(0, 10) < hoyIso,
   ).length
   const pagosVencidosTotales = Math.max(stats.pagosVencidos ?? 0, pagosVencidosVisuales)
-  const tieneRecuperadoParcial = calendario.some((p) => p.estado === 'RECUPERADO_PARCIAL')
+  const tieneRecuperadoParcial = calendario.some(
+    (p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL',
+  )
   const tieneAdeudoPendiente =
     pagosVencidosTotales > 0 || tieneRecuperadoParcial || multasPendientesVisual > 0
   const pagoPeriodicoCalendario = calendario.length > 0 ? calendario[0].montoEsperado : null
@@ -296,30 +299,18 @@ export default function CreditoDetallePage() {
       (multaPreview) => !multaPreview.id || !multasCredito.some((multa) => multa.id === multaPreview.id),
     ),
   ]
-  const abonosAplicadosPorNumero = abonosCredito
-    .flatMap((abono) => abono.coberturas)
-    .reduce<Record<number, number>>((acc, cobertura) => {
-      acc[cobertura.numeroPago] = (acc[cobertura.numeroPago] ?? 0) + Number(cobertura.totalAplicado ?? 0)
-      return acc
-    }, {})
-  const multasPendientesPorFechaAdeudo = multasPreviewAdeudo
-    .filter((multa) => !multa.cobrada && !multa.condonada)
-    .reduce<Record<string, number>>((acc, multa) => {
-      const fecha = multa.fecha?.slice(0, 10)
-      const monto = Number(multa.monto ?? 0)
-      if (fecha && fechasAdeudoParaCorriente.has(fecha) && monto > 0) {
-        acc[fecha] = (acc[fecha] ?? 0) + monto
-      }
-      return acc
-    }, {})
-  const adeudoParaPonerseCorriente = calendario.reduce((sum, pago) => {
-    if (!esSlotAdeudoParaCorriente(pago)) return sum
-    const fecha = pago.fechaProgramada?.slice(0, 10) ?? ''
-    const cuota = Number(pago.montoEsperado ?? 0)
-    const multa = multasPendientesPorFechaAdeudo[fecha] ?? 0
-    const yaAbonado = abonosAplicadosPorNumero[pago.numeroPago] ?? 0
-    return sum + Math.max(cuota + multa - yaAbonado, 0)
-  }, 0)
+  const adeudoCuotasSinAbono = calendario
+    .filter((pago) => {
+      const fecha = pago.fechaProgramada?.slice(0, 10)
+      return pago.estado === 'NO_PAGADO' || (
+        pago.estado === 'PENDIENTE' && typeof fecha === 'string' && fecha <= hoyIso
+      )
+    })
+    .reduce((sum, pago) => sum + Number(pago.montoEsperado ?? 0), 0)
+  const adeudoParaPonerseCorriente =
+    adeudoCuotasSinAbono +
+    Number(stats.saldoAbonosParciales ?? 0) +
+    multasPendientesParaCorriente
 
   // ── Render ────────────────────────────────────────────────────────
 
@@ -384,7 +375,7 @@ export default function CreditoDetallePage() {
               className="btn btn-sm border-[#d97706] text-[#d97706] hover:bg-[#fef3c7]"
               onClick={() => setAdeudoOpen(true)}
             >
-              Pagar adeudo
+              {stats.abonosParcialesPendientes > 0 ? 'Completar cuotas parciales' : 'Pagar adeudo'}
             </button>
           )}
           {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) &&
@@ -430,6 +421,40 @@ export default function CreditoDetallePage() {
           <span className="metric-val text-sm">{fmtDate(credito.fechaVencimiento)}</span>
         </div>
       </div>
+
+      {credito.estado === 'ACTIVO' && stats.abonosParcialesPendientes > 0 && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-900">
+                  {stats.abonosParcialesPendientes} cuota{stats.abonosParcialesPendientes !== 1 ? 's' : ''} con saldo parcial
+                </p>
+                <p className="mt-1 text-sm text-amber-800">
+                  Quedan {fmtMoney(stats.saldoAbonosParciales)} de capital por recuperar en esas cuotas.
+                  Las multas cobradas no se cuentan como capital pagado.
+                </p>
+                <p className="mt-1 text-xs font-medium text-amber-900">
+                  Renovación: {stats.pagosRealizados} de {stats.umbralRenovacion} cuotas completas
+                  {stats.pagosFaltantesRenovacion > 0
+                    ? ` · faltan ${stats.pagosFaltantesRenovacion}`
+                    : ' · requisito cumplido'}.
+                </p>
+              </div>
+            </div>
+            {(puedeRegistrarCobro || esAdminSupervisor) && (
+              <button
+                type="button"
+                className="btn shrink-0 border-amber-600 bg-white text-amber-800 hover:bg-amber-100"
+                onClick={() => setAdeudoOpen(true)}
+              >
+                Completar cuotas parciales
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="card overflow-hidden">

@@ -5,7 +5,7 @@ import { X, AlertTriangle, CheckCircle, Minus } from 'lucide-react'
 import { cobrosService } from '@/services/cobrosService'
 import { creditoService } from '@/services/creditoService'
 import { todayLocalStr } from '@/utils/date'
-import type { AbonoCoberturaDTO } from '@/types'
+import type { AbonoCoberturaDTO, PagoCobroDTO } from '@/types'
 
 interface Props {
   creditoId: number
@@ -36,10 +36,11 @@ function computeDistribucion(
   slots: Array<{ id: number; numeroPago: number; fechaProgramada: string; montoEsperado: number; estado: string }>,
   multasPendientes: Array<{ fecha: string; monto: number; cobrada: boolean }>,
   abonosExistentes: Array<{ coberturas: AbonoCoberturaDTO[] }>,
+  pagosDirectos: PagoCobroDTO[],
   hoy: string,
 ): DistribucionRow[] {
   const eligibles = slots.filter((p) => {
-    if (p.estado === 'NO_PAGADO' || p.estado === 'RECUPERADO_PARCIAL') return true
+    if (p.estado === 'NO_PAGADO' || p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL') return true
     if (p.estado === 'PENDIENTE' && p.fechaProgramada <= hoy) return true
     return false
   }).sort((a, b) => a.numeroPago - b.numeroPago)
@@ -48,13 +49,18 @@ function computeDistribucion(
     .filter((p) => p.estado === 'PENDIENTE' && p.fechaProgramada > hoy)
     .sort((a, b) => a.numeroPago - b.numeroPago)
 
-  const yaAbonado: Record<number, number> = {}
+  const cuotaYaAplicada: Record<number, number> = {}
   const multaYaAbonada: Record<number, number> = {}
+  for (const pago of pagosDirectos) {
+    if (pago.razonNoPago || pago.numeroPago == null) continue
+    const capital = Math.max(0, Number(pago.montoRecibido ?? 0) - Number(pago.multaAplicada ?? 0))
+    cuotaYaAplicada[pago.numeroPago] = (cuotaYaAplicada[pago.numeroPago] ?? 0) + capital
+  }
   for (const abono of abonosExistentes) {
     for (const c of abono.coberturas) {
       const slot = slots.find((s) => s.numeroPago === c.numeroPago)
       if (slot) {
-        yaAbonado[slot.id] = (yaAbonado[slot.id] ?? 0) + c.totalAplicado
+        cuotaYaAplicada[c.numeroPago] = (cuotaYaAplicada[c.numeroPago] ?? 0) + Number(c.montoCuota ?? 0)
         multaYaAbonada[slot.id] = (multaYaAbonada[slot.id] ?? 0) + c.montoMulta
       }
     }
@@ -68,10 +74,9 @@ function computeDistribucion(
       (m) => m.fecha === slot.fechaProgramada && !m.cobrada,
     )
     const totalMultasDia = multasDia.reduce((s, m) => s + Number(m.monto), 0)
-    const costoRestante =
-      Number(slot.montoEsperado) +
-      totalMultasDia -
-      (yaAbonado[slot.id] ?? 0)
+    const cuotaRestante = Math.max(0, Number(slot.montoEsperado) - (cuotaYaAplicada[slot.numeroPago] ?? 0))
+    const multaRestante = Math.max(0, totalMultasDia - (multaYaAbonada[slot.id] ?? 0))
+    const costoRestante = cuotaRestante + multaRestante
 
     if (costoRestante <= 0) continue
 
@@ -92,7 +97,6 @@ function computeDistribucion(
     saldo -= aplicar
     const esParcial = aplicar < costoRestante
 
-    const multaRestante = Math.max(0, totalMultasDia - (multaYaAbonada[slot.id] ?? 0))
     const montoMultaAplicado = Math.min(aplicar, multaRestante)
     const montoCuotaAplicado = aplicar - montoMultaAplicado
 
@@ -159,18 +163,70 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
     staleTime: 30_000,
   })
 
+  const { data: pagosDirectos = [] } = useQuery({
+    queryKey: ['pagos-cliente-credito', creditoId],
+    queryFn: () => cobrosService.getPagosPorCliente(credito!.cliente.id),
+    enabled: !!credito,
+    staleTime: 30_000,
+  })
+
   const calendario = useMemo(() => credito?.calendario ?? [], [credito])
   const montoNum = Number(monto)
   const montoValido = Number.isFinite(montoNum) && montoNum > 0
 
   const distribucion = useMemo(() => {
     if (!montoValido) return []
-    return computeDistribucion(montoNum, calendario, multas, abonosExistentes, hoy)
-  }, [montoNum, calendario, multas, abonosExistentes, hoy, montoValido])
+    return computeDistribucion(
+      montoNum,
+      calendario,
+      multas,
+      abonosExistentes,
+      pagosDirectos.filter((p) => p.creditoId === creditoId),
+      hoy,
+    )
+  }, [montoNum, calendario, multas, abonosExistentes, pagosDirectos, creditoId, hoy, montoValido])
+
+  const cuotaAplicadaPorNumero = useMemo(() => {
+    const resultado: Record<number, number> = {}
+    for (const pago of pagosDirectos) {
+      if (pago.creditoId !== creditoId || pago.razonNoPago || pago.numeroPago == null) continue
+      const capital = Math.max(0, Number(pago.montoRecibido ?? 0) - Number(pago.multaAplicada ?? 0))
+      resultado[pago.numeroPago] = (resultado[pago.numeroPago] ?? 0) + capital
+    }
+    for (const abono of abonosExistentes) {
+      for (const cobertura of abono.coberturas) {
+        resultado[cobertura.numeroPago] =
+          (resultado[cobertura.numeroPago] ?? 0) + Number(cobertura.montoCuota ?? 0)
+      }
+    }
+    return resultado
+  }, [abonosExistentes, pagosDirectos, creditoId])
+
+  const multaAbonadaPorNumero = useMemo(() => {
+    const resultado: Record<number, number> = {}
+    for (const abono of abonosExistentes) {
+      for (const cobertura of abono.coberturas) {
+        resultado[cobertura.numeroPago] =
+          (resultado[cobertura.numeroPago] ?? 0) + Number(cobertura.montoMulta ?? 0)
+      }
+    }
+    return resultado
+  }, [abonosExistentes])
+
+  const cuotasParciales = useMemo(
+    () => calendario.filter((p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL'),
+    [calendario],
+  )
+  const saldoCuotasParciales = useMemo(
+    () => cuotasParciales.reduce((sum, slot) => (
+      sum + Math.max(0, Number(slot.montoEsperado) - (cuotaAplicadaPorNumero[slot.numeroPago] ?? 0))
+    ), 0),
+    [cuotasParciales, cuotaAplicadaPorNumero],
+  )
 
   const montoParaCorriente = useMemo(() => {
     const eligibles = calendario.filter((p) => {
-      if (p.estado === 'NO_PAGADO' || p.estado === 'RECUPERADO_PARCIAL') return true
+      if (p.estado === 'NO_PAGADO' || p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL') return true
       if (p.estado === 'PENDIENTE' && p.fechaProgramada <= hoy) return true
       return false
     })
@@ -178,14 +234,18 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
       const multasDia = multas
         .filter((m) => m.fecha === slot.fechaProgramada && !m.cobrada)
         .reduce((s, m) => s + Number(m.monto), 0)
-      const yaAbonadoSlot = abonosExistentes.reduce((acc, ab) => {
-        const cob = ab.coberturas.find((c) => c.numeroPago === slot.numeroPago)
-        return acc + (cob ? Number(cob.totalAplicado) : 0)
-      }, 0)
-      const restante = Number(slot.montoEsperado) + multasDia - yaAbonadoSlot
+      const cuotaRestante = Math.max(
+        0,
+        Number(slot.montoEsperado) - (cuotaAplicadaPorNumero[slot.numeroPago] ?? 0),
+      )
+      const multaRestante = Math.max(
+        0,
+        multasDia - (multaAbonadaPorNumero[slot.numeroPago] ?? 0),
+      )
+      const restante = cuotaRestante + multaRestante
       return sum + Math.max(0, restante)
     }, 0)
-  }, [calendario, multas, hoy, abonosExistentes])
+  }, [calendario, multas, hoy, cuotaAplicadaPorNumero, multaAbonadaPorNumero])
 
   const montoFuturoDisponible = useMemo(() =>
     calendario
@@ -205,12 +265,13 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
 
   const diasAtrasados = useMemo(() =>
     calendario.filter((p) => {
-      if (p.estado === 'NO_PAGADO' || p.estado === 'RECUPERADO_PARCIAL') return true
+      if (p.estado === 'NO_PAGADO' || p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL') return true
       if (p.estado === 'PENDIENTE' && p.fechaProgramada <= hoy) return true
       return false
     }).length,
     [calendario, hoy],
   )
+  const otrosAdeudos = Math.max(0, diasAtrasados - cuotasParciales.length)
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -252,7 +313,11 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef] sticky top-0 bg-white z-10">
           <div>
             <h2 className="text-[15px] font-semibold text-[#212529]">
-              {modo === 'futuro' ? 'Adelantar pagos' : 'Pagar adeudo'}
+              {modo === 'futuro'
+                ? 'Adelantar pagos'
+                : cuotasParciales.length > 0
+                  ? 'Completar cuotas parciales'
+                  : 'Pagar adeudo'}
             </h2>
             <p className="text-[12px] text-[#6c757d] mt-0.5">{nombreCliente}</p>
           </div>
@@ -264,16 +329,35 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
         <div className="px-5 py-5 space-y-4">
 
           {/* Resumen de adeudo */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className={`grid gap-3 ${cuotasParciales.length > 0 ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'}`}>
+            {cuotasParciales.length > 0 && (
+              <div className="bg-amber-50 rounded-lg p-3 text-center">
+                <p className="text-[11px] text-[#6c757d] mb-0.5">Cuotas parciales</p>
+                <p className="text-[20px] font-bold text-amber-700">{cuotasParciales.length}</p>
+              </div>
+            )}
             <div className="bg-red-50 rounded-lg p-3 text-center">
-              <p className="text-[11px] text-[#6c757d] mb-0.5">Días atrasados</p>
-              <p className="text-[20px] font-bold text-red-600">{diasAtrasados}</p>
+              <p className="text-[11px] text-[#6c757d] mb-0.5">
+                {cuotasParciales.length > 0 ? 'Otros adeudos' : 'Cuotas con adeudo'}
+              </p>
+              <p className="text-[20px] font-bold text-red-600">
+                {cuotasParciales.length > 0 ? otrosAdeudos : diasAtrasados}
+              </p>
             </div>
             <div className="bg-[#fef3c7] rounded-lg p-3 text-center">
-              <p className="text-[11px] text-[#6c757d] mb-0.5">Para ponerse al corriente</p>
+              <p className="text-[11px] text-[#6c757d] mb-0.5">
+                {cuotasParciales.length > 0 ? 'Total para ponerse al corriente' : 'Para ponerse al corriente'}
+              </p>
               <p className="text-[16px] font-bold text-[#92400e]">{fmtMoney(montoParaCorriente)}</p>
             </div>
           </div>
+
+          {cuotasParciales.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+              De las cuotas parciales quedan <strong>{fmtMoney(saldoCuotasParciales)}</strong> de capital.
+              El dinero se aplicará primero a las cuotas más antiguas hasta marcarlas como completas.
+            </div>
+          )}
 
           {/* Input monto */}
           <div>
@@ -331,7 +415,15 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
                           <span className="text-[#adb5bd] ml-1">— {fmtDate(row.fechaProgramada)}</span>
                         </td>
                         <td className="text-right px-3 py-2 font-mono text-[#212529]">
-                          {row.noAlcanza ? <span className="text-[#adb5bd]">—</span> : fmtMoney(row.totalAplicado)}
+                          {row.noAlcanza ? <span className="text-[#adb5bd]">—</span> : (
+                            <div>
+                              <div>{fmtMoney(row.totalAplicado)}</div>
+                              <div className="text-[10px] text-gray-400 font-sans">
+                                cuota {fmtMoney(row.montoCuota)}
+                                {Number(row.montoMulta) > 0 ? ` · multa ${fmtMoney(row.montoMulta)}` : ''}
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td className="text-center px-3 py-2">
                           {row.noAlcanza ? (

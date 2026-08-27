@@ -38,13 +38,13 @@ public class RenovacionService {
 
         private static final Logger log = Logger.getLogger(RenovacionService.class.getName());
 
-        // PARCIAL no se incluye: un día con abono parcial ya se trata como resuelto
-        // (ver CobrosService.verificarCreditoCompletado, que lo agrupa junto con
-        // PAGADO/ADELANTADO/RECUPERADO), por lo que no debe contarse otra vez como
-        // pago restante a cobrar en su totalidad al renovar.
+        // Las cuotas parciales siguen teniendo capital recuperable. Se incluyen
+        // aquí, pero su descuento se calcula por el saldo exacto, no por la cuota
+        // completa.
         private static final List<EstadoCalendarioPago> ESTADOS_PENDIENTES = List.of(
                         EstadoCalendarioPago.PENDIENTE,
                         EstadoCalendarioPago.NO_PAGADO,
+                        EstadoCalendarioPago.PARCIAL,
                         EstadoCalendarioPago.RECUPERADO_PARCIAL);
 
         private static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS =
@@ -57,6 +57,7 @@ public class RenovacionService {
         private final UsuarioRepository usuarioRepo;
         private final CreditoCalculoService calculoService;
         private final RenovacionElegibilidadService renovacionElegibilidadService;
+        private final SaldoCuotaService saldoCuotaService;
 
         public RenovacionService(RenovacionRepository renovacionRepo,
                         CreditoRepository creditoRepo,
@@ -64,7 +65,8 @@ public class RenovacionService {
                         MultaRepository multaRepo,
                         UsuarioRepository usuarioRepo,
                         CreditoCalculoService calculoService,
-                        RenovacionElegibilidadService renovacionElegibilidadService) {
+                        RenovacionElegibilidadService renovacionElegibilidadService,
+                        SaldoCuotaService saldoCuotaService) {
                 this.renovacionRepo = renovacionRepo;
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
@@ -72,6 +74,7 @@ public class RenovacionService {
                 this.usuarioRepo = usuarioRepo;
                 this.calculoService = calculoService;
                 this.renovacionElegibilidadService = renovacionElegibilidadService;
+                this.saldoCuotaService = saldoCuotaService;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -101,9 +104,9 @@ public class RenovacionService {
                 List<CalendarioPago> pagosPendientes = calendarioPagoRepo
                                 .findByCreditoIdAndEstadoIn(creditoId, ESTADOS_PENDIENTES);
                 int numPagosRestantes = pagosPendientes.size();
-                BigDecimal montoPagosRestantes = credito.getPagoPeriodico()
-                                .multiply(BigDecimal.valueOf(numPagosRestantes));
+                BigDecimal montoPagosRestantes = calcularSaldoCuotas(pagosPendientes);
                 int pagosConAbonoParcial = contarPagosConAbonoParcial(creditoId);
+                BigDecimal saldoAbonosParciales = calcularSaldoParciales(pagosPendientes);
 
                 BigDecimal multasPendientes = multaRepo.sumMontosPendientesByCreditoId(creditoId);
 
@@ -131,6 +134,7 @@ public class RenovacionService {
                                 numPagosRestantes,
                                 montoPagosRestantes,
                                 pagosConAbonoParcial,
+                                saldoAbonosParciales,
                                 multasPendientes,
                                 pagoAdelantado,
                                 desembolso,
@@ -182,8 +186,7 @@ public class RenovacionService {
                 List<CalendarioPago> pagosPendientes = calendarioPagoRepo
                                 .findByCreditoIdAndEstadoIn(req.creditoAnteriorId(), ESTADOS_PENDIENTES);
                 int numPagosRestantes = pagosPendientes.size();
-                BigDecimal montoPagosRestantes = creditoAnterior.getPagoPeriodico()
-                                .multiply(BigDecimal.valueOf(numPagosRestantes));
+                BigDecimal montoPagosRestantes = calcularSaldoCuotas(pagosPendientes);
 
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(req.creditoAnteriorId());
 
@@ -371,15 +374,19 @@ public class RenovacionService {
                 // Re-leer pagos y multas al momento del desembolso real
                 List<CalendarioPago> pagosPendientes = calendarioPagoRepo
                                 .findByCreditoIdAndEstadoIn(creditoAnterior.getId(), ESTADOS_PENDIENTES);
+                BigDecimal saldoCuotasActual = calcularSaldoCuotas(pagosPendientes);
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(creditoAnterior.getId());
                 ResumenCalculo calculoNuevo = renovacion.getTipoPago() == TipoPago.SEMANAL
                                 ? calculoService.calcularCreditoSemanal(montoAprobado,
                                                 creditoAnterior.getSucursal().getId())
                                 : calculoService.calcularCredito(montoAprobado, creditoAnterior.getSucursal().getId());
                 BigDecimal montoDesembolso = montoAprobado
-                                .subtract(renovacion.getMontoPagosRestantes())
+                                .subtract(saldoCuotasActual)
                                 .subtract(multasPendientesAmt)
                                 .subtract(calculoNuevo.pagoAdelantado());
+
+                renovacion.setPagosRestantes(pagosPendientes.size());
+                renovacion.setMontoPagosRestantes(saldoCuotasActual);
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 
@@ -701,7 +708,23 @@ public class RenovacionService {
 
         private int contarPagosConAbonoParcial(Long creditoId) {
                 return (int) calendarioPagoRepo.countByCreditoIdAndEstadoIn(
-                                creditoId, List.of(EstadoCalendarioPago.PARCIAL));
+                                creditoId, List.of(
+                                                EstadoCalendarioPago.PARCIAL,
+                                                EstadoCalendarioPago.RECUPERADO_PARCIAL));
+        }
+
+        private BigDecimal calcularSaldoCuotas(List<CalendarioPago> pagos) {
+                return pagos.stream()
+                                .map(saldoCuotaService::saldoCuota)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        }
+
+        private BigDecimal calcularSaldoParciales(List<CalendarioPago> pagos) {
+                return pagos.stream()
+                                .filter(p -> p.getEstado() == EstadoCalendarioPago.PARCIAL
+                                                || p.getEstado() == EstadoCalendarioPago.RECUPERADO_PARCIAL)
+                                .map(saldoCuotaService::saldoCuota)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
 
         private List<MultaCondonadaDTO> cargarCondonadasDetalle(Renovacion r) {

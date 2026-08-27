@@ -33,6 +33,7 @@ public class AbonoCorrienteService {
     private final ConfigMultaRepository configMultaRepo;
     private final CobrosService cobrosService;
     private final AbonoFuturoService abonoFuturoService;
+    private final SaldoCuotaService saldoCuotaService;
 
     public AbonoCorrienteService(
             AbonoCorrienteRepository abonoCorrienteRepo,
@@ -43,7 +44,8 @@ public class AbonoCorrienteService {
             MultaRepository multaRepo,
             ConfigMultaRepository configMultaRepo,
             CobrosService cobrosService,
-            AbonoFuturoService abonoFuturoService) {
+            AbonoFuturoService abonoFuturoService,
+            SaldoCuotaService saldoCuotaService) {
         this.abonoCorrienteRepo = abonoCorrienteRepo;
         this.abonoCoberturaRepo = abonoCoberturaRepo;
         this.creditoRepo = creditoRepo;
@@ -53,6 +55,7 @@ public class AbonoCorrienteService {
         this.configMultaRepo = configMultaRepo;
         this.cobrosService = cobrosService;
         this.abonoFuturoService = abonoFuturoService;
+        this.saldoCuotaService = saldoCuotaService;
     }
 
     @Transactional
@@ -97,12 +100,10 @@ public class AbonoCorrienteService {
             BigDecimal totalMultasDia = multasDia.stream()
                     .map(Multa::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal yaAbonado = abonoCoberturaRepo.sumTotalAplicadoByCalendarioPagoId(slot.getId());
             BigDecimal multaYaAbonada = abonoCoberturaRepo.sumMontoMultaByCalendarioPagoId(slot.getId());
-
-            BigDecimal costoRestante = slot.getMontoEsperado()
-                    .add(totalMultasDia)
-                    .subtract(yaAbonado);
+            BigDecimal cuotaRestante = saldoCuotaService.saldoCuota(slot);
+            BigDecimal multaRestante = totalMultasDia.subtract(multaYaAbonada).max(BigDecimal.ZERO);
+            BigDecimal costoRestante = cuotaRestante.add(multaRestante);
 
             if (costoRestante.compareTo(BigDecimal.ZERO) <= 0) continue;
 
@@ -110,7 +111,6 @@ public class AbonoCorrienteService {
             saldo = saldo.subtract(aplicar);
             boolean esCompleto = aplicar.compareTo(costoRestante) >= 0;
 
-            BigDecimal multaRestante = totalMultasDia.subtract(multaYaAbonada).max(BigDecimal.ZERO);
             BigDecimal montoMultaAplicado = aplicar.min(multaRestante);
             BigDecimal montoCuotaAplicado = aplicar.subtract(montoMultaAplicado);
 
@@ -264,6 +264,12 @@ public class AbonoCorrienteService {
 
     private void generarMultasNoPagoFaltantes(Credito credito, List<CalendarioPago> slots, LocalDate fechaOperacion) {
         for (CalendarioPago slot : slots) {
+            // Un pago directo parcial no equivale a "no pagó". Puede generar la
+            // multa de incompletos correspondiente, pero no una segunda multa
+            // de tipo NO_PAGO al momento de completar la cuota.
+            if (slot.getEstado() == EstadoCalendarioPago.PARCIAL) {
+                continue;
+            }
             if (!slot.getFechaProgramada().isBefore(fechaOperacion)) {
                 continue;
             }

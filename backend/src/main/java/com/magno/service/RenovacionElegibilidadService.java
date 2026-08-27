@@ -17,7 +17,6 @@ public class RenovacionElegibilidadService {
 
     public static final List<EstadoCalendarioPago> ESTADOS_REALIZADOS = List.of(
             EstadoCalendarioPago.PAGADO,
-            EstadoCalendarioPago.PARCIAL,
             EstadoCalendarioPago.ADELANTADO,
             EstadoCalendarioPago.RECUPERADO);
 

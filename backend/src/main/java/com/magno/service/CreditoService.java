@@ -46,6 +46,7 @@ public class CreditoService {
         private final MultaRepository multaRepo;
         private final AbonoCorrienteRepository abonoCorrienteRepo;
         private final CajaDiaRepository cajaDiaRepo;
+        private final SaldoCuotaService saldoCuotaService;
 
         public CreditoService(CreditoRepository creditoRepo,
                         CalendarioPagoRepository calendarioPagoRepo,
@@ -58,7 +59,8 @@ public class CreditoService {
                         PagoRepository pagoRepo,
                         MultaRepository multaRepo,
                         AbonoCorrienteRepository abonoCorrienteRepo,
-                        CajaDiaRepository cajaDiaRepo) {
+                        CajaDiaRepository cajaDiaRepo,
+                        SaldoCuotaService saldoCuotaService) {
                 this.creditoRepo = creditoRepo;
                 this.calendarioPagoRepo = calendarioPagoRepo;
                 this.clienteRepo = clienteRepo;
@@ -71,6 +73,7 @@ public class CreditoService {
                 this.multaRepo = multaRepo;
                 this.abonoCorrienteRepo = abonoCorrienteRepo;
                 this.cajaDiaRepo = cajaDiaRepo;
+                this.saldoCuotaService = saldoCuotaService;
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -519,34 +522,48 @@ public class CreditoService {
         }
 
         private CreditoDetalleDTO buildDetalle(Credito c) {
-                List<CalendarioPagoDTO> calendario = calendarioPagoRepo
-                                .findByCreditoIdOrderByNumeroPago(c.getId())
-                                .stream().map(CalendarioPagoDTO::from).toList();
+                List<CalendarioPago> calendarioEntidades = calendarioPagoRepo
+                                .findByCreditoIdOrderByNumeroPago(c.getId());
+                List<CalendarioPagoDTO> calendario = calendarioEntidades.stream()
+                                .map(CalendarioPagoDTO::from).toList();
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(), ESTADOS_REALIZADOS);
                 long pagosPendientes = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
                                 c.getId(), List.of(EstadoCalendarioPago.PENDIENTE));
-                long pagosVencidos = calendario.stream()
-                                .filter(p -> EstadoCalendarioPago.PENDIENTE.name().equals(p.estado())
-                                                && p.fechaProgramada() != null
-                                                && p.fechaProgramada().isBefore(hoy))
+                long pagosVencidos = calendarioEntidades.stream()
+                                .filter(p -> p.getFechaProgramada() != null
+                                                && p.getFechaProgramada().isBefore(hoy))
+                                .filter(p -> p.getEstado() == EstadoCalendarioPago.PENDIENTE
+                                                || p.getEstado() == EstadoCalendarioPago.NO_PAGADO
+                                                || p.getEstado() == EstadoCalendarioPago.PARCIAL
+                                                || p.getEstado() == EstadoCalendarioPago.RECUPERADO_PARCIAL)
                                 .count();
-
-                long pagosNoPagados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(
-                                c.getId(), List.of(EstadoCalendarioPago.NO_PAGADO));
-                pagosVencidos += pagosNoPagados;
 
                 BigDecimal multasPendientes = multaRepo.sumMontosPendientesByCreditoId(c.getId());
 
-                boolean elegibleRenovacion = renovacionElegibilidadService.esElegible(c, pagosRealizados);
+                int umbralRenovacion = renovacionElegibilidadService.resolverUmbral(c);
+                boolean elegibleRenovacion = c.getEstado() == EstadoCredito.ACTIVO
+                                && pagosRealizados >= umbralRenovacion;
+                long pagosFaltantesRenovacion = Math.max(0L, umbralRenovacion - pagosRealizados);
+                List<CalendarioPago> abonosParciales = calendarioEntidades.stream()
+                                .filter(p -> p.getEstado() == EstadoCalendarioPago.PARCIAL
+                                                || p.getEstado() == EstadoCalendarioPago.RECUPERADO_PARCIAL)
+                                .toList();
+                BigDecimal saldoAbonosParciales = abonosParciales.stream()
+                                .map(saldoCuotaService::saldoCuota)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 CreditoDetalleDTO.Estadisticas stats = new CreditoDetalleDTO.Estadisticas(
                                 pagosRealizados,
                                 pagosPendientes,
                                 pagosVencidos,
                                 multasPendientes,
-                                elegibleRenovacion);
+                                elegibleRenovacion,
+                                umbralRenovacion,
+                                pagosFaltantesRenovacion,
+                                abonosParciales.size(),
+                                saldoAbonosParciales);
 
                 // Vínculo: este crédito fue liquidado por una renovación (estado RENOVADO)
                 RenovacionVinculoDTO liquidadoPorRenovacion = null;

@@ -57,7 +57,8 @@ class RenovacionCondonacionTest {
                 multaRepo,
                 usuarioRepo,
                 calculoService,
-                renovacionElegibilidadService);
+                renovacionElegibilidadService,
+                mock(SaldoCuotaService.class));
 
         // Sucursal
         sucursal = new Sucursal();

@@ -55,7 +55,8 @@ class RenovacionAbonoParcialIndicadorTest {
                 multaRepo,
                 usuarioRepo,
                 calculoService,
-                new RenovacionElegibilidadService(configUmbralRepo));
+                new RenovacionElegibilidadService(configUmbralRepo),
+                mock(SaldoCuotaService.class));
 
         sucursal = new Sucursal();
         sucursal.setId(1L);
@@ -80,7 +81,9 @@ class RenovacionAbonoParcialIndicadorTest {
                 eq(100L), eq(RenovacionElegibilidadService.ESTADOS_REALIZADOS)))
                 .thenReturn(16L);
         when(calendarioPagoRepo.countByCreditoIdAndEstadoIn(
-                eq(100L), eq(List.of(EstadoCalendarioPago.PARCIAL))))
+                eq(100L), eq(List.of(
+                        EstadoCalendarioPago.PARCIAL,
+                        EstadoCalendarioPago.RECUPERADO_PARCIAL))))
                 .thenReturn(1L);
         when(calendarioPagoRepo.findByCreditoIdAndEstadoIn(eq(100L), org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(List.of());
@@ -131,7 +134,9 @@ class RenovacionAbonoParcialIndicadorTest {
 
         when(renovacionRepo.findPendientes(null, null)).thenReturn(List.of(renovacion));
         when(calendarioPagoRepo.countByCreditoIdAndEstadoIn(
-                eq(100L), eq(List.of(EstadoCalendarioPago.PARCIAL))))
+                eq(100L), eq(List.of(
+                        EstadoCalendarioPago.PARCIAL,
+                        EstadoCalendarioPago.RECUPERADO_PARCIAL))))
                 .thenReturn(2L);
 
         var pendientes = service.getPendientes(null, null);

@@ -689,6 +689,7 @@ export interface RenovacionCalculo {
   pagosRestantes: number
   montoPagosRestantes: number
   pagosConAbonoParcial: number
+  saldoAbonosParciales: number
   multasPendientes: number
   pagoAdelantadoNuevo: number
   montoDesembolso: number
@@ -800,6 +801,10 @@ export interface CreditoDetalle {
     pagosVencidos: number
     multasPendientes: number
     elegibleRenovacion: boolean
+    umbralRenovacion: number
+    pagosFaltantesRenovacion: number
+    abonosParcialesPendientes: number
+    saldoAbonosParciales: number
   }
   liquidadoPorRenovacion: RenovacionVinculo | null
   originadoPorRenovacion: RenovacionVinculo | null

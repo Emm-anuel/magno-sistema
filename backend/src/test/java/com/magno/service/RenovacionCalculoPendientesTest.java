@@ -17,12 +17,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Un día pagado de forma PARCIAL (el cliente abonó pero no alcanzó el monto
- * esperado del día) ya se trata como resuelto/terminal en el flujo de cobros
- * (ver CobrosService.verificarCreditoCompletado, que lo agrupa junto con
- * PAGADO/ADELANTADO/RECUPERADO). El cálculo de renovación anticipada debe
- * ser consistente con eso: un día PARCIAL no debe volver a contarse como
- * "pago restante" a cobrar en su totalidad.
+ * Una cuota parcial conserva capital pendiente. La renovación debe descontar
+ * únicamente ese saldo, nunca volver a cobrar la cuota completa.
  */
 class RenovacionCalculoPendientesTest {
 
@@ -33,6 +29,7 @@ class RenovacionCalculoPendientesTest {
     private UsuarioRepository usuarioRepo;
     private CreditoCalculoService calculoService;
     private ConfigUmbralRenovacionRepository configUmbralRepo;
+    private SaldoCuotaService saldoCuotaService;
 
     private RenovacionService service;
     private Credito credito;
@@ -46,6 +43,7 @@ class RenovacionCalculoPendientesTest {
         usuarioRepo = mock(UsuarioRepository.class);
         calculoService = mock(CreditoCalculoService.class);
         configUmbralRepo = mock(ConfigUmbralRenovacionRepository.class);
+        saldoCuotaService = mock(SaldoCuotaService.class);
 
         service = new RenovacionService(
                 renovacionRepo,
@@ -54,7 +52,8 @@ class RenovacionCalculoPendientesTest {
                 multaRepo,
                 usuarioRepo,
                 calculoService,
-                new RenovacionElegibilidadService(configUmbralRepo));
+                new RenovacionElegibilidadService(configUmbralRepo),
+                saldoCuotaService);
 
         Sucursal sucursal = new Sucursal();
         sucursal.setId(1L);
@@ -88,20 +87,30 @@ class RenovacionCalculoPendientesTest {
     }
 
     @Test
-    void calcularPreview_unDiaPARCIALNoCuentaComoPagoRestante() {
+    void calcularPreview_descuentaSoloElSaldoDeUnaCuotaParcial() {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<EstadoCalendarioPago>> estadosCapturados = ArgumentCaptor.forClass(List.class);
+        CalendarioPago parcial = new CalendarioPago();
+        parcial.setId(501L);
+        parcial.setEstado(EstadoCalendarioPago.PARCIAL);
+        parcial.setMontoEsperado(new BigDecimal("700.00"));
         when(calendarioPagoRepo.findByCreditoIdAndEstadoIn(eq(100L), estadosCapturados.capture()))
-                .thenReturn(List.of());
+                .thenReturn(List.of(parcial));
+        when(calendarioPagoRepo.countByCreditoIdAndEstadoIn(
+                100L, List.of(EstadoCalendarioPago.PARCIAL, EstadoCalendarioPago.RECUPERADO_PARCIAL)))
+                .thenReturn(1L);
+        when(saldoCuotaService.saldoCuota(parcial)).thenReturn(new BigDecimal("250.00"));
 
-        service.calcularPreview(100L, new BigDecimal("20000.00"), null);
+        var calculo = service.calcularPreview(100L, new BigDecimal("20000.00"), null);
 
         assertThat(estadosCapturados.getValue())
-                .as("PARCIAL ya se considera resuelto (igual que en verificarCreditoCompletado) y no debe tratarse como pago pendiente")
-                .doesNotContain(EstadoCalendarioPago.PARCIAL)
+                .as("las cuotas parciales conservan un saldo recuperable")
                 .contains(
                         EstadoCalendarioPago.PENDIENTE,
                         EstadoCalendarioPago.NO_PAGADO,
+                        EstadoCalendarioPago.PARCIAL,
                         EstadoCalendarioPago.RECUPERADO_PARCIAL);
+        assertThat(calculo.montoPagosRestantes()).isEqualByComparingTo("250.00");
+        assertThat(calculo.saldoAbonosParciales()).isEqualByComparingTo("250.00");
     }
 }

@@ -263,8 +263,30 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
                         Crédito activo: {fmt(creditoActivo.montoCapital)} — pago {fmt(creditoActivo.pagoPeriodico)}/día
                       </div>
                       <div className={elegible ? 'text-green-700 font-medium' : 'text-amber-700 font-medium'}>
-                        {elegible ? '✓ Elegible para renovación' : `⚠ Aún no elegible (${creditoActivo.estadisticas.pagosRealizados} pagos realizados)`}
+                        {elegible
+                          ? `✓ Elegible para renovación (${creditoActivo.estadisticas.pagosRealizados} de ${creditoActivo.estadisticas.umbralRenovacion} cuotas completas)`
+                          : `⚠ Aún no elegible: ${creditoActivo.estadisticas.pagosRealizados} de ${creditoActivo.estadisticas.umbralRenovacion} cuotas completas`}
                       </div>
+                      {creditoActivo.estadisticas.abonosParcialesPendientes > 0 && (
+                        <div className="mt-1 rounded-lg border border-amber-200 bg-white/70 p-2 text-amber-800">
+                          <div className="font-medium">
+                            {creditoActivo.estadisticas.abonosParcialesPendientes} cuota{creditoActivo.estadisticas.abonosParcialesPendientes !== 1 ? 's' : ''} parcial{creditoActivo.estadisticas.abonosParcialesPendientes !== 1 ? 'es' : ''}
+                            {' · '}saldo por recuperar {fmt(creditoActivo.estadisticas.saldoAbonosParciales)}
+                          </div>
+                          {!elegible && (
+                            <div className="mt-0.5">
+                              Completa {creditoActivo.estadisticas.pagosFaltantesRenovacion} cuota{creditoActivo.estadisticas.pagosFaltantesRenovacion !== 1 ? 's' : ''} más para habilitar la renovación.
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            className="mt-1 font-semibold text-amber-900 underline"
+                            onClick={() => navigate(`/creditos/${creditoActivo.id}`)}
+                          >
+                            Ver y completar cuotas parciales
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   {!creditoActivo && !creditoLoading && (
@@ -418,7 +440,7 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
                       {[
                         ['Crédito anterior', fmt(calculo.montoAnterior)],
                         ['Crédito nuevo', fmt(calculo.montoNuevo)],
-                        ['Pagos restantes', `${calculo.pagosRestantes} × ${fmt(calculo.pagoPeriodicoAnterior)} = ${fmt(calculo.montoPagosRestantes)}`],
+                        ['Saldo crédito anterior', `${fmt(calculo.montoPagosRestantes)} en ${calculo.pagosRestantes} cuotas con saldo`],
                         ['Multas pendientes', fmt(calculo.multasPendientes)],
                         ['Pago adelantado nuevo', fmt(calculo.pagoAdelantadoNuevo)],
                         ['Pago diario nuevo', fmt(calculo.pagoPeriodicoNuevo)],
@@ -440,8 +462,8 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
                       <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 mt-1">
                         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
                         <p className="text-xs text-amber-700">
-                          {calculo.pagosConAbonoParcial} pago{calculo.pagosConAbonoParcial !== 1 ? 's' : ''} con abono parcial —
-                          no está incluido en "Pagos restantes" ni se cobrará al renovar
+                          {calculo.pagosConAbonoParcial} cuota{calculo.pagosConAbonoParcial !== 1 ? 's' : ''} parcial{calculo.pagosConAbonoParcial !== 1 ? 'es' : ''} —
+                          su saldo exacto de {fmt(calculo.saldoAbonosParciales)} está incluido en el crédito anterior
                         </p>
                       </div>
                     )}
@@ -544,7 +566,7 @@ export default function TabNuevaRenovacion({ initialCliente, onClearInitial }: P
                 ['Cargo financiero', fmt(calculo.cargoFinancieroNuevo)],
                 ['Total a pagar', fmt(calculo.totalAPagarNuevo)],
                 ['Pago diario', fmt(calculo.pagoPeriodicoNuevo)],
-                ['— Pagos restantes ant.', `–${fmt(calculo.montoPagosRestantes)}`],
+                ['— Saldo crédito anterior', `–${fmt(calculo.montoPagosRestantes)}`],
                 ['— Multas pendientes', `–${fmt(calculo.multasPendientes)}`],
                 ['— Pago adelantado', `–${fmt(calculo.pagoAdelantadoNuevo)}`],
               ].map(([label, value]) => (

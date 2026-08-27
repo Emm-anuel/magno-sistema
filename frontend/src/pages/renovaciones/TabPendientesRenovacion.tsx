@@ -270,8 +270,8 @@ function TarjetaPendiente({
             <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5">
               <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
               <p className="text-xs text-amber-700">
-                {r.pagosConAbonoParcial} pago{r.pagosConAbonoParcial !== 1 ? 's' : ''} con abono parcial incompleto —
-                no está incluido en el adeudo a liquidar
+                {r.pagosConAbonoParcial} cuota{r.pagosConAbonoParcial !== 1 ? 's' : ''} parcial{r.pagosConAbonoParcial !== 1 ? 'es' : ''} —
+                el saldo pendiente ya está incluido en el adeudo del crédito anterior
               </p>
             </div>
           )}

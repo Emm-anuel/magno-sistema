@@ -11,6 +11,7 @@ function normalizeCalculo(raw: any): RenovacionCalculo {
     pagosRestantes: raw.pagosRestantes ?? raw.pagos_restantes,
     montoPagosRestantes: raw.montoPagosRestantes ?? raw.monto_pagos_restantes,
     pagosConAbonoParcial: raw.pagosConAbonoParcial ?? raw.pagos_con_abono_parcial ?? 0,
+    saldoAbonosParciales: raw.saldoAbonosParciales ?? raw.saldo_abonos_parciales ?? 0,
     multasPendientes: raw.multasPendientes ?? raw.multas_pendientes,
     pagoAdelantadoNuevo: raw.pagoAdelantadoNuevo ?? raw.pago_adelantado_nuevo,
     montoDesembolso: raw.montoDesembolso ?? raw.monto_desembolso,
