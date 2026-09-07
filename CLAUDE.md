@@ -29,7 +29,10 @@ BD: Liquibase migrations en db/changelog/
 - Un crédito activo por cliente a la vez
 - Zona $15k-$19,999: plazo=25d, tasa=24%
 - Video de entrega: opcional, no bloquea activación
-- Multas: se cobran con el siguiente pago
+- Multas: NO bloquean ni se suman por defecto al pago del día — el pago
+  del día va directo a la cuota. Se cubren aparte con un botón dedicado
+  ("Pagar multa") o quedan pendientes hasta la renovación (donde pueden
+  descontarse del desembolso o condonarse, a juicio de quien aprueba)
 - Modificar pagos: solo Admin y Supervisor
 - Comprobante de gastos: texto libre, NO upload
 
