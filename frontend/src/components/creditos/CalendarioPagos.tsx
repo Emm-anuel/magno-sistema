@@ -127,7 +127,7 @@ function FilaRow({
   const fechaHoraRegistro = fila.pagoRegistrado?.createdAt ?? fila.abono?.createdAt
 
   return (
-    <div className="grid grid-cols-[2.5rem_5.5rem_1fr] sm:grid-cols-[3rem_6rem_5rem_1fr_auto] items-center gap-x-3 gap-y-1 px-3 py-2.5 border-b border-[#f1f3f5] last:border-0">
+    <div className="grid grid-cols-[2.5rem_5.5rem_1fr] sm:grid-cols-[0.55fr_1fr_0.9fr_2.2fr_1.25fr_1.8fr] items-center gap-x-3 gap-y-1 px-3 py-2.5 border-b border-[#f1f3f5] last:border-0">
       <span className="text-[12px] font-semibold text-[#adb5bd] tabular-nums">#{fila.numeroPago}</span>
       <span className="text-[12px] text-[#495057]">{fmtDate(fila.fechaProgramada)}</span>
       <span className="hidden sm:block text-[13px] font-mono text-[#212529] text-right sm:text-left">
@@ -161,9 +161,13 @@ function FilaRow({
         )}
         {nota && <span className="text-[11px] text-gray-500">{nota}</span>}
         {fechaHoraRegistro && (
-          <span className="text-[10px] text-gray-400">· {fmtDateTime(fechaHoraRegistro)}</span>
+          <span className="sm:hidden text-[10px] text-gray-400">· {fmtDateTime(fechaHoraRegistro)}</span>
         )}
       </div>
+
+      <span className="hidden sm:block text-[10px] text-gray-400 whitespace-nowrap">
+        {fmtDateTime(fechaHoraRegistro)}
+      </span>
 
       <div className="col-span-3 sm:col-span-1 flex flex-wrap gap-1.5 sm:justify-end">
         {fila.pagoRegistrado && (
@@ -205,11 +209,12 @@ function FilaRow({
 
 function CabeceraCalendario() {
   return (
-    <div className="hidden sm:grid grid-cols-[3rem_6rem_5rem_1fr_auto] gap-x-3 px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide bg-[#f8fafc] border-b border-[#e2e8f0]">
+    <div className="hidden sm:grid grid-cols-[0.55fr_1fr_0.9fr_2.2fr_1.25fr_1.8fr] gap-x-3 px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide bg-[#f8fafc] border-b border-[#e2e8f0]">
       <div>No.</div>
       <div>Fecha</div>
       <div>Monto</div>
       <div>Estado</div>
+      <div>Registro</div>
       <div className="text-right">Acciones</div>
     </div>
   )
@@ -255,24 +260,6 @@ export default function CalendarioPagos({
     [calendario, pagosHistorial, abonosCredito, multas, hoyIso, liquidadoPorRenovacion],
   )
   const resumen = useMemo(() => resumirFilas(filas), [filas])
-  const columnasAmplias = useMemo(() => {
-    const mitad = Math.ceil(filas.length / 2)
-    return [filas.slice(0, mitad), filas.slice(mitad)]
-  }, [filas])
-
-  const renderFilas = (filasColumna: FilaCalendario[]) =>
-    filasColumna.map((fila) => (
-      <FilaRow
-        key={fila.id}
-        fila={fila}
-        multaInfo={multaDelDia(fila.fechaProgramada, multas)}
-        esAdminSupervisor={esAdminSupervisor}
-        onVerPago={onVerPago}
-        onModificarPago={onModificarPago}
-        onVerAbono={onVerAbono}
-        onPagarMulta={onPagarMulta}
-      />
-    ))
 
   return (
     <div className="space-y-4">
@@ -290,19 +277,19 @@ export default function CalendarioPagos({
 
       {/* Tabla / lista — una fila por día, como el control de pagos en papel */}
       <div className="rounded-lg border border-[#e2e8f0] bg-white overflow-hidden">
-        <div className="2xl:hidden">
-          <CabeceraCalendario />
-          {renderFilas(filas)}
-        </div>
-
-        <div className="hidden 2xl:grid 2xl:grid-cols-2 2xl:divide-x 2xl:divide-[#e2e8f0]">
-          {columnasAmplias.map((filasColumna, indice) => (
-            <div key={indice} className="min-w-0">
-              <CabeceraCalendario />
-              {renderFilas(filasColumna)}
-            </div>
-          ))}
-        </div>
+        <CabeceraCalendario />
+        {filas.map((fila) => (
+          <FilaRow
+            key={fila.id}
+            fila={fila}
+            multaInfo={multaDelDia(fila.fechaProgramada, multas)}
+            esAdminSupervisor={esAdminSupervisor}
+            onVerPago={onVerPago}
+            onModificarPago={onModificarPago}
+            onVerAbono={onVerAbono}
+            onPagarMulta={onPagarMulta}
+          />
+        ))}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
