@@ -72,6 +72,7 @@ function normalizeCalendarioItem(item: any): CalendarioPagoDetalle {
     numeroPago: item.numeroPago ?? item.numero_pago,
     fechaProgramada: item.fechaProgramada ?? item.fecha_programada,
     montoEsperado: item.montoEsperado ?? item.monto_esperado,
+    montoAbonado: item.montoAbonado ?? item.monto_abonado ?? 0,
     estado: item.estado,
   }
 }

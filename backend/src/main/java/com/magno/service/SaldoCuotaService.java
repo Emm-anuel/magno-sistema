@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Calcula el capital realmente cubierto de una cuota. Las multas se registran
@@ -36,6 +38,32 @@ public class SaldoCuotaService {
                 .subtract(aplicadoDirecto)
                 .subtract(aplicadoEnAbonos)
                 .max(BigDecimal.ZERO);
+    }
+
+    /**
+     * Dinero registrado para cada cuota, incluyendo pagos directos y abonos de
+     * adeudo. Se usa en el historial para mostrar cuánto entregó el cliente en
+     * las cuotas parciales.
+     */
+    public Map<Long, BigDecimal> montosAbonadosPorCuota(Long creditoId) {
+        Map<Long, BigDecimal> montos = new HashMap<>();
+
+        pagoRepo.findByCreditoIdOrderByNumeroPago(creditoId).stream()
+                .filter(p -> p.getDeletedAt() == null)
+                .filter(p -> p.getCalendarioPago() != null)
+                .filter(p -> p.getRazonNoPago() == null || p.getRazonNoPago().isBlank())
+                .forEach(p -> montos.merge(
+                        p.getCalendarioPago().getId(),
+                        coalesce(p.getMontoRecibido()),
+                        BigDecimal::add));
+
+        abonoCoberturaRepo.findByAbono_CreditoIdOrderByNumeroPagoAsc(creditoId)
+                .forEach(detalle -> montos.merge(
+                        detalle.getCalendarioPago().getId(),
+                        coalesce(detalle.getTotalAplicado()),
+                        BigDecimal::add));
+
+        return montos;
     }
 
     private BigDecimal coalesce(BigDecimal value) {

@@ -29,7 +29,22 @@ function fmtDateLabel(dateStr: string) {
 
 function fmtMoney(v: number | null | undefined) {
   if (v == null) return '—'
-  return `$${Number(v).toLocaleString('es-MX', { minimumFractionDigits: 0 })}`
+  return `$${Number(v).toLocaleString('es-MX', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+function fmtMoneyCompact(v: number | null | undefined) {
+  if (v == null || !Number.isFinite(Number(v))) return '$'
+  const amount = Number(v)
+  if (Math.abs(amount) >= 1000) {
+    return `$${(amount / 1000).toLocaleString('es-MX', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 1,
+    })}k`
+  }
+  return `$${amount.toLocaleString('es-MX', { maximumFractionDigits: 2 })}`
 }
 
 function fmtDateShort(iso: string | null | undefined) {
@@ -75,6 +90,7 @@ const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) 
   let symbol = '·'
   let cls = 'bg-gray-50 text-gray-400'
   const isPast = pago.fechaProgramada.slice(0, 10) < TODAY
+  const esParcial = pago.estado === 'PARCIAL' || pago.estado === 'RECUPERADO_PARCIAL'
 
   switch (pago.estado) {
     case 'PAGADO':
@@ -84,9 +100,9 @@ const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) 
     case 'RECUPERADO':
       symbol = 'Ab'; cls = 'bg-blue-100 text-blue-700 font-bold'; break
     case 'RECUPERADO_PARCIAL':
-      symbol = '$'; cls = 'bg-amber-100 text-amber-700 font-semibold'; break
+      symbol = fmtMoneyCompact(pago.montoAbonado); cls = 'bg-amber-100 text-amber-700 font-semibold'; break
     case 'PARCIAL':
-      symbol = '$'; cls = 'bg-amber-100 text-amber-700 font-semibold'; break
+      symbol = fmtMoneyCompact(pago.montoAbonado); cls = 'bg-amber-100 text-amber-700 font-semibold'; break
     case 'NO_PAGADO':
       symbol = '✗'; cls = 'bg-red-100 text-red-700 font-bold'; break
     case 'INHABILL':
@@ -104,17 +120,27 @@ const PaymentCell = React.memo(function PaymentCell({ pago, isHoy }: CellProps) 
   if (pago.estado === 'ADELANTADO') tooltipLines.push('Pago adelantado')
   if (pago.estado === 'RECUPERADO') tooltipLines.push('Abono de adeudo')
   if (pago.estado === 'RECUPERADO_PARCIAL') tooltipLines.push('Abono parcial')
+  if (pago.estado === 'PARCIAL') tooltipLines.push('Pago parcial')
+  if (esParcial) tooltipLines.push(`Cantidad abonada: ${fmtMoney(pago.montoAbonado)}`)
 
   return (
     <td className={`text-center p-0.5 ${borderCls}`}>
       <div className="relative">
-        <span
-          className={`block w-7 h-7 mx-auto rounded flex items-center justify-center text-[11px] cursor-default select-none ${cls}`}
+        <button
+          type="button"
+          className={`h-7 mx-auto rounded flex items-center justify-center cursor-default select-none ${
+            esParcial ? 'min-w-8 px-1 text-[9px]' : 'w-7 text-[11px]'
+          } ${cls}`}
+          title={tooltipLines.join(' · ')}
+          aria-label={tooltipLines.join('. ')}
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
+          onFocus={() => setShowTooltip(true)}
+          onBlur={() => setShowTooltip(false)}
+          onClick={() => setShowTooltip(true)}
         >
           {symbol}
-        </span>
+        </button>
         {showTooltip && (
           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-50 bg-gray-900 text-white text-[11px] rounded px-2 py-1 whitespace-nowrap pointer-events-none">
             {tooltipLines.map((line, i) => (

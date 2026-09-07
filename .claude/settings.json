@@ -16,7 +16,27 @@
       "Bash(powershell -NoProfile -Command \"Start-Process 'C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe'\")",
       "Bash(exit 0)",
       "Bash(netstat -ano)",
-      "Bash(mvn -q -o spring-boot:run)"
+      "Bash(mvn -q -o spring-boot:run)",
+      "Bash(npx --yes chromium-cli --version)",
+      "Bash(node -e \"require.resolve\\('playwright'\\)\")",
+      "Bash(npx --yes playwright --version)",
+      "Bash(curl -s http://localhost:8080/actuator/health)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173/)",
+      "Read(//c/tmp/**)",
+      "Bash(npx --yes playwright install chromium --with-deps)",
+      "Bash(xargs grep -l -i \"usuario\")",
+      "Bash(npm ls *)",
+      "Bash(node smoke-test.mjs)",
+      "Bash(mkdir -p /tmp/pw-smoke)",
+      "Bash(npm init *)",
+      "Bash(npm install *)",
+      "Bash(mv \"c:\\\\Users\\\\Emm-a\\\\Documents\\\\GitHub\\\\magno-sistema\\\\smoke-test.mjs\" \"/tmp/pw-smoke/smoke-test.mjs\")",
+      "Read(//c/Users/Emm-a/**)",
+      "Read(//c/Users/Emm-a/AppData/Local/Temp/pw-smoke/**)",
+      "Bash(node smoke2.mjs)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Emm-a\\AppData\\Local\\Temp\\pw-smoke"
     ]
   },
   "hooks": {

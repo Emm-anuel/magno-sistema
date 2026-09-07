@@ -622,6 +622,7 @@ export interface CalendarioPagoDetalle {
   numeroPago: number
   fechaProgramada: string
   montoEsperado: number
+  montoAbonado: number
   estado: EstadoPago | 'INHABIL' | 'INHABILL'
 }
 

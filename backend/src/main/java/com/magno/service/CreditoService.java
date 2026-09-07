@@ -160,8 +160,9 @@ public class CreditoService {
         }
 
         public List<CalendarioPagoDTO> getCalendario(Long creditoId) {
-                return calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(creditoId)
-                                .stream().map(CalendarioPagoDTO::from).toList();
+                List<CalendarioPago> calendario = calendarioPagoRepo
+                                .findByCreditoIdOrderByNumeroPago(creditoId);
+                return construirCalendarioDTO(creditoId, calendario);
         }
 
         // ────────────────────────────────────────────────────────────────────
@@ -540,8 +541,7 @@ public class CreditoService {
         private CreditoDetalleDTO buildDetalle(Credito c) {
                 List<CalendarioPago> calendarioEntidades = calendarioPagoRepo
                                 .findByCreditoIdOrderByNumeroPago(c.getId());
-                List<CalendarioPagoDTO> calendario = calendarioEntidades.stream()
-                                .map(CalendarioPagoDTO::from).toList();
+                List<CalendarioPagoDTO> calendario = construirCalendarioDTO(c.getId(), calendarioEntidades);
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
                 long pagosRealizados = calendarioPagoRepo.countByCreditoIdAndEstadoIn(c.getId(), ESTADOS_REALIZADOS);
@@ -611,6 +611,17 @@ public class CreditoService {
                                 .orElse(null);
 
                 return CreditoDetalleDTO.from(c, calendario, stats, liquidadoPorRenovacion, originadoPorRenovacion);
+        }
+
+        private List<CalendarioPagoDTO> construirCalendarioDTO(
+                        Long creditoId,
+                        List<CalendarioPago> calendario) {
+                var montosAbonados = saldoCuotaService.montosAbonadosPorCuota(creditoId);
+                return calendario.stream()
+                                .map(cuota -> CalendarioPagoDTO.from(
+                                                cuota,
+                                                montosAbonados.getOrDefault(cuota.getId(), BigDecimal.ZERO)))
+                                .toList();
         }
 
         private CreditoResumenDTO buildResumen(Credito c) {
