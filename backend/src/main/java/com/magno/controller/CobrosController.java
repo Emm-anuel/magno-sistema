@@ -95,6 +95,26 @@ public class CobrosController {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // POST /api/cobros/multas/{creditoId}/pagar
+    // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Cubre todas las multas pendientes de un crédito de forma independiente
+     * al pago del día. Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR.
+     */
+    @PostMapping("/multas/{creditoId}/pagar")
+    @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
+    public ResponseEntity<PagoDTO> pagarMultas(
+            @PathVariable Long creditoId,
+            Authentication auth) {
+
+        JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
+        cajaGuard.validarCajaAbierta(principal);
+        PagoDTO pago = cobrosService.pagarMultasPendientes(creditoId, principal.userId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(pago);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // PATCH /api/cobros/{pagoId}
     // ────────────────────────────────────────────────────────────────────
 

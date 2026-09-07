@@ -19,7 +19,9 @@ export default function RenovacionesPage() {
   const [creditoPreseleccionadoId, setCreditoPreseleccionadoId] = useState<number | null>(null)
 
   const isGerente = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
-  const puedeCrear  = usuario?.rol === 'SUPERVISOR_CAMPO' || usuario?.rol === 'ASESOR_COBRADOR'
+  const puedeCrear = isGerente ||
+    usuario?.rol === 'SUPERVISOR_CAMPO' ||
+    usuario?.rol === 'ASESOR_COBRADOR'
 
   function handleRenovar(cliente: ClienteResumen, creditoId: number) {
     setClientePreseleccionado(cliente)
@@ -47,7 +49,7 @@ export default function RenovacionesPage() {
         <h1 className="text-xl font-bold text-gray-900">Renovaciones</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           {isGerente
-            ? 'Aprueba solicitudes y confirma los desembolsos de renovación'
+            ? 'Solicita y aprueba renovaciones, y confirma sus desembolsos'
             : 'Consulta clientes listos para renovar y envía solicitudes'}
         </p>
       </div>

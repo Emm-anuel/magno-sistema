@@ -158,7 +158,7 @@ export default function TabSolicitudes({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Buscar por nombre de cliente..."
+              placeholder="Buscar por cliente o número de crédito..."
               value={buscar}
               onChange={(e) => { setBuscar(e.target.value); setPage(0) }}
               className="input pl-9 w-full"
@@ -238,6 +238,7 @@ export default function TabSolicitudes({
             <table className="tabla w-full">
               <thead>
                 <tr>
+                  <th>N.º crédito</th>
                   <th>Cliente</th>
                   <th>Monto</th>
                   <th>Pago/período</th>
@@ -254,13 +255,16 @@ export default function TabSolicitudes({
               <tbody>
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="text-center text-gray-400 py-8">
+                    <td colSpan={12} className="text-center text-gray-400 py-8">
                       Sin registros
                     </td>
                   </tr>
                 ) : (
                   filtered.map((c) => (
                     <tr key={c.id}>
+                      <td className="font-semibold text-gray-700 whitespace-nowrap">
+                        #{c.id}
+                      </td>
                       <td>
                         {/** Soporta ambos formatos del backend */}
                         <div className="font-medium text-gray-800">
@@ -523,6 +527,7 @@ function MobileCard({
     <div className="card p-4 space-y-3">
       <div className="flex items-start justify-between gap-2">
         <div>
+          <div className="text-xs font-semibold text-gray-500">Crédito #{c.id}</div>
           <div className="font-semibold text-gray-800">
             {c.cliente.nombreCompleto ??
               (c.cliente as { nombre_completo?: string }).nombre_completo}

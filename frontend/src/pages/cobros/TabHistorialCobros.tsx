@@ -433,7 +433,7 @@ export default function TabHistorialCobros() {
                     {p.cliente.nombreCompleto}
                   </p>
                   <p className="text-[12px] text-[#6c757d] mt-0.5">
-                    Pago #{p.numeroPago} · {fmtDate(p.fechaPago)}
+                    {p.numeroPago === 0 ? 'Pago de multas' : `Pago #${p.numeroPago}`} · {fmtDate(p.fechaPago)}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <TipoPagoBadge tipo={p.tipoPago as TipoPago} size="sm" />
@@ -525,7 +525,7 @@ export default function TabHistorialCobros() {
                   return (
                     <tr key={p.id}>
                       <td className="font-medium">{p.cliente.nombreCompleto}</td>
-                      <td className="text-[#6c757d]">#{p.numeroPago}</td>
+                      <td className="text-[#6c757d]">{p.numeroPago === 0 ? 'Multas' : `#${p.numeroPago}`}</td>
                       <td className="text-right text-[#6c757d]">{fmtMoney(p.montoEsperado)}</td>
                       <td className={`text-right font-semibold ${
                         estado === 'NO_PAGADO'  ? 'text-[#dc2626]'

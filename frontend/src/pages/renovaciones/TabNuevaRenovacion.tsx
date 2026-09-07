@@ -240,7 +240,7 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
         videoEntregaUrl: videoEntregaUrl.trim() || undefined,
       }),
     onSuccess: () => {
-      toast.success('Solicitud enviada — pendiente de aprobación del gerente')
+      toast.success('Solicitud enviada — pendiente de aprobación')
       queryClient.invalidateQueries({ queryKey: ['creditos'] })
       queryClient.setQueriesData<ListoRenovarItem[]>({ queryKey: ['listos-renovar'] }, (old) => {
         if (!old) return old
@@ -732,7 +732,7 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
       <ProcessingOverlay
         visible={mutation.isPending || isProcessing}
         title="Enviando solicitud"
-        message="Estamos registrando la solicitud de renovación. El gerente la revisará en breve."
+        message="Estamos registrando la solicitud de renovación. Quedará pendiente de aprobación."
       />
     </div>
   )

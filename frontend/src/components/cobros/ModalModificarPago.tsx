@@ -41,8 +41,10 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
   const mutation = useMutation({
     mutationFn: () =>
       cobrosService.modificar(pago.id, {
-        montoRecibido: Number(monto) || undefined,
-        razonNoPago: razonNoPago || undefined,
+        montoRecibido: monto.trim() === '' ? undefined : Number(monto),
+        // La cadena vacía es significativa: indica al backend que debe borrar
+        // la razón anterior para que el monto sí amortice la cuota.
+        razonNoPago,
         condonarMultaDia,
         motivoModificacion: motivo.trim(),
       }),
@@ -95,7 +97,10 @@ export default function ModalModificarPago({ pago, onClose, onSuccess }: Props) 
                 step="0.01"
                 className="input pl-7"
                 value={monto}
-                onChange={(e) => setMonto(e.target.value)}
+                onChange={(e) => {
+                  setMonto(e.target.value)
+                  if (Number(e.target.value) > 0) setRazonNoPago('')
+                }}
               />
             </div>
           </div>

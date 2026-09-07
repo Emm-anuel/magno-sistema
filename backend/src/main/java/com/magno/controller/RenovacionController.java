@@ -53,12 +53,11 @@ public class RenovacionController {
 
     // ────────────────────────────────────────────────────────────────────
     // POST /api/renovaciones — Crear solicitud (estado SOLICITADO)
-    // Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR pueden crear solicitudes.
-    // Gerentes solo revisan y aprueban/rechazan.
+    // Todos los roles operativos pueden crear solicitudes.
     // ────────────────────────────────────────────────────────────────────
 
     @PostMapping
-    @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
     public ResponseEntity<RenovacionDetalleDTO> crear(
             @Valid @RequestBody RenovacionCreateRequest req,
             Authentication auth) {
@@ -154,12 +153,11 @@ public class RenovacionController {
 
     // ────────────────────────────────────────────────────────────────────
     // GET /api/renovaciones/mis-solicitudes
-    // Solicitudes enviadas por el asesor autenticado
-    // Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR
+    // Solicitudes enviadas por el usuario autenticado
     // ────────────────────────────────────────────────────────────────────
 
     @GetMapping("/mis-solicitudes")
-    @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
+    @PreAuthorize("hasAnyAuthority('ADMINISTRADOR','SUPERVISOR','SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
     public ResponseEntity<List<RenovacionDetalleDTO>> misSolicitudes(
             @AuthenticationPrincipal JwtPrincipal p) {
 

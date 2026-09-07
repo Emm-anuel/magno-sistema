@@ -117,8 +117,13 @@ public class CobrosService {
             BigDecimal multasPendientesCredito = Optional.ofNullable(
                     multaRepo.sumMontosPendientesByCreditoId(credito.getId()))
                     .orElse(BigDecimal.ZERO);
+            // Solo el atraso real de calendario (días sin resolver) bloquea el pago
+            // normal del día. Una multa pendiente, por sí sola, ya no es un
+            // obstáculo: el asesor puede cobrar el día con normalidad y la multa se
+            // cubre aparte (botón dedicado) o al final con la renovación.
+            boolean tieneAtrasoCalendario = tieneCalendarioAdeudo(calendarioCredito, fecha);
             boolean tieneAdeudoPendiente = multasPendientesCredito.compareTo(BigDecimal.ZERO) > 0
-                    || tieneCalendarioAdeudo(calendarioCredito, fecha);
+                    || tieneAtrasoCalendario;
 
             // Si la fecha no está en el calendario, puede ser día inhábil o fin de semana
             if (cpOpt.isEmpty() && esDiaInhabil) {
@@ -209,7 +214,7 @@ public class CobrosService {
                     multasPendientes,
                     razonNoPago,
                     pagoIdHoy,
-                    tieneAdeudoPendiente));
+                    tieneAtrasoCalendario));
         }
 
         // Ordenar: SIN_REGISTRO primero, NO_PAGADO segundo, PARCIAL tercero, PAGADO al
@@ -423,6 +428,79 @@ public class CobrosService {
     }
 
     // ────────────────────────────────────────────────────────────────────
+    // Pagar multas pendientes (botón independiente, fuera del pago del día)
+    // ────────────────────────────────────────────────────────────────────
+
+    @Transactional
+    public PagoDTO pagarMultasPendientes(Long creditoId, Long usuarioId) {
+        Credito credito = creditoRepo.findById(creditoId)
+                .orElseThrow(() -> new EntityNotFoundException("Crédito no encontrado: " + creditoId));
+
+        Usuario registrador = usuarioRepo.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
+
+        String rol = registrador.getRol().getNombre();
+        if (!"SUPERVISOR_CAMPO".equals(rol) && !"ASESOR_COBRADOR".equals(rol)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "No tienes permisos para registrar cobros");
+        }
+
+        Cliente cliente = credito.getCliente();
+        if ("ASESOR_COBRADOR".equals(rol)) {
+            if (credito.getAsesor() == null || !credito.getAsesor().getId().equals(usuarioId)) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "No tienes acceso a este cliente");
+            }
+        } else if ("SUPERVISOR_CAMPO".equals(rol)) {
+            if (!cliente.getSucursal().getId().equals(registrador.getSucursal().getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                        "No tienes acceso a este cliente");
+            }
+        }
+
+        List<Multa> multasPendientes = multaRepo
+                .findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(creditoId);
+        if (multasPendientes.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Este crédito no tiene multas pendientes por pagar");
+        }
+
+        BigDecimal totalMultas = multasPendientes.stream()
+                .map(Multa::getMonto)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        LocalDate hoy = hoyNegocio();
+
+        Pago pago = Pago.builder()
+                .credito(credito)
+                .cliente(cliente)
+                .asesor(credito.getAsesor())
+                .calendarioPago(null)
+                .numeroPago(0)
+                .fechaPago(hoy)
+                .montoRecibido(totalMultas)
+                .montoEsperado(totalMultas)
+                .esCompleto(true)
+                .razonNoPago(null)
+                .multaAplicada(totalMultas)
+                .registradoPor(registrador)
+                .build();
+        pago = pagoRepo.save(pago);
+
+        for (Multa multa : multasPendientes) {
+            multa.setCobrada(true);
+            multa.setCobradaEnPago(pago);
+            multaRepo.save(multa);
+        }
+
+        log.info("Multas pagadas de forma independiente — crédito=" + creditoId
+                + " total=" + totalMultas
+                + " registradoPor=" + registrador.getNombreCompleto());
+
+        return PagoDTO.from(pago);
+    }
+
+    // ────────────────────────────────────────────────────────────────────
     // Modificar pago (solo ADMIN y SUPERVISOR)
     // ────────────────────────────────────────────────────────────────────
 
@@ -438,17 +516,28 @@ public class CobrosService {
         Usuario modificador = usuarioRepo.findById(usuarioId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
 
-        // Actualizar campos
-        if (req.montoRecibido() != null && req.montoRecibido().compareTo(BigDecimal.ZERO) > 0) {
+        // Actualizar campos. Cero también es un valor válido al corregir un pago
+        // real para convertirlo en "No pagó".
+        if (req.montoRecibido() != null) {
+            if (req.montoRecibido().compareTo(BigDecimal.ZERO) < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "monto_recibido no puede ser negativo");
+            }
             pago.setMontoRecibido(req.montoRecibido());
             // Recalcular esCompleto
             boolean ahora = req.montoRecibido().compareTo(pago.getMontoEsperado()) >= 0;
             pago.setEsCompleto(ahora);
-
         }
 
         if (req.razonNoPago() != null) {
             pago.setRazonNoPago(req.razonNoPago().isBlank() ? null : req.razonNoPago());
+        }
+
+        // Un monto positivo corrige el registro como pago real. Aunque un cliente
+        // antiguo omita razonNoPago en el PATCH, no debe conservarse la razón de
+        // "No pagó", porque SaldoCuotaService excluye esos registros del abono.
+        if (req.montoRecibido() != null && req.montoRecibido().compareTo(BigDecimal.ZERO) > 0) {
+            pago.setRazonNoPago(null);
         }
 
         // Recalcular después de aplicar también la razón; permite corregir un

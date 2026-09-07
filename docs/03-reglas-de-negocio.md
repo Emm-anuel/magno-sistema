@@ -107,6 +107,18 @@
 - Contador independiente del Tipo 1.
 - Para créditos semanales la multa por incompletos usa `config_multas.multa_semanal_incompletos` (base seed: $300).
 
+**Cobro de multas pendientes — independiente del pago del día:**
+
+- Una multa pendiente **no bloquea ni retrasa** el pago normal del día: el
+  botón "Cobrar" siempre está disponible mientras el calendario esté al
+  corriente, y el monto que se captura va directo a la cuota (ya no se
+  pre-llena con la multa).
+- Las multas se cubren aparte, con el botón dedicado **"Pagar multa"**
+  (disponible en Ruta del Día, ficha de cliente y detalle de crédito), o
+  quedan pendientes hasta que el crédito se renueve.
+- Solo el **atraso real de calendario** (días sin resolver: no pagados,
+  parciales o vencidos) sigue forzando el modo "Registrar no pago".
+
 - Las multas pendientes **no son un obstáculo para renovar** — no bloquean la elegibilidad ni la creación de la solicitud. Por defecto se descuentan del desembolso al confirmar la renovación, pero el gerente que aprueba puede **condonarlas** explícitamente según su juicio (ver "Condonación de multas" en la sección 6.4).
 - Configuración en módulo Administración → Config. Multas: Sucursal | Rango Mín | Rango Máx | Multa/Día | Multa por 2 Incompletos.
 

@@ -1,11 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import type { AbonoCorrienteDTO, CalendarioPagoDetalle, MultaCobroDTO, PagoCobroDTO } from '@/types'
 import {
-  agruparFilas,
   construirFilasCalendario,
   resumirFilas,
   type FilaCalendario,
-  type GrupoFilas,
 } from '@/utils/calendarioPagos'
 
 function fmtMoney(v?: number | null): string {
@@ -48,7 +47,6 @@ const LEYENDA = [
   { label: 'Abono cubrió atraso', bg: '#dbeafe', text: '#1d4ed8' },
   { label: 'Pago parcial', bg: '#fef3c7', text: '#92400e' },
   { label: 'Atrasado / no pagó', bg: '#fee2e2', text: '#b91c1c' },
-  { label: 'Multa condonada', bg: '#f3e8ff', text: '#7e22ce' },
   { label: 'Cubierto por renovación', bg: '#ede9fe', text: '#6d28d9' },
   { label: 'Pendiente (futuro)', bg: '#f1f5f9', text: '#475569' },
 ]
@@ -77,94 +75,97 @@ function estiloClasificacion(fila: FilaCalendario): { bg: string; text: string; 
   }
 }
 
-function explicacionFila(fila: FilaCalendario): string | null {
-  if (fila.clasificacion === 'LIMPIO' || fila.clasificacion === 'PENDIENTE') return null
-
-  if (fila.clasificacion === 'VENCIDO') {
-    return 'No se ha registrado el cobro de este día.'
-  }
-
-  if (fila.clasificacion === 'NO_PAGO') {
-    let texto = 'El cliente no pagó este día.'
-    if (fila.multa?.condonada) {
-      texto += ` La multa de ${fmtMoney(fila.multa.monto)} fue condonada por ${fila.multa.condonadaPorNombre ?? 'un supervisor'}${
-        fila.multa.fechaCondonacion ? ` el ${fmtDate(fila.multa.fechaCondonacion)}` : ''
-      }${fila.multa.motivoCondonacion ? ` — "${fila.multa.motivoCondonacion}"` : ''}.`
-    } else if (fila.multa && !fila.multa.cubiertaConAbono) {
-      texto += ` Tiene una multa pendiente de ${fmtMoney(fila.multa.monto)}.`
-    }
-    return texto
-  }
-
+/** Nota corta de una línea — solo cuando aporta algo que el badge no dice ya. */
+function notaFila(fila: FilaCalendario): string | null {
   if (fila.clasificacion === 'PARCIAL_DIRECTO') {
-    return `Pagó ${fmtMoney(fila.montoRecibido)} de ${fmtMoney(fila.montoEsperado)} esperados ese día.`
+    return `Recibido ${fmtMoney(fila.montoRecibido)} de ${fmtMoney(fila.montoEsperado)}`
   }
-
-  if (fila.clasificacion === 'ABONO') {
-    const cobertura = fila.abono?.coberturas.find((c) => c.numeroPago === fila.numeroPago) ?? null
-    const partes = [`cuota ${fmtMoney(cobertura?.montoCuota ?? fila.montoEsperado)}`]
-    if (cobertura && Number(cobertura.montoMulta) > 0) partes.push(`multa ${fmtMoney(cobertura.montoMulta)}`)
-    return `Abono #${fila.abono?.abonoId ?? ''}: cubrió ${partes.join(' + ')} = ${fmtMoney(fila.montoRecibido)}.`
+  if (fila.clasificacion === 'ABONO' && fila.abono) {
+    return `Cubierto con abono #${fila.abono.abonoId}`
   }
-
-  if (fila.clasificacion === 'RENOVACION') {
-    let texto = 'Este pago no fue cobrado día a día: se saldó al aprobar una renovación de este crédito.'
-    if (fila.multa?.condonada) {
-      texto += ` La multa de ${fmtMoney(fila.multa.monto)} también fue condonada.`
-    } else if (fila.multa) {
-      texto += ` Incluye una multa de ${fmtMoney(fila.multa.monto)} descontada del desembolso.`
-    }
-    return texto
+  if (fila.pagoRegistrado?.razonNoPago) {
+    return fila.pagoRegistrado.razonNoPago
   }
-
   return null
+}
+
+interface FilaMultaInfo {
+  pendiente: boolean
+  monto: number
+  condonada: boolean
+}
+
+function multaDelDia(fecha: string, multas: MultaCobroDTO[]): FilaMultaInfo | null {
+  const delDia = multas.filter((m) => m.fecha?.slice(0, 10) === fecha)
+  if (delDia.length === 0) return null
+  const monto = delDia.reduce((sum, m) => sum + Number(m.monto ?? 0), 0)
+  const pendiente = delDia.some((m) => !m.cobrada && !m.condonada)
+  const condonada = delDia.every((m) => m.condonada)
+  return { pendiente, monto, condonada }
 }
 
 function FilaRow({
   fila,
+  multaInfo,
   esAdminSupervisor,
   onVerPago,
   onModificarPago,
   onVerAbono,
+  onPagarMulta,
 }: {
   fila: FilaCalendario
+  multaInfo: FilaMultaInfo | null
   esAdminSupervisor: boolean
   onVerPago: (pago: PagoCobroDTO) => void
   onModificarPago: (pago: PagoCobroDTO) => void
   onVerAbono: (abono: AbonoCorrienteDTO) => void
+  onPagarMulta?: () => void
 }) {
-  const base = estiloClasificacion(fila)
-  const estilo = fila.multa?.condonada ? { bg: '#f3e8ff', text: '#7e22ce', label: `${base.label} — multa condonada` } : base
-  const explicacion = explicacionFila(fila)
+  const estilo = estiloClasificacion(fila)
+  const nota = notaFila(fila)
   const esPendiente = fila.clasificacion === 'PENDIENTE'
   const fechaHoraRegistro = fila.pagoRegistrado?.createdAt ?? fila.abono?.createdAt
 
   return (
-    <div className={`flex bg-white border border-[#e5e7eb] rounded-md shadow-sm hover:border-[#cbd5e1] hover:bg-[#fcfcfd] transition-colors lg:grid lg:grid-cols-[10rem_minmax(22rem,40rem)_8rem_12rem] lg:justify-center lg:gap-x-6 lg:items-center ${esPendiente ? 'items-center gap-3 py-2 px-3' : 'flex-col gap-2 py-2.5 px-3'}`}>
-      <div className={`${esPendiente ? 'w-28' : ''} lg:w-auto shrink-0 text-sm`}>
-        <div className="font-medium text-[#212529]">{fmtDate(fila.fechaProgramada)}</div>
-        <div className="text-[11px] text-gray-400">pago #{fila.numeroPago}</div>
-      </div>
-      <div className="flex-1 min-w-0">
+    <div className="grid grid-cols-[2.5rem_5.5rem_1fr] sm:grid-cols-[3rem_6rem_5rem_1fr_auto] items-center gap-x-3 gap-y-1 px-3 py-2.5 border-b border-[#f1f3f5] last:border-0">
+      <span className="text-[12px] font-semibold text-[#adb5bd] tabular-nums">#{fila.numeroPago}</span>
+      <span className="text-[12px] text-[#495057]">{fmtDate(fila.fechaProgramada)}</span>
+      <span className="hidden sm:block text-[13px] font-mono text-[#212529] text-right sm:text-left">
+        {esPendiente ? fmtMoney(fila.montoEsperado) : fmtMoney(fila.montoRecibido ?? fila.montoEsperado)}
+      </span>
+
+      <div className="col-span-3 sm:col-span-1 flex flex-wrap items-center gap-1.5">
         <span
-          className="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full"
+          className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full"
           style={{ background: estilo.bg, color: estilo.text }}
         >
           {estilo.label}
         </span>
-        {explicacion && <p className="text-[12px] text-gray-600 mt-1 leading-relaxed max-w-xl">{explicacion}</p>}
+        <span className="sm:hidden text-[12px] font-mono text-[#212529]">
+          {esPendiente ? fmtMoney(fila.montoEsperado) : fmtMoney(fila.montoRecibido ?? fila.montoEsperado)}
+        </span>
+        {multaInfo && (
+          <span
+            className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
+            style={
+              multaInfo.condonada
+                ? { background: '#f3e8ff', color: '#7e22ce' }
+                : multaInfo.pendiente
+                  ? { background: '#fef3c7', color: '#92400e' }
+                  : { background: '#f1f5f9', color: '#64748b' }
+            }
+          >
+            <AlertTriangle className="w-3 h-3" />
+            {multaInfo.condonada ? 'Multa condonada' : 'Multa'} {fmtMoney(multaInfo.monto)}
+          </span>
+        )}
+        {nota && <span className="text-[11px] text-gray-500">{nota}</span>}
         {fechaHoraRegistro && (
-          <p className="text-[11px] text-gray-400 mt-0.5">
-            Fecha y hora de registro: {fmtDateTime(fechaHoraRegistro)}
-          </p>
+          <span className="text-[10px] text-gray-400">· {fmtDateTime(fechaHoraRegistro)}</span>
         )}
       </div>
-      {!esPendiente && (
-        <div className="shrink-0 text-sm font-mono lg:text-right">
-          {fila.montoRecibido != null ? fmtMoney(fila.montoRecibido) : <span className="text-gray-400">—</span>}
-        </div>
-      )}
-      {!esPendiente && <div className="shrink-0 flex flex-wrap lg:justify-end gap-1.5 lg:pl-3 lg:border-l lg:border-[#e5e7eb]">
+
+      <div className="col-span-3 sm:col-span-1 flex flex-wrap gap-1.5 sm:justify-end">
         {fila.pagoRegistrado && (
           <button type="button" className="btn btn-sm text-xs py-0.5 px-2" onClick={() => onVerPago(fila.pagoRegistrado!)}>
             Ver pago
@@ -188,25 +189,17 @@ function FilaRow({
             Ver abono
           </button>
         )}
-      </div>}
+        {multaInfo?.pendiente && onPagarMulta && (
+          <button
+            type="button"
+            className="btn btn-sm text-xs py-0.5 px-2 text-[#dc2626] border-[#fecaca] hover:bg-red-50"
+            onClick={onPagarMulta}
+          >
+            Cubrir multa
+          </button>
+        )}
+      </div>
     </div>
-  )
-}
-
-function GrupoRow({ grupo, abierto, onToggle }: { grupo: GrupoFilas; abierto: boolean; onToggle: () => void }) {
-  const label = grupo.clasificacion === 'RENOVACION' ? 'saldados por renovación' : 'pagos a tiempo'
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={abierto}
-      className="w-full flex items-center gap-2 py-2.5 px-3 text-left text-[13px] text-gray-500 italic bg-white hover:bg-[#f8f9fa] border border-[#e5e7eb] rounded-md shadow-sm transition-colors"
-    >
-      <span className="text-gray-400 not-italic">{abierto ? '▾' : '▸'}</span>
-      <span>
-        ✓ {grupo.filas.length} {label} · {fmtDate(grupo.fechaInicio)}–{fmtDate(grupo.fechaFin)} · {fmtMoney(grupo.montoTotal)}
-      </span>
-    </button>
   )
 }
 
@@ -221,6 +214,7 @@ export interface CalendarioPagosProps {
   onVerPago: (pago: PagoCobroDTO) => void
   onModificarPago: (pago: PagoCobroDTO) => void
   onVerAbono: (abono: AbonoCorrienteDTO) => void
+  onPagarMulta?: () => void
 }
 
 export default function CalendarioPagos({
@@ -234,9 +228,8 @@ export default function CalendarioPagos({
   onVerPago,
   onModificarPago,
   onVerAbono,
+  onPagarMulta,
 }: CalendarioPagosProps) {
-  const [gruposAbiertos, setGruposAbiertos] = useState<Set<string>>(new Set())
-
   const filas = useMemo(
     () =>
       construirFilasCalendario({
@@ -249,25 +242,7 @@ export default function CalendarioPagos({
       }),
     [calendario, pagosHistorial, abonosCredito, multas, hoyIso, liquidadoPorRenovacion],
   )
-  const filasOGrupos = useMemo(() => agruparFilas(filas), [filas])
   const resumen = useMemo(() => resumirFilas(filas), [filas])
-  const itemsHistorial = filasOGrupos.filter((item) =>
-    (item.tipo === 'fila' ? item.fila : item.filas[0]).clasificacion !== 'PENDIENTE',
-  )
-  const filasPendientes = filas.filter((fila) => fila.clasificacion === 'PENDIENTE')
-
-  function claveGrupo(grupo: GrupoFilas): string {
-    return `${grupo.clasificacion}-${grupo.fechaInicio}-${grupo.fechaFin}`
-  }
-
-  function toggleGrupo(clave: string) {
-    setGruposAbiertos((prev) => {
-      const next = new Set(prev)
-      if (next.has(clave)) next.delete(clave)
-      else next.add(clave)
-      return next
-    })
-  }
 
   return (
     <div className="space-y-4">
@@ -283,71 +258,27 @@ export default function CalendarioPagos({
         ))}
       </div>
 
-      <div className="rounded-lg border border-[#e2e8f0] bg-[#f8fafc] p-2 space-y-2">
-        <div className="hidden lg:grid grid-cols-[10rem_minmax(22rem,40rem)_8rem_12rem] justify-center gap-x-6 px-3 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">
+      {/* Tabla / lista — una fila por día, como el control de pagos en papel */}
+      <div className="rounded-lg border border-[#e2e8f0] bg-white overflow-hidden">
+        <div className="hidden sm:grid grid-cols-[3rem_6rem_5rem_1fr_auto] gap-x-3 px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide bg-[#f8fafc] border-b border-[#e2e8f0]">
+          <div>No.</div>
           <div>Fecha</div>
-          <div>Estado y detalle</div>
-          <div className="text-right">Importe</div>
+          <div>Monto</div>
+          <div>Estado</div>
           <div className="text-right">Acciones</div>
         </div>
-        {itemsHistorial.map((item) => {
-          const key = item.tipo === 'fila' ? `fila-${item.fila.id}` : `grupo-${claveGrupo(item)}`
-
-          return (
-            <div key={key} className="space-y-2">
-              {item.tipo === 'grupo' ? (
-                <>
-                  <GrupoRow
-                    grupo={item}
-                    abierto={gruposAbiertos.has(claveGrupo(item))}
-                    onToggle={() => toggleGrupo(claveGrupo(item))}
-                  />
-                  {gruposAbiertos.has(claveGrupo(item)) && (
-                    <div className="space-y-2 pl-2 sm:pl-4 border-l-2 border-[#dbe2ea]">
-                      {item.filas.map((fila) => (
-                        <FilaRow
-                          key={fila.id}
-                          fila={fila}
-                          esAdminSupervisor={esAdminSupervisor}
-                          onVerPago={onVerPago}
-                          onModificarPago={onModificarPago}
-                          onVerAbono={onVerAbono}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <FilaRow
-                  fila={item.fila}
-                  esAdminSupervisor={esAdminSupervisor}
-                  onVerPago={onVerPago}
-                  onModificarPago={onModificarPago}
-                  onVerAbono={onVerAbono}
-                />
-              )}
-            </div>
-          )
-        })}
-        {filasPendientes.length > 0 && (
-          <div className="space-y-2">
-            <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-[#dbe2ea]">
-              Próximos pagos
-            </div>
-            <div className="space-y-2">
-              {filasPendientes.map((fila) => (
-                <FilaRow
-                  key={fila.id}
-                  fila={fila}
-                  esAdminSupervisor={esAdminSupervisor}
-                  onVerPago={onVerPago}
-                  onModificarPago={onModificarPago}
-                  onVerAbono={onVerAbono}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {filas.map((fila) => (
+          <FilaRow
+            key={fila.id}
+            fila={fila}
+            multaInfo={multaDelDia(fila.fechaProgramada, multas)}
+            esAdminSupervisor={esAdminSupervisor}
+            onVerPago={onVerPago}
+            onModificarPago={onModificarPago}
+            onVerAbono={onVerAbono}
+            onPagarMulta={onPagarMulta}
+          />
+        ))}
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

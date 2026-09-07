@@ -153,7 +153,7 @@ public class RenovacionService {
 
         // ────────────────────────────────────────────────────────────────────
         // Crear solicitud (estado SOLICITADO — no procesa el crédito aún)
-        // Solo SUPERVISOR_CAMPO y ASESOR_COBRADOR
+        // Disponible para gerentes, supervisores de campo y asesores
         // ────────────────────────────────────────────────────────────────────
 
         @Transactional
@@ -542,13 +542,12 @@ public class RenovacionService {
         }
 
         // ────────────────────────────────────────────────────────────────────
-        // Mis Solicitudes — todas las del asesor autenticado (SUPERVISOR_CAMPO /
-        // ASESOR_COBRADOR)
+        // Mis Solicitudes — todas las creadas por el usuario autenticado
         // ────────────────────────────────────────────────────────────────────
 
-        public List<RenovacionDetalleDTO> getMisSolicitudes(Long asesorId) {
+        public List<RenovacionDetalleDTO> getMisSolicitudes(Long usuarioId) {
                 return renovacionRepo
-                                .findMisSolicitudes(asesorId)
+                                .findMisSolicitudes(usuarioId)
                                 .stream()
                                 .map(r -> RenovacionDetalleDTO.from(r, cargarCondonadasDetalle(r)))
                                 .toList();

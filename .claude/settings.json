@@ -3,7 +3,20 @@
     "allow": [
       "Bash(docker exec *)",
       "mcp__code-review-graph__query_graph_tool",
-      "Bash(git -C \"c:\\\\Users\\\\Emm-a\\\\Documents\\\\GitHub\\\\magno-sistema\" diff -- docs/03-reglas-de-negocio.md docs/07-decisiones-y-pendientes.md)"
+      "Bash(git -C \"c:\\\\Users\\\\Emm-a\\\\Documents\\\\GitHub\\\\magno-sistema\" diff -- docs/03-reglas-de-negocio.md docs/07-decisiones-y-pendientes.md)",
+      "Bash(mvn -q -o test -Dtest=CobrosServiceTest#creditoAlCorrienteConMultaSuelta_puedeCobrarseNormalmenteHoy)",
+      "Bash(mvn -q -o test -Dtest=CobrosServiceTest)",
+      "Bash(mvn -q -o test -Dtest=CobrosServiceTest#pagarMultasPendientes_marcaTodasLasMultasComoCobradasYCreaPagoDeMultas+pagarMultasPendientes_sinMultasPendientes_lanzaExcepcion)",
+      "Bash(npm run *)",
+      "Bash(mvn -q -o test)",
+      "Bash(npx eslint *)",
+      "Bash(git show *)",
+      "Read(//tmp/**)",
+      "Bash(powershell -NoProfile -Command \"Get-Process 'Docker Desktop' -ErrorAction SilentlyContinue | Select-Object -First 1 | Format-List; Test-Path 'C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe'\")",
+      "Bash(powershell -NoProfile -Command \"Start-Process 'C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe'\")",
+      "Bash(exit 0)",
+      "Bash(netstat -ano)",
+      "Bash(mvn -q -o spring-boot:run)"
     ]
   },
   "hooks": {

@@ -40,7 +40,7 @@ Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZA
   - **Cuerpo derecho**: crédito anterior vs monto aprobado (con nota si fue ajustado respecto al solicitado); pagos restantes; monto a desembolsar.
   - **Botón "Confirmar desembolso"**: ejecuta el flujo real — crédito anterior → RENOVADO, nuevo crédito ACTIVO, calendario generado. Navega al nuevo crédito.
 
-- **Mis Solicitudes** (solo Supervisor y Asesor): historial personal de todas las solicitudes de renovación enviadas, ordenadas de más reciente a más antigua. Endpoint: `/api/renovaciones/mis-solicitudes` (filtra por `asesor_id` en backend). Cada tarjeta muestra:
+- **Mis Solicitudes** (todos los roles operativos): historial personal de todas las solicitudes de renovación enviadas, ordenadas de más reciente a más antigua. Endpoint: `/api/renovaciones/mis-solicitudes` (filtra por `created_by` en backend, con compatibilidad para registros anteriores). Cada tarjeta muestra:
   - **Header**: nombre del cliente, fecha/hora de envío y badge de estado (`SOLICITADO` → ámbar+pulso, `APROBADO` → naranja+pulso, `ACTIVO` → teal, `RECHAZADO` → rojo).
   - **Cuerpo**: cuadro comparativo crédito anterior vs monto aprobado; pagos restantes y multas al momento del envío; monto a desembolsar.
   - **Caso RECHAZADO**: bloque prominente (fondo rojo suave) con motivo y nombre del revisor.
@@ -52,7 +52,7 @@ Las renovaciones siguen el ciclo: **SOLICITADO → APROBADO → ACTIVO / RECHAZA
   - **Estado vacío con filtros activos**: muestra "No hay solicitudes con esos filtros" y botón "Limpiar filtros" que resetea los tres filtros a su valor por defecto.
   - **Estado vacío sin filtros**: mensaje claro con botón "Nueva Renovación".
 
-- **Nueva Solicitud** (solo Supervisor y Asesor): formulario de dos pasos para enviar solicitud de renovación.
+- **Nueva Solicitud** (Gerente General, Gerente de Sucursal, Supervisor y Asesor): formulario de dos pasos para enviar solicitud de renovación.
   - **Paso 1:** selección de cliente (o preseleccionado desde "Listos para Renovar").
   - **Paso 2:** campos calculados automáticamente (Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar) + campos editables (Monto Nuevo, Forma de Pago).
   - Validación por forma de pago:

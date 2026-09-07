@@ -256,4 +256,7 @@ export const cobrosService = {
         params: { credito_id: creditoId },
       })
       .then((r) => (r.data ?? []).map(normalizeAbono)),
+
+  pagarMultas: (creditoId: number): Promise<PagoCobroDTO> =>
+    api.post<any>(`/cobros/multas/${creditoId}/pagar`, {}).then((r) => normalizePago(r.data)),
 }

@@ -104,7 +104,9 @@ public class CreditoService {
                 if (estado != null)
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("estado"), estado));
                 if (buscar != null && !buscar.isBlank()) {
-                        String patron = "%" + buscar.trim().toLowerCase() + "%";
+                        String termino = buscar.trim();
+                        String patron = "%" + termino.toLowerCase() + "%";
+                        Long numeroCredito = parseNumeroCredito(termino);
                         spec = spec.and((r, q, cb) -> {
                                 var cliente = r.get("cliente");
                                 var nombreCompleto = cb.concat(
@@ -113,7 +115,10 @@ public class CreditoService {
                                 nombreCompleto = cb.concat(
                                                 cb.concat(nombreCompleto, " "),
                                                 cb.coalesce(cliente.<String>get("apellidoMaterno"), ""));
-                                return cb.like(cb.lower(nombreCompleto), patron);
+                                var coincideNombre = cb.like(cb.lower(nombreCompleto), patron);
+                                return numeroCredito == null
+                                                ? coincideNombre
+                                                : cb.or(coincideNombre, cb.equal(r.<Long>get("id"), numeroCredito));
                         });
                 }
 
@@ -125,6 +130,17 @@ public class CreditoService {
 
                 return creditoRepo.findAll(spec, pageable)
                                 .map(c -> buildResumen(c));
+        }
+
+        private static Long parseNumeroCredito(String termino) {
+                String valor = termino.startsWith("#") ? termino.substring(1).trim() : termino;
+                if (valor.isEmpty() || !valor.chars().allMatch(Character::isDigit))
+                        return null;
+                try {
+                        return Long.valueOf(valor);
+                } catch (NumberFormatException ignored) {
+                        return null;
+                }
         }
 
         // ────────────────────────────────────────────────────────────────────

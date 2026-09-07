@@ -10,6 +10,7 @@ import TipoPagoBadge from '@/components/TipoPagoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
 import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
+import ModalPagarMulta from '@/components/cobros/ModalPagarMulta'
 import type { ClienteRuta, PagoCobroDTO, TipoPago } from '@/types'
 import { todayLocalStr } from '@/utils/date'
 
@@ -32,6 +33,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
   const [pagoModal, setPagoModal] = useState<ClienteRuta | null>(null)
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
   const [abonoModal, setAbonoModal] = useState<ClienteRuta | null>(null)
+  const [multaModal, setMultaModal] = useState<ClienteRuta | null>(null)
   const esFechaHistorica = fecha !== todayStr()
   const puedeRegistrarHistorico = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
   const esAdminSupervisor = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
@@ -183,6 +185,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
             puedeRegistrar={puedeCobrar(c) || puedeModificar(c)}
             onCobrar={() => void abrirAccionCobro(c)}
             onPagarAdeudo={() => setAbonoModal(c)}
+            onPagarMulta={() => setMultaModal(c)}
             esFechaHistorica={esFechaHistorica}
           />
         ))}
@@ -213,6 +216,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
                   puedeRegistrar={puedeCobrar(c) || puedeModificar(c)}
                   onCobrar={() => void abrirAccionCobro(c)}
                   onPagarAdeudo={() => setAbonoModal(c)}
+                  onPagarMulta={() => setMultaModal(c)}
                   esFechaHistorica={esFechaHistorica}
                 />
               ))}
@@ -252,6 +256,15 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
           onSuccess={() => setAbonoModal(null)}
         />
       )}
+
+      {multaModal && (
+        <ModalPagarMulta
+          creditoId={multaModal.creditoId}
+          nombreCliente={multaModal.nombreCompleto}
+          onClose={() => setMultaModal(null)}
+          onSuccess={() => setMultaModal(null)}
+        />
+      )}
     </>
   )
 }
@@ -263,18 +276,21 @@ function ClienteCard({
   puedeRegistrar,
   onCobrar,
   onPagarAdeudo,
+  onPagarMulta,
   esFechaHistorica,
 }: {
   cliente: ClienteRuta
   puedeRegistrar: boolean
   onCobrar: () => void
   onPagarAdeudo: () => void
+  onPagarMulta: () => void
   esFechaHistorica: boolean
 }) {
   const puedePagarAdeudo = c.tieneAdeudoPendiente && !esFechaHistorica
   const puedeAbonarFuturo = !c.tieneAdeudoPendiente
     && !esFechaHistorica
     && (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'INHABIL' || c.estadoHoy === 'INHABILL')
+  const puedePagarMulta = c.multasPendientes > 0 && !esFechaHistorica
   const puedeRegistrarCorriente = puedeRegistrar
 
   return (
@@ -345,6 +361,15 @@ function ClienteCard({
               Adelantar pagos
             </button>
           )}
+          {puedePagarMulta && (
+            <button
+              type="button"
+              onClick={onPagarMulta}
+              className="py-2.5 px-4 rounded-lg border-2 border-[#dc2626] text-[#dc2626] text-[13px] font-semibold hover:bg-red-50 min-w-[80px]"
+            >
+              Pagar multa
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -356,18 +381,21 @@ function ClienteRow({
   puedeRegistrar,
   onCobrar,
   onPagarAdeudo,
+  onPagarMulta,
   esFechaHistorica,
 }: {
   cliente: ClienteRuta
   puedeRegistrar: boolean
   onCobrar: () => void
   onPagarAdeudo: () => void
+  onPagarMulta: () => void
   esFechaHistorica: boolean
 }) {
   const puedePagarAdeudo = c.tieneAdeudoPendiente && !esFechaHistorica
   const puedeAbonarFuturo = !c.tieneAdeudoPendiente
     && !esFechaHistorica
     && (c.estadoHoy === 'PAGADO' || c.estadoHoy === 'INHABIL' || c.estadoHoy === 'INHABILL')
+  const puedePagarMulta = c.multasPendientes > 0 && !esFechaHistorica
   const puedeRegistrarCorriente = puedeRegistrar
 
   return (
@@ -425,6 +453,15 @@ function ClienteRow({
               className="btn btn-sm border-blue-600 text-blue-700 hover:bg-blue-50"
             >
               Adelantar pagos
+            </button>
+          )}
+          {puedePagarMulta && (
+            <button
+              type="button"
+              onClick={onPagarMulta}
+              className="btn btn-sm border-[#dc2626] text-[#dc2626] hover:bg-red-50"
+            >
+              Pagar multa
             </button>
           )}
         </div>

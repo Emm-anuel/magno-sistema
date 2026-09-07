@@ -24,7 +24,7 @@ export default function TabListosRenovar({ onRenovar }: Props) {
   const esAdmin = rol === 'ADMINISTRADOR'
   const esGerente = rol === 'ADMINISTRADOR' || rol === 'SUPERVISOR'
   const esSupervisorCampo = rol === 'SUPERVISOR_CAMPO'
-  const puedeCrearRenovacion = rol === 'SUPERVISOR_CAMPO' || rol === 'ASESOR_COBRADOR'
+  const puedeCrearRenovacion = esGerente || rol === 'SUPERVISOR_CAMPO' || rol === 'ASESOR_COBRADOR'
   const puedeVerFiltros = esGerente || esSupervisorCampo
 
   const [asesorFiltro, setAsesorFiltro] = useState<number | undefined>(undefined)

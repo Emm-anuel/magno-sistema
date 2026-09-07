@@ -14,6 +14,7 @@ import { cobrosService } from '@/services/cobrosService'
 import CreditoEstadoBadge from '@/components/CreditoEstadoBadge'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
+import ModalPagarMulta from '@/components/cobros/ModalPagarMulta'
 import ClienteDocumentosSection from '@/components/clientes/ClienteDocumentosSection'
 import type { CreditoDetalle, CreditoResumen } from '@/types'
 
@@ -139,7 +140,9 @@ function creditoTieneAdeudoPendiente(credito?: CreditoDetalle | null): boolean {
     (p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL',
   )
 
-  return pagosVencidos > 0 || tieneRecuperadoParcial || (credito.estadisticas.multasPendientes ?? 0) > 0
+  // Una multa pendiente, por sí sola, ya no bloquea el pago normal del día —
+  // solo el atraso real de calendario lo hace. La multa se cubre aparte.
+  return pagosVencidos > 0 || tieneRecuperadoParcial
 }
 
 interface CreditoActivoCardProps {
@@ -150,8 +153,10 @@ interface CreditoActivoCardProps {
   tienePagoPendienteHoy: boolean
   abonosParcialesPendientes?: number
   saldoAbonosParciales?: number
+  multasPendientes?: number
   onRegistrarPago?: () => void
   onPagarAdeudo?: () => void
+  onPagarMulta?: () => void
 }
 
 function CreditoActivoCard({
@@ -162,8 +167,10 @@ function CreditoActivoCard({
   tienePagoPendienteHoy,
   abonosParcialesPendientes = 0,
   saldoAbonosParciales = 0,
+  multasPendientes = 0,
   onRegistrarPago,
   onPagarAdeudo,
+  onPagarMulta,
 }: CreditoActivoCardProps) {
   const monto = safeNC(credito.montoAprobado ?? credito.montoCapital)
   const pagoPeriodico = safeNC(credito.pagoPeriodico)
@@ -243,6 +250,15 @@ function CreditoActivoCard({
               {abonosParcialesPendientes > 0 ? 'Completar parciales' : 'Pagar adeudo'}
             </button>
           )}
+          {puedeRegistrarCobro && multasPendientes > 0 && onPagarMulta && (
+            <button
+              type="button"
+              className="btn flex-1 py-2 text-sm border-[#dc2626] text-[#dc2626] hover:bg-red-50"
+              onClick={onPagarMulta}
+            >
+              Pagar multa
+            </button>
+          )}
           <button
             type="button"
             className={`${puedeRegistrarCobro ? 'btn flex-1' : 'btn-primary w-full'} py-2 text-sm`}
@@ -265,6 +281,7 @@ export default function ClienteDetallePage() {
   const [editOpen, setEditOpen] = useState(false)
   const [pagoModalOpen, setPagoModalOpen] = useState(false)
   const [adeudoModalOpen, setAdeudoModalOpen] = useState(false)
+  const [multaModalOpen, setMultaModalOpen] = useState(false)
   const [exportando, setExportando] = useState<'pdf' | 'excel' | null>(null)
 
   const esAdmin = usuario?.rol === 'ADMINISTRADOR' || usuario?.rol === 'SUPERVISOR'
@@ -475,10 +492,12 @@ export default function ClienteDetallePage() {
           tienePagoPendienteHoy={!!pagoPendienteHoyCreditoActivo}
           abonosParcialesPendientes={creditoActivoDetalle?.estadisticas.abonosParcialesPendientes}
           saldoAbonosParciales={creditoActivoDetalle?.estadisticas.saldoAbonosParciales}
+          multasPendientes={creditoActivoDetalle?.estadisticas.multasPendientes}
           onRegistrarPago={puedeRegistrarCobro && pagoPendienteHoyCreditoActivo
             ? () => setPagoModalOpen(true)
             : undefined}
           onPagarAdeudo={puedeRegistrarCobro ? () => setAdeudoModalOpen(true) : undefined}
+          onPagarMulta={puedeRegistrarCobro ? () => setMultaModalOpen(true) : undefined}
         />
       ) : creditoEnProceso ? (
         <div className="card border-l-4 border-l-amber-400 p-4 flex items-center justify-between flex-wrap gap-3">
@@ -942,6 +961,19 @@ export default function ClienteDetallePage() {
           onClose={() => setAdeudoModalOpen(false)}
           onSuccess={() => {
             setAdeudoModalOpen(false)
+            qc.invalidateQueries({ queryKey: ['creditos-cliente', Number(id)] })
+            qc.invalidateQueries({ queryKey: ['credito', creditoActivo.id] })
+          }}
+        />
+      )}
+
+      {multaModalOpen && creditoActivo && (
+        <ModalPagarMulta
+          creditoId={creditoActivo.id}
+          nombreCliente={cliente.nombre_completo}
+          onClose={() => setMultaModalOpen(false)}
+          onSuccess={() => {
+            setMultaModalOpen(false)
             qc.invalidateQueries({ queryKey: ['creditos-cliente', Number(id)] })
             qc.invalidateQueries({ queryKey: ['credito', creditoActivo.id] })
           }}

@@ -3,12 +3,14 @@ package com.magno.service;
 import com.magno.dto.cobros.ClienteNoPagoAutomaticoDTO;
 import com.magno.dto.cobros.ClienteRutaDTO;
 import com.magno.dto.cobros.RutaDiaDTO;
+import com.magno.dto.cobros.PagoDTO;
 import com.magno.dto.cobros.PagoModificarRequest;
 import com.magno.model.*;
 import com.magno.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -163,6 +166,40 @@ class CobrosServiceTest {
         assertThat(c.estadoHoy()).isEqualTo("VENCIDO");
         assertThat(c.multasPendientes()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(c.tieneAdeudoPendiente()).isTrue();
+    }
+
+    @Test
+    void creditoAlCorrienteConMultaSuelta_puedeCobrarseNormalmenteHoy() {
+        // El calendario está al corriente (solo el slot de HOY, PENDIENTE) pero
+        // el crédito arrastra una multa vieja sin pagar. La multa por sí sola
+        // NO debe forzar el modo "solo no pago" del pago del día.
+        credito.setFechaVencimiento(LocalDate.of(2026, 7, 31));
+
+        CalendarioPago calendarioHoy = CalendarioPago.builder()
+                .id(3L)
+                .numeroPago(10)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.PENDIENTE)
+                .build();
+
+        when(creditoRepo.findRutaDiaCreditosActivos(eq(1L), isNull(), eq(EstadoCredito.ACTIVO)))
+                .thenReturn(List.of(credito));
+        when(diaFestivoRepo.findFechasBySucursalId(1L)).thenReturn(List.of());
+        when(pagoRepo.findBySucursalAndAsesorIdAndFecha(eq(1L), isNull(), eq(HOY)))
+                .thenReturn(List.of());
+        when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(calendarioHoy));
+        when(multaRepo.sumMontosPendientesByCreditoId(42L)).thenReturn(new BigDecimal("50.00"));
+
+        RutaDiaDTO result = service.getRutaDia(null, 1L, HOY, "ADMINISTRADOR", 10L, 1L);
+
+        assertThat(result.clientes()).hasSize(1);
+        ClienteRutaDTO c = result.clientes().get(0);
+        assertThat(c.estadoHoy()).isEqualTo("SIN_REGISTRO");
+        assertThat(c.multasPendientes()).isEqualByComparingTo(new BigDecimal("50.00"));
+        assertThat(c.tieneAdeudoPendiente())
+                .as("una multa suelta, sin atraso real de calendario, no debe forzar 'solo no pago'")
+                .isFalse();
     }
 
     @Test
@@ -504,6 +541,103 @@ class CobrosServiceTest {
         assertThat(multa.getFechaCondonacion()).isNotNull();
         assertThat(multa.getMotivoCondonacion()).isEqualTo("El asesor omitió registrar el pago");
         verify(multaRepo).saveAll(List.of(multa));
+    }
+
+    @Test
+    void modificarPago_montoPositivoLimpiaRazonAnteriorYAbonaCuotaAtrasada() {
+        Usuario gerente = new Usuario();
+        gerente.setId(99L);
+        gerente.setNombreCompleto("Laura Gerente");
+
+        CalendarioPago calendario = new CalendarioPago();
+        calendario.setEstado(EstadoCalendarioPago.NO_PAGADO);
+
+        Pago pago = new Pago();
+        pago.setId(300L);
+        pago.setCredito(credito);
+        pago.setCliente(cliente);
+        pago.setCalendarioPago(calendario);
+        pago.setNumeroPago(4);
+        pago.setFechaPago(HOY.minusDays(1));
+        pago.setMontoRecibido(BigDecimal.ZERO);
+        pago.setMontoEsperado(new BigDecimal("156.00"));
+        pago.setEsCompleto(false);
+        pago.setRazonNoPago("Cierre de caja — sin registro de pago");
+        pago.setMultaAplicada(BigDecimal.ZERO);
+
+        when(pagoRepo.findById(300L)).thenReturn(Optional.of(pago));
+        when(usuarioRepo.findById(99L)).thenReturn(Optional.of(gerente));
+
+        service.modificarPago(300L,
+                new PagoModificarRequest(new BigDecimal("100.00"), null, false,
+                        "El pago atrasado sí recibió un abono"),
+                99L);
+
+        assertThat(pago.getMontoRecibido()).isEqualByComparingTo("100.00");
+        assertThat(pago.getRazonNoPago()).isNull();
+        assertThat(pago.getEsCompleto()).isFalse();
+        assertThat(calendario.getEstado()).isEqualTo(EstadoCalendarioPago.PARCIAL);
+        verify(calendarioPagoRepo).save(calendario);
+        verify(pagoRepo).save(pago);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // pagarMultasPendientes — botón independiente para cubrir solo multas
+    // ────────────────────────────────────────────────────────────────
+
+    @Test
+    void pagarMultasPendientes_marcaTodasLasMultasComoCobradasYCreaPagoDeMultas() {
+        Multa multa1 = new Multa();
+        multa1.setId(701L);
+        multa1.setCredito(credito);
+        multa1.setCliente(cliente);
+        multa1.setMonto(new BigDecimal("50.00"));
+        multa1.setCobrada(false);
+        multa1.setCondonada(false);
+
+        Multa multa2 = new Multa();
+        multa2.setId(702L);
+        multa2.setCredito(credito);
+        multa2.setCliente(cliente);
+        multa2.setMonto(new BigDecimal("100.00"));
+        multa2.setCobrada(false);
+        multa2.setCondonada(false);
+
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(42L))
+                .thenReturn(List.of(multa1, multa2));
+        when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        PagoDTO result = service.pagarMultasPendientes(42L, 10L);
+
+        assertThat(result.multaAplicada()).isEqualByComparingTo("150.00");
+        assertThat(result.montoRecibido()).isEqualByComparingTo("150.00");
+        assertThat(result.numeroPago()).isEqualTo(0);
+        assertThat(multa1.getCobrada()).isTrue();
+        assertThat(multa2.getCobrada()).isTrue();
+
+        ArgumentCaptor<Pago> pagoCaptor = ArgumentCaptor.forClass(Pago.class);
+        verify(pagoRepo).save(pagoCaptor.capture());
+        assertThat(pagoCaptor.getValue().getCalendarioPago()).isNull();
+        assertThat(multa1.getCobradaEnPago()).isEqualTo(pagoCaptor.getValue());
+        assertThat(multa2.getCobradaEnPago()).isEqualTo(pagoCaptor.getValue());
+
+        verify(multaRepo).save(multa1);
+        verify(multaRepo).save(multa2);
+    }
+
+    @Test
+    void pagarMultasPendientes_sinMultasPendientes_lanzaExcepcion() {
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(42L))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.pagarMultasPendientes(42L, 10L))
+                .isInstanceOf(ResponseStatusException.class);
+
+        verify(pagoRepo, never()).save(any());
     }
 
     // ────────────────────────────────────────────────────────────────

@@ -52,15 +52,15 @@ Las renovaciones siguen el mismo flujo de estados que los Créditos Nuevos: SOLI
 
 | Acción                        | Gerente General | Gerente Sucursal | Supervisor | Asesor |
 | ----------------------------- | :-------------: | :--------------: | :--------: | :----: |
-| Crear solicitud de renovación |       ❌        |        ❌        |     ✅     |   ✅   |
+| Crear solicitud de renovación |       ✅        |        ✅        |     ✅     |   ✅   |
 | Ver cola de pendientes        |       ✅        |        ✅        |     ❌     |   ❌   |
 | Aprobar solicitud             |       ✅        |        ✅        |     ❌     |   ❌   |
 | Rechazar solicitud            |       ✅        |        ✅        |     ❌     |   ❌   |
 | Ver tab "Listos para Renovar" |       ✅        |        ✅        |     ✅     |   ✅   |
-| Ver tab "Mis Solicitudes"     |       ❌        |        ❌        |     ✅     |   ✅   |
+| Ver tab "Mis Solicitudes"     |       ✅        |        ✅        |     ✅     |   ✅   |
 | Ver colocaciones semanales    |       ✅        |        ✅        |     ✅     |   ✅   |
 
-> ⚠️ Gerente General y Gerente de Sucursal **NO** pueden crear solicitudes de renovación ni ven el tab "Mis Solicitudes". Ambas restricciones se validan en backend con `@PreAuthorize`.
+> Gerente General y Gerente de Sucursal también pueden crear solicitudes de renovación y consultar las que hayan enviado desde "Mis Solicitudes".
 
 ### Renovaciones — Tab "Listos para Renovar" (visibilidad por rol)
 

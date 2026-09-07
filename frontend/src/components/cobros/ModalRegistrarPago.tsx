@@ -90,11 +90,11 @@ export default function ModalRegistrarPago({
     .filter((m) => !m.cobrada && !m.condonada)
     .reduce((sum, m) => sum + Number(m.monto), 0)
 
-  // Pre-fill monto al abrir (pagoPeriodico + multas pendientes)
+  // Pre-fill monto al abrir — solo la cuota del día. La multa ya no se suma
+  // por defecto: se cubre aparte (botón dedicado) o al final con la renovación.
   useEffect(() => {
-    const total = Number(pagoPeriodico) + multasPendientes
-    setMonto(String(total > 0 ? total : pagoPeriodico))
-  }, [pagoPeriodico, multasPendientes])
+    setMonto(String(pagoPeriodico))
+  }, [pagoPeriodico])
 
   // Cerrar con Escape
   useEffect(() => {

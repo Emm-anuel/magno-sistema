@@ -69,12 +69,15 @@ public interface RenovacionRepository extends JpaRepository<Renovacion, Long> {
                      @Param("asesorId") Long asesorId,
                      @Param("sucursalId") Long sucursalId);
 
-       // Todas las solicitudes enviadas por un asesor (Mis Solicitudes)
+       // Solicitudes creadas por el usuario autenticado. El fallback por asesor
+       // conserva visibles registros antiguos que no tengan createdBy.
        @Query("SELECT r FROM Renovacion r " +
+                     "LEFT JOIN r.createdBy creador " +
                      "WHERE r.deletedAt IS NULL " +
-                     "AND r.asesor.id = :asesorId " +
+                     "AND (creador.id = :usuarioId " +
+                     "OR (creador.id IS NULL AND r.asesor.id = :usuarioId)) " +
                      "ORDER BY r.createdAt DESC")
-       List<Renovacion> findMisSolicitudes(@Param("asesorId") Long asesorId);
+       List<Renovacion> findMisSolicitudes(@Param("usuarioId") Long usuarioId);
 
        // Renovaciones APROBADAS pendientes de confirmar desembolso
        @Query("SELECT r FROM Renovacion r " +

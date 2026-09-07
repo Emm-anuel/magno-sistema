@@ -15,6 +15,7 @@ import ImagePreviewModal from '@/components/ImagePreviewModal'
 import ModalRegistrarPago from '@/components/cobros/ModalRegistrarPago'
 import ModalModificarPago from '@/components/cobros/ModalModificarPago'
 import ModalPagarAdeudo from '@/components/cobros/ModalPagarAdeudo'
+import ModalPagarMulta from '@/components/cobros/ModalPagarMulta'
 import CalendarioPagos from '@/components/creditos/CalendarioPagos'
 import type { PagoCobroDTO, TipoPago, AbonoCorrienteDTO } from '@/types'
 
@@ -108,6 +109,7 @@ export default function CreditoDetallePage() {
   const [pagoEditar, setPagoEditar] = useState<PagoCobroDTO | null>(null)
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
   const [adeudoOpen, setAdeudoOpen] = useState(false)
+  const [multaOpen, setMultaOpen] = useState(false)
   const [adelantoOpen, setAdelantoOpen] = useState(false)
   const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
   const [revertirOpen, setRevertirOpen] = useState(false)
@@ -239,8 +241,10 @@ export default function CreditoDetallePage() {
   const tieneRecuperadoParcial = calendario.some(
     (p) => p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL',
   )
+  // Una multa pendiente, por sí sola, ya no bloquea el pago normal del día —
+  // solo el atraso real de calendario lo hace. La multa se cubre aparte.
   const tieneAdeudoPendiente =
-    pagosVencidosTotales > 0 || tieneRecuperadoParcial || multasPendientesVisual > 0
+    pagosVencidosTotales > 0 || tieneRecuperadoParcial
   const pagoPeriodicoCalendario = calendario.length > 0 ? calendario[0].montoEsperado : null
   const pagoPeriodicoVisual = pagoPeriodicoCalendario ?? credito.pagoPeriodico
   const hayDiferenciaPagoHistorico =
@@ -385,6 +389,15 @@ export default function CreditoDetallePage() {
               onClick={() => setAdelantoOpen(true)}
             >
               Adelantar pagos
+            </button>
+          )}
+          {credito.estado === 'ACTIVO' && (puedeRegistrarCobro || esAdminSupervisor) &&
+            multasPendientesVisual > 0 && (
+            <button
+              className="btn btn-sm border-[#dc2626] text-[#dc2626] hover:bg-red-50"
+              onClick={() => setMultaOpen(true)}
+            >
+              Pagar multa
             </button>
           )}
           {credito.estado === 'ACTIVO' && esAdminSupervisor &&
@@ -648,6 +661,7 @@ export default function CreditoDetallePage() {
                 onVerPago={setPagoModal}
                 onModificarPago={setPagoEditar}
                 onVerAbono={setAbonoDetalleModal}
+                onPagarMulta={(puedeRegistrarCobro || esAdminSupervisor) ? () => setMultaOpen(true) : undefined}
               />
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
                 <span className="text-[#16a34a] font-semibold">
@@ -964,6 +978,21 @@ export default function CreditoDetallePage() {
             qc.invalidateQueries({ queryKey: ['credito', numId] })
             qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
             qc.invalidateQueries({ queryKey: ['abonos-credito', numId] })
+          }}
+        />
+      )}
+
+      {/* Modal Pagar multa */}
+      {multaOpen && (
+        <ModalPagarMulta
+          creditoId={numId}
+          nombreCliente={credito.cliente.nombreCompleto}
+          onClose={() => setMultaOpen(false)}
+          onSuccess={() => {
+            setMultaOpen(false)
+            qc.invalidateQueries({ queryKey: ['credito', numId] })
+            qc.invalidateQueries({ queryKey: ['pagos-cliente-credito', numId] })
+            qc.invalidateQueries({ queryKey: ['multas-credito', numId] })
           }}
         />
       )}
