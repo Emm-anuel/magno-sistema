@@ -235,10 +235,10 @@ function CreditoActivoCard({
           {puedeRegistrarCobro && tienePagoPendienteHoy && (
             <button
               type="button"
-              className={`${tieneAdeudoPendiente ? 'btn-no-payment' : 'btn'} flex-1 py-2 text-sm`}
+              className="btn flex-1 py-2 text-sm"
               onClick={() => onRegistrarPago ? onRegistrarPago() : onNavigate('/cobros')}
             >
-              {tieneAdeudoPendiente ? 'Registrar no pago' : 'Registrar pago'}
+              Registrar pago
             </button>
           )}
           {puedeRegistrarCobro && tieneAdeudoPendiente && onPagarAdeudo && (
@@ -945,7 +945,6 @@ export default function ClienteDetallePage() {
           nombreCliente={cliente.nombre_completo}
           fecha={hoyIso}
           numeroPagoHoy={pagoPendienteHoyCreditoActivo?.numeroPago}
-          soloNoPago={tieneAdeudoCreditoActivo}
           onClose={() => setPagoModalOpen(false)}
           onSuccess={() => {
             setPagoModalOpen(false)

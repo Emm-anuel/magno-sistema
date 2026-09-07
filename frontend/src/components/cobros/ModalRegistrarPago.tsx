@@ -21,7 +21,6 @@ interface Props {
   nombreCliente: string
   fecha: string
   numeroPagoHoy?: number | null
-  soloNoPago?: boolean
   onClose: () => void
   onSuccess: () => void
 }
@@ -66,18 +65,17 @@ export default function ModalRegistrarPago({
   nombreCliente,
   fecha,
   numeroPagoHoy,
-  soloNoPago = false,
   onClose,
   onSuccess,
 }: Props) {
   const qc = useQueryClient()
 
   // ── Estado del form ───────────────────────────────────────────────
-  const [noPago, setNoPago] = useState(soloNoPago)
+  const [noPago, setNoPago] = useState(false)
   const [monto, setMonto] = useState(String(pagoPeriodico))
   const [razon, setRazon] = useState('')
   const [razonCustom, setRazonCustom] = useState('')
-  const esRegistroNoPago = soloNoPago || noPago
+  const esRegistroNoPago = noPago
 
   // ── Multas pendientes ─────────────────────────────────────────────
   const { data: multas = [] } = useQuery({
@@ -160,7 +158,7 @@ export default function ModalRegistrarPago({
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef] sticky top-0 bg-white z-10">
           <div>
             <h2 className="text-[15px] font-semibold text-[#212529]">
-              {soloNoPago ? 'Registrar no pago' : 'Registrar cobro'}
+              Registrar cobro
             </h2>
             <p className="text-[12px] text-[#6c757d] mt-0.5">{nombreCliente}</p>
           </div>
@@ -172,8 +170,7 @@ export default function ModalRegistrarPago({
         <div className="px-5 py-5 space-y-5">
 
           {/* ── Info: pago y multas ── */}
-          {!soloNoPago && (
-            <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
               <div className="bg-[#f8f9fa] rounded-lg p-3 text-center">
                 <p className="text-[11px] text-[#6c757d] mb-0.5">
                   {numeroPagoHoy ? `Pago #${numeroPagoHoy}` : 'Pago diario'}
@@ -190,45 +187,35 @@ export default function ModalRegistrarPago({
                     : '$0'}
                 </p>
               </div>
-            </div>
-          )}
+          </div>
 
           {/* ── Toggle Pagó / No pagó ── */}
-          {soloNoPago ? (
-            <div className="alert alert-warn flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>
-                El cliente tiene adeudos pendientes. Esta acción solo registrará que no pagó la cuota del día.
-              </span>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setNoPago(false)}
-                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
-                  !noPago
-                    ? 'bg-[#d1fae5] border-[#059669] text-[#065f46]'
-                    : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
-                }`}
-              >
-                <CheckCircle className="w-5 h-5" />
-                Sí pagó
-              </button>
-              <button
-                type="button"
-                onClick={() => setNoPago(true)}
-                className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
-                  noPago
-                    ? 'bg-[#fee2e2] border-[#dc2626] text-[#991b1b]'
-                    : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
-                }`}
-              >
-                <AlertTriangle className="w-5 h-5" />
-                No pagó
-              </button>
-            </div>
-          )}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setNoPago(false)}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
+                !noPago
+                  ? 'bg-[#d1fae5] border-[#059669] text-[#065f46]'
+                  : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
+              }`}
+            >
+              <CheckCircle className="w-5 h-5" />
+              Sí pagó
+            </button>
+            <button
+              type="button"
+              onClick={() => setNoPago(true)}
+              className={`flex items-center justify-center gap-2 py-3 rounded-xl border-2 font-semibold text-[14px] transition-colors ${
+                noPago
+                  ? 'bg-[#fee2e2] border-[#dc2626] text-[#991b1b]'
+                  : 'border-[#dee2e6] text-[#adb5bd] hover:border-[#ced4da]'
+              }`}
+            >
+              <AlertTriangle className="w-5 h-5" />
+              No pagó
+            </button>
+          </div>
 
           {/* ── SI PAGÓ: monto ── */}
           {!esRegistroNoPago && (

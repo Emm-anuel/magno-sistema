@@ -233,7 +233,6 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
           nombreCliente={pagoModal.nombreCompleto}
           fecha={fecha}
           numeroPagoHoy={pagoModal.numeroPagoHoy}
-          soloNoPago={pagoModal.tieneAdeudoPendiente}
           onClose={() => setPagoModal(null)}
           onSuccess={() => setPagoModal(null)}
         />
@@ -334,13 +333,9 @@ function ClienteCard({
             <button
               type="button"
               onClick={onCobrar}
-              className={`${c.estadoHoy === 'SIN_REGISTRO' && c.tieneAdeudoPendiente
-                ? 'btn-no-payment'
-                : 'btn-primary'} py-3 px-4 text-[13px] min-w-[80px]`}
+              className="btn-primary py-3 px-4 text-[13px] min-w-[80px]"
             >
-              {c.estadoHoy === 'SIN_REGISTRO'
-                ? c.tieneAdeudoPendiente ? 'Registrar no pago' : 'Cobrar'
-                : 'Modificar'}
+              {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
             </button>
           )}
           {puedePagarAdeudo && (
@@ -428,13 +423,9 @@ function ClienteRow({
             <button
               type="button"
               onClick={onCobrar}
-              className={c.estadoHoy === 'SIN_REGISTRO' && c.tieneAdeudoPendiente
-                ? 'btn-no-payment btn-sm'
-                : 'btn btn-sm'}
+              className="btn btn-sm"
             >
-              {c.estadoHoy === 'SIN_REGISTRO'
-                ? c.tieneAdeudoPendiente ? 'Registrar no pago' : 'Cobrar'
-                : 'Modificar'}
+              {c.estadoHoy === 'SIN_REGISTRO' ? 'Cobrar' : 'Modificar'}
             </button>
           )}
           {puedePagarAdeudo && (
