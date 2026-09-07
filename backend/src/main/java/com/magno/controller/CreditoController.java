@@ -269,6 +269,7 @@ public class CreditoController {
     public ResponseEntity<ProductoCalculoDTO> calcular(
             @RequestParam BigDecimal capital,
             @RequestParam(required = false) TipoPago tipoPago,
+            @RequestParam(required = false) Integer plazo,
             Authentication auth) {
         if (capital.compareTo(BigDecimal.ZERO) <= 0) {
             return ResponseEntity.badRequest().build();
@@ -276,12 +277,30 @@ public class CreditoController {
         TipoPago modo = tipoPago == null ? TipoPago.DIARIO : tipoPago;
         Long sucursalId = principal(auth).sucursalId();
         CreditoCalculoService.ResumenCalculo calculo = modo == TipoPago.SEMANAL
-                ? calculoService.calcularCreditoSemanal(capital, sucursalId)
-                : calculoService.calcularCredito(capital, sucursalId);
+                ? calculoService.calcularCreditoSemanal(capital, sucursalId, plazo)
+                : calculoService.calcularCredito(capital, sucursalId, plazo);
         CreditoCalculoService.ProductoCredito producto = modo == TipoPago.SEMANAL
-                ? calculoService.determinarProductoSemanal(capital, sucursalId)
-                : calculoService.determinarProducto(capital, sucursalId);
+                ? calculoService.determinarProductoSemanal(capital, sucursalId, plazo)
+                : calculoService.determinarProducto(capital, sucursalId, plazo);
         return ResponseEntity.ok(ProductoCalculoDTO.from(calculo, producto.descripcion(), modo));
+    }
+
+    @GetMapping("/opciones-calculo")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProductoCalculoDTO>> opcionesCalculo(
+            @RequestParam BigDecimal capital,
+            @RequestParam(required = false) TipoPago tipoPago,
+            Authentication auth) {
+        if (capital.compareTo(BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.badRequest().build();
+        }
+        TipoPago modo = tipoPago == null ? TipoPago.DIARIO : tipoPago;
+        Long sucursalId = principal(auth).sucursalId();
+        List<ProductoCalculoDTO> opciones = calculoService.calcularOpciones(capital, sucursalId, modo).stream()
+                .map(opcion -> ProductoCalculoDTO.from(
+                        opcion.calculo(), opcion.producto().descripcion(), modo))
+                .toList();
+        return ResponseEntity.ok(opciones);
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -314,6 +333,7 @@ public class CreditoController {
                     p.sucursalId(), // sucursalId forzado
                     req.montoSolicitado(),
                     req.tipoPago(),
+                    req.plazo(),
                     req.garantiaDescripcion(),
                     req.evidenciaUrls(),
                     req.lugar());
@@ -323,6 +343,7 @@ public class CreditoController {
                     p.sucursalId(), // sucursalId forzado
                     req.montoSolicitado(),
                     req.tipoPago(),
+                    req.plazo(),
                     req.garantiaDescripcion(),
                     req.evidenciaUrls(),
                     req.lugar());

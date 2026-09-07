@@ -15,6 +15,8 @@ public record RenovacionCreateRequest(
 
                 @NotBlank(message = "tipoPago es requerido") String tipoPago, // DIARIO | SEMANAL
 
+                Integer plazo,
+
                 String garantiaDescripcion,
                 List<String> evidenciaUrls,
                 String videoEntregaUrl) {

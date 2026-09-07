@@ -247,6 +247,9 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
   const [montoAprobado, setMontoAprobado] = useState('')
   const [observaciones, setObservaciones] = useState('')
   const [calculo, setCalculo] = useState<ProductoCalculo | null>(null)
+  const [opcionesCalculo, setOpcionesCalculo] = useState<ProductoCalculo[]>([])
+  const [plazoSeleccionado, setPlazoSeleccionado] = useState<number | ''>('')
+  const [calculoError, setCalculoError] = useState('')
   const [calculoLoading, setCalculoLoading] = useState(false)
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
@@ -296,6 +299,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
     mutationFn: () =>
       creditoService.aprobarCredito(selectedId!, {
         montoAprobado: parseFloat(montoAprobado),
+        plazo: calculo?.plazo,
         observaciones: observaciones.trim() || undefined,
       }),
     onSuccess: () => {
@@ -316,22 +320,39 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
     setMontoAprobado('')
     setObservaciones('')
     setCalculo(null)
+    setOpcionesCalculo([])
+    setPlazoSeleccionado('')
+    setCalculoError('')
   }
 
   const triggerCalculo = useCallback(
-    (monto: string, tipoPago: 'DIARIO' | 'SEMANAL') => {
+    (monto: string, tipoPago: 'DIARIO' | 'SEMANAL', plazoPreferido?: number) => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
+      setCalculo(null)
+      setOpcionesCalculo([])
+      setPlazoSeleccionado('')
+      setCalculoError('')
       const n = parseFloat(monto)
       if (!Number.isFinite(n) || n <= 0) {
-        setCalculo(null)
         return
       }
       debounceRef.current = setTimeout(async () => {
         setCalculoLoading(true)
         try {
-          const result = await creditoService.calcularProducto(n, tipoPago)
-          setCalculo(result)
-        } catch {
+          const opciones = await creditoService.calcularOpciones(n, tipoPago)
+          setOpcionesCalculo(opciones)
+          const elegida = opciones.find((opcion) => opcion.plazo === plazoPreferido)
+            ?? (opciones.length === 1 ? opciones[0] : undefined)
+          setPlazoSeleccionado(elegida?.plazo ?? '')
+          setCalculo(elegida ?? null)
+          if (opciones.length === 0) {
+            setCalculoError('No hay un plazo configurado para este monto y forma de pago')
+          }
+        } catch (err: unknown) {
+          const message = err && typeof err === 'object' && 'message' in err
+            ? String((err as { message: unknown }).message)
+            : 'No se pudo calcular el crédito'
+          setCalculoError(message)
           setCalculo(null)
         } finally {
           setCalculoLoading(false)
@@ -355,7 +376,7 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
       const monto = String(safeN(detalle.montoSolicitado ?? detalle.montoCapital))
       setMontoAprobado(monto)
       setObservaciones(detalle.observaciones ?? '')
-      triggerCalculo(monto, detalle.tipoPago)
+      triggerCalculo(monto, detalle.tipoPago, detalle.plazoDias)
     }
   }, [detalle, triggerCalculo])
 
@@ -513,6 +534,34 @@ export default function TabEvaluacion({ initialCreditoId }: Props) {
                       placeholder="Ej: 5000"
                     />
                   </div>
+
+                  {opcionesCalculo.length > 1 && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Plazo para cubrir el crédito <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={plazoSeleccionado}
+                        onChange={(e) => {
+                          const plazo = e.target.value ? Number(e.target.value) : ''
+                          setPlazoSeleccionado(plazo)
+                          setCalculo(opcionesCalculo.find((opcion) => opcion.plazo === plazo) ?? null)
+                        }}
+                        className="input w-full"
+                      >
+                        <option value="">Seleccionar plazo...</option>
+                        {opcionesCalculo.map((opcion) => (
+                          <option key={`${opcion.plazo}-${opcion.tasa}`} value={opcion.plazo}>
+                            {opcion.plazo} {detalle.tipoPago === 'SEMANAL' ? 'semanas' : 'días'} · {(opcion.tasa * 100).toFixed(0)}% · pago {fmt(opcion.pagoPeriodico)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {calculoError && (
+                    <p className="text-xs text-red-500">{calculoError}</p>
+                  )}
 
                   {/* Calculo card */}
                   <ProductoCalculoCard calculo={calculo} loading={calculoLoading} />

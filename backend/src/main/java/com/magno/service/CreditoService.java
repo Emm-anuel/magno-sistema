@@ -193,8 +193,8 @@ public class CreditoService {
 
                 // 6. Calcular según tipo de pago
                 ResumenCalculo calculo = tipoPago == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursalId)
-                                : calculoService.calcularCredito(req.montoSolicitado(), sucursalId);
+                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursalId, req.plazo())
+                                : calculoService.calcularCredito(req.montoSolicitado(), sucursalId, req.plazo());
 
                 // 7. Evidencia URLs (ya subidas a S3 antes de llamar este endpoint)
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
@@ -252,10 +252,10 @@ public class CreditoService {
                                                 "Asesor no encontrado: " + req.asesorId()));
                 Sucursal sucursal = asesor.getSucursal();
 
-                // Calcular según tipo de pago (considerar tipoPago actual del crédito)
-                ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursal.getId())
-                                : calculoService.calcularCredito(req.montoSolicitado(), sucursal.getId());
+                TipoPago tipoPago = parseTipoPago(req.tipoPago());
+                ResumenCalculo calculo = tipoPago == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(req.montoSolicitado(), sucursal.getId(), req.plazo())
+                                : calculoService.calcularCredito(req.montoSolicitado(), sucursal.getId(), req.plazo());
 
                 String[] evidenciaUrls = req.evidenciaUrls() != null && !req.evidenciaUrls().isEmpty()
                                 ? req.evidenciaUrls().toArray(String[]::new)
@@ -271,7 +271,7 @@ public class CreditoService {
                 c.setPagoPeriodico(calculo.pagoPeriodico());
                 c.setPlazoDias(calculo.plazo());
                 c.setPagoAdelantado(calculo.pagoAdelantado());
-                c.setTipoPago(parseTipoPago(req.tipoPago()));
+                c.setTipoPago(tipoPago);
                 c.setGarantiaDescripcion(req.garantiaDescripcion());
                 c.setEvidenciaUrls(evidenciaUrls);
                 c.setLugar(req.lugar());
@@ -303,8 +303,8 @@ public class CreditoService {
                 // Recalcular con el monto aprobado (puede diferir del solicitado)
                 // Considerar tipo de pago del crédito
                 ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoAprobado(), c.getSucursal().getId())
-                                : calculoService.calcularCredito(req.montoAprobado(), c.getSucursal().getId());
+                                ? calculoService.calcularCreditoSemanal(req.montoAprobado(), c.getSucursal().getId(), req.plazo())
+                                : calculoService.calcularCredito(req.montoAprobado(), c.getSucursal().getId(), req.plazo());
 
                 Usuario aprobadoPorUsuario = usuarioRepo.findById(usuarioId)
                                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado: " + usuarioId));
@@ -363,8 +363,8 @@ public class CreditoService {
                 BigDecimal montoBase = c.getMontoAprobado() != null ? c.getMontoAprobado() : c.getMontoCapital();
 
                 ResumenCalculo calculo = c.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoBase, c.getSucursal().getId())
-                                : calculoService.calcularCredito(montoBase, c.getSucursal().getId());
+                                ? calculoService.calcularCreditoSemanal(montoBase, c.getSucursal().getId(), c.getPlazoDias())
+                                : calculoService.calcularCredito(montoBase, c.getSucursal().getId(), c.getPlazoDias());
 
                 LocalDate hoy = DateTimeUtils.hoyEnMagno();
 

@@ -714,6 +714,7 @@ export interface RenovacionDetalle {
   fechaAprobacion: string | null
   motivoRechazo: string | null
   montoNuevo: number
+  plazoNuevo: number | null
   montoAprobado: number | null
   confirmadoPor: { id: number; nombreCompleto: string } | null
   fechaConfirmacion: string | null

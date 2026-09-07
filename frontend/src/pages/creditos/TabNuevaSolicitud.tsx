@@ -94,6 +94,9 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
 
   // Calc state
   const [calculo, setCalculo] = useState<ProductoCalculo | null>(null)
+  const [opcionesCalculo, setOpcionesCalculo] = useState<ProductoCalculo[]>([])
+  const [plazoSeleccionado, setPlazoSeleccionado] = useState<number | ''>('')
+  const [calculoError, setCalculoError] = useState('')
   const [calculoLoading, setCalculoLoading] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
   const calcDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -139,9 +142,18 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
       setMontoStr(String(montoInicial))
       setCalculoLoading(true)
       creditoService
-        .calcularProducto(montoInicial, tipoPagoInicial)
-        .then((result) => setCalculo(result))
-        .catch(() => setCalculo(null))
+        .calcularOpciones(montoInicial, tipoPagoInicial)
+        .then((opciones) => {
+          setOpcionesCalculo(opciones)
+          const elegida = opciones.find((opcion) => opcion.plazo === creditoInicial.plazoDias)
+            ?? (opciones.length === 1 ? opciones[0] : undefined)
+          setPlazoSeleccionado(elegida?.plazo ?? '')
+          setCalculo(elegida ?? null)
+        })
+        .catch(() => {
+          setOpcionesCalculo([])
+          setCalculo(null)
+        })
         .finally(() => setCalculoLoading(false))
     }
 
@@ -215,6 +227,9 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
     const clean = val.replace(/[^0-9.]/g, '')
     setMontoStr(clean)
     setCalculo(null)
+    setOpcionesCalculo([])
+    setPlazoSeleccionado('')
+    setCalculoError('')
 
     if (calcDebounceRef.current) clearTimeout(calcDebounceRef.current)
 
@@ -227,9 +242,19 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
     setCalculoLoading(true)
     calcDebounceRef.current = setTimeout(async () => {
       try {
-        const result = await creditoService.calcularProducto(num, tipoPago)
-        setCalculo(result)
-      } catch {
+        const opciones = await creditoService.calcularOpciones(num, tipoPago)
+        setOpcionesCalculo(opciones)
+        if (opciones.length === 1) {
+          setPlazoSeleccionado(opciones[0].plazo)
+          setCalculo(opciones[0])
+        } else if (opciones.length === 0) {
+          setCalculoError('No hay un plazo configurado para este monto y forma de pago')
+        }
+      } catch (err: unknown) {
+        const message = err && typeof err === 'object' && 'message' in err
+          ? String((err as { message: unknown }).message)
+          : 'No se pudo calcular el crédito'
+        setCalculoError(message)
         setCalculo(null)
       } finally {
         setCalculoLoading(false)
@@ -243,7 +268,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
   
   // Determinar rangos válidos según el tipo de pago
   const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
-  const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
+  const rangoMax = 50000
   const montoValido = !isNaN(monto) && monto >= rangoMin && monto <= rangoMax
   const tieneCredito = isEditMode ? false : (
     tipoPago === 'DIARIO'
@@ -274,6 +299,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
           asesorId: Number(asesorId),
           montoSolicitado: monto,
           tipoPago,
+          plazo: calculo?.plazo,
           garantiaDescripcion: garantiaDescripcion.trim() || undefined,
           evidenciaUrls,
           lugar: creditoInicial?.lugar ?? undefined,
@@ -286,6 +312,7 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
         sucursalId: usuario!.sucursal.id,
         montoSolicitado: monto,
         tipoPago,
+        plazo: calculo?.plazo,
         garantiaDescripcion: garantiaDescripcion.trim() || undefined,
         evidenciaUrls,
       })
@@ -448,19 +475,19 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
                       setTipoPago(v)
                       setMontoStr('')
                       setCalculo(null)
+                      setOpcionesCalculo([])
+                      setPlazoSeleccionado('')
+                      setCalculoError('')
                     }}
                     className="w-4 h-4 accent-[#3d6b35]"
                   />
-                  <span className="text-sm">{v === 'DIARIO' ? 'Diario (25-30 días)' : 'Semanal (8-12 semanas)'}</span>
+                  <span className="text-sm">{v === 'DIARIO' ? 'Diario' : 'Semanal'}</span>
                 </label>
               ))}
             </div>
-            {tipoPago === 'DIARIO' && (
-              <p className="text-xs text-gray-600 mt-2">📌 Rango: $1,000–$50,000 a 24%–30% de interés</p>
-            )}
-            {tipoPago === 'SEMANAL' && (
-              <p className="text-xs text-gray-600 mt-2">📌 Rango: $2,000–$30,000 a 40% de interés</p>
-            )}
+            <p className="text-xs text-gray-600 mt-2">
+              📌 El plazo y la tasa se tomarán de la configuración de la sucursal.
+            </p>
           </div>
 
           {/* Monto */}
@@ -488,10 +515,34 @@ export default function TabNuevaSolicitud({ onSuccess: _onSuccess, initialCredit
                 Para {tipoPago === 'DIARIO' ? 'créditos diarios' : 'créditos semanales'}, el monto debe estar entre ${rangoMin.toLocaleString()} y ${rangoMax.toLocaleString()}
               </p>
             )}
-            {montoStr && montoValido && tipoPago === 'SEMANAL' && (
-              <p className="text-xs text-gray-600 mt-1">
-                💡 Este crédito semanal se pagará en {monto < 10000 ? '8 semanas' : '12 semanas'} a 40% de interés
-              </p>
+            {opcionesCalculo.length > 1 && (
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Plazo para cubrir el crédito <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={plazoSeleccionado}
+                  onChange={(e) => {
+                    const plazo = e.target.value ? Number(e.target.value) : ''
+                    setPlazoSeleccionado(plazo)
+                    setCalculo(opcionesCalculo.find((opcion) => opcion.plazo === plazo) ?? null)
+                  }}
+                  className="input w-full"
+                >
+                  <option value="">Seleccionar plazo...</option>
+                  {opcionesCalculo.map((opcion) => (
+                    <option key={`${opcion.plazo}-${opcion.tasa}`} value={opcion.plazo}>
+                      {opcion.plazo} {tipoPago === 'SEMANAL' ? 'semanas' : 'días'} · {(opcion.tasa * 100).toFixed(0)}% · pago {opcion.pagoPeriodico.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Este monto coincide con más de un período configurado.
+                </p>
+              </div>
+            )}
+            {calculoError && montoValido && (
+              <p className="text-xs text-red-500 mt-1">{calculoError}</p>
             )}
             <div className="mt-3">
               <ProductoCalculoCard calculo={calculo} loading={calculoLoading} />

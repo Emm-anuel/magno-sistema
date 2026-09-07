@@ -46,6 +46,7 @@ function normalizeDetalle(raw: any): RenovacionDetalle {
     fechaAprobacion: raw.fechaAprobacion ?? raw.fecha_aprobacion ?? null,
     motivoRechazo: raw.motivoRechazo ?? raw.motivo_rechazo ?? null,
     montoNuevo: raw.montoNuevo ?? raw.monto_nuevo,
+    plazoNuevo: raw.plazoNuevo ?? raw.plazo_nuevo ?? null,
     montoAprobado: raw.montoAprobado ?? raw.monto_aprobado ?? null,
     confirmadoPor: raw.confirmadoPor ?? raw.confirmado_por ?? null,
     fechaConfirmacion: raw.fechaConfirmacion ?? raw.fecha_confirmacion ?? null,
@@ -116,14 +117,15 @@ function normalizeListoItem(raw: any): ListoRenovarItem {
 }
 
 export const renovacionService = {
-  calcular: (creditoId: number, montoNuevo: number, tipoPago?: 'DIARIO' | 'SEMANAL'): Promise<RenovacionCalculo> =>
-    api.get('/renovaciones/calcular', { params: { creditoId, montoNuevo, tipoPago } })
+  calcular: (creditoId: number, montoNuevo: number, tipoPago?: 'DIARIO' | 'SEMANAL', plazo?: number): Promise<RenovacionCalculo> =>
+    api.get('/renovaciones/calcular', { params: { creditoId, montoNuevo, tipoPago, plazo } })
       .then((r) => normalizeCalculo(r.data)),
 
   crear: (data: {
     creditoAnteriorId: number
     montoNuevo: number
     tipoPago: string
+    plazo?: number
     garantiaDescripcion?: string
     evidenciaUrls?: string[]
     videoEntregaUrl?: string
@@ -132,6 +134,7 @@ export const renovacionService = {
       creditoAnteriorId: data.creditoAnteriorId,
       montoNuevo: data.montoNuevo,
       tipoPago: data.tipoPago,
+      plazo: data.plazo,
       garantiaDescripcion: data.garantiaDescripcion,
       evidenciaUrls: data.evidenciaUrls,
       videoEntregaUrl: data.videoEntregaUrl,
@@ -139,6 +142,7 @@ export const renovacionService = {
 
   aprobar: (id: number, payload: {
     montoAprobado?: number | null,
+    plazo?: number | null,
     multasCondonadasIds?: number[],
     motivoCondonacion?: string,
   }): Promise<RenovacionDetalle> =>

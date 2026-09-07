@@ -82,6 +82,11 @@ public class RenovacionService {
         // ────────────────────────────────────────────────────────────────────
 
         public RenovacionCalculoDTO calcularPreview(Long creditoId, BigDecimal montoNuevo, TipoPago tipoPagoNuevo) {
+                return calcularPreview(creditoId, montoNuevo, tipoPagoNuevo, null);
+        }
+
+        public RenovacionCalculoDTO calcularPreview(Long creditoId, BigDecimal montoNuevo, TipoPago tipoPagoNuevo,
+                        Integer plazoSeleccionado) {
                 Credito credito = findCredito(creditoId);
 
                 if (credito.getEstado() != EstadoCredito.ACTIVO) {
@@ -112,9 +117,8 @@ public class RenovacionService {
 
                 TipoPago tipoPagoCalculo = tipoPagoNuevo == null ? credito.getTipoPago() : tipoPagoNuevo;
                 Long sucursalId = credito.getSucursal().getId();
-                ResumenCalculo calculoNuevo = tipoPagoCalculo == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoNuevo, sucursalId)
-                                : calculoService.calcularCredito(montoNuevo, sucursalId);
+                ResumenCalculo calculoNuevo = calcularCreditoNuevo(
+                                tipoPagoCalculo, montoNuevo, sucursalId, plazoSeleccionado);
                 BigDecimal pagoAdelantado = calculoNuevo.pagoAdelantado();
 
                 BigDecimal desembolso = montoNuevo
@@ -195,9 +199,8 @@ public class RenovacionService {
 
                 // Calcular crédito nuevo según su tipo
                 Long sucursalIdCred = creditoAnterior.getSucursal().getId();
-                ResumenCalculo calculoNuevo = tipoPago == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(req.montoNuevo(), sucursalIdCred)
-                                : calculoService.calcularCredito(req.montoNuevo(), sucursalIdCred);
+                ResumenCalculo calculoNuevo = calcularCreditoNuevo(
+                                tipoPago, req.montoNuevo(), sucursalIdCred, req.plazo());
 
                 BigDecimal montoDesembolso = req.montoNuevo()
                                 .subtract(montoPagosRestantes)
@@ -219,6 +222,7 @@ public class RenovacionService {
                                 .asesor(asesor)
                                 .estado(EstadoRenovacion.SOLICITADO)
                                 .montoNuevo(req.montoNuevo())
+                                .plazoNuevo(calculoNuevo.plazo())
                                 .tipoPago(tipoPago)
                                 .fecha(hoy)
                                 .pagosRestantes(numPagosRestantes)
@@ -249,6 +253,14 @@ public class RenovacionService {
         @Transactional
         public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, BigDecimal montoAprobadoParam,
                         List<Long> multasCondonadasIds, String motivoCondonacion, Long aprobadorId) {
+                return aprobarRenovacion(renovacionId, montoAprobadoParam, null,
+                                multasCondonadasIds, motivoCondonacion, aprobadorId);
+        }
+
+        @Transactional
+        public RenovacionDetalleDTO aprobarRenovacion(Long renovacionId, BigDecimal montoAprobadoParam,
+                        Integer plazoSeleccionado, List<Long> multasCondonadasIds,
+                        String motivoCondonacion, Long aprobadorId) {
                 Renovacion renovacion = findRenovacion(renovacionId);
 
                 if (renovacion.getEstado() != EstadoRenovacion.SOLICITADO) {
@@ -313,9 +325,11 @@ public class RenovacionService {
 
                 // Recalcular desembolso con el monto aprobado real y descontando sólo las multas no condonadas
                 Long sucursalId = renovacion.getCreditoAnterior().getSucursal().getId();
-                ResumenCalculo calculoAprobado = renovacion.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoAprobado, sucursalId)
-                                : calculoService.calcularCredito(montoAprobado, sucursalId);
+                Integer plazoAprobado = plazoSeleccionado != null
+                                ? plazoSeleccionado
+                                : renovacion.getPlazoNuevo();
+                ResumenCalculo calculoAprobado = calcularCreditoNuevo(
+                                renovacion.getTipoPago(), montoAprobado, sucursalId, plazoAprobado);
                 BigDecimal multasADescontar = renovacion.getMultasPendientes().subtract(totalCondonado);
                 BigDecimal desembolsoAprobado = montoAprobado
                                 .subtract(renovacion.getMontoPagosRestantes())
@@ -324,6 +338,7 @@ public class RenovacionService {
 
                 renovacion.setEstado(EstadoRenovacion.APROBADO);
                 renovacion.setMontoAprobado(montoAprobado);
+                renovacion.setPlazoNuevo(calculoAprobado.plazo());
                 renovacion.setAprobadoPor(aprobador);
                 renovacion.setFechaAprobacion(DateTimeUtils.ahoraEnMagno());
                 renovacion.setMultasCondonadas(totalCondonado);
@@ -376,10 +391,9 @@ public class RenovacionService {
                                 .findByCreditoIdAndEstadoIn(creditoAnterior.getId(), ESTADOS_PENDIENTES);
                 BigDecimal saldoCuotasActual = calcularSaldoCuotas(pagosPendientes);
                 BigDecimal multasPendientesAmt = multaRepo.sumMontosPendientesByCreditoId(creditoAnterior.getId());
-                ResumenCalculo calculoNuevo = renovacion.getTipoPago() == TipoPago.SEMANAL
-                                ? calculoService.calcularCreditoSemanal(montoAprobado,
-                                                creditoAnterior.getSucursal().getId())
-                                : calculoService.calcularCredito(montoAprobado, creditoAnterior.getSucursal().getId());
+                ResumenCalculo calculoNuevo = calcularCreditoNuevo(
+                                renovacion.getTipoPago(), montoAprobado,
+                                creditoAnterior.getSucursal().getId(), renovacion.getPlazoNuevo());
                 BigDecimal montoDesembolso = montoAprobado
                                 .subtract(saldoCuotasActual)
                                 .subtract(multasPendientesAmt)
@@ -705,6 +719,18 @@ public class RenovacionService {
         // ────────────────────────────────────────────────────────────────────
         // Helpers
         // ────────────────────────────────────────────────────────────────────
+
+        private ResumenCalculo calcularCreditoNuevo(TipoPago tipoPago, BigDecimal monto, Long sucursalId,
+                        Integer plazoSeleccionado) {
+                if (plazoSeleccionado == null) {
+                        return tipoPago == TipoPago.SEMANAL
+                                        ? calculoService.calcularCreditoSemanal(monto, sucursalId)
+                                        : calculoService.calcularCredito(monto, sucursalId);
+                }
+                return tipoPago == TipoPago.SEMANAL
+                                ? calculoService.calcularCreditoSemanal(monto, sucursalId, plazoSeleccionado)
+                                : calculoService.calcularCredito(monto, sucursalId, plazoSeleccionado);
+        }
 
         private int contarPagosConAbonoParcial(Long creditoId) {
                 return (int) calendarioPagoRepo.countByCreditoIdAndEstadoIn(

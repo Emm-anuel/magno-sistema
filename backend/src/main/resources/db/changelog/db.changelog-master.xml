@@ -319,4 +319,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V40-renovaciones-plazo-elegido" author="magno">
+        <sqlFile
+            path="db/changelog/V40__renovaciones_plazo_elegido.sql"
+            relativeToChangelogFile="false"
+            splitStatements="true"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

@@ -4,6 +4,7 @@ import com.magno.model.CalendarioPago;
 import com.magno.model.ConfigRangoCredito;
 import com.magno.model.Credito;
 import com.magno.model.EstadoCalendarioPago;
+import com.magno.model.TipoPago;
 import com.magno.repository.CalendarioPagoRepository;
 import com.magno.repository.ConfigRangoCreditoRepository;
 import com.magno.repository.DiaFestivoRepository;
@@ -17,7 +18,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -56,6 +56,10 @@ public class CreditoCalculoService {
     public record ProductoCredito(int plazo, BigDecimal tasa, String descripcion) {
     }
 
+    /** Producto aplicable junto con su cálculo financiero para un monto concreto. */
+    public record OpcionCalculo(ProductoCredito producto, ResumenCalculo calculo) {
+    }
+
     /**
      * Resumen completo del cálculo de un crédito.
      * pagoPeriodicoExacto: sin redondear (para distribuir correctamente el último
@@ -82,24 +86,12 @@ public class CreditoCalculoService {
      * la sucursal; si no, usa los valores predeterminados del sistema.
      */
     public ProductoCredito determinarProducto(BigDecimal capital, Long sucursalId) {
-        if (sucursalId != null) {
-            Optional<ConfigRangoCredito> rango = configRangoRepo
-                    .findBySucursalAndTipoPagoAndCapital(sucursalId, "DIARIO", capital);
-            if (rango.isPresent()) {
-                ConfigRangoCredito r = rango.get();
-                String pct = r.getTasaInteres().multiply(BigDecimal.valueOf(100))
-                        .stripTrailingZeros().toPlainString();
-                return new ProductoCredito(r.getPlazo(), r.getTasaInteres(),
-                        r.getPlazo() + " días · " + pct + "% interés");
-            }
-        }
-        if (capital.compareTo(new BigDecimal("15000")) < 0) {
-            return new ProductoCredito(25, new BigDecimal("0.30"), "25 días · 30% interés");
-        } else if (capital.compareTo(new BigDecimal("20000")) < 0) {
-            return new ProductoCredito(25, new BigDecimal("0.24"), "25 días · 24% interés");
-        } else {
-            return new ProductoCredito(30, new BigDecimal("0.24"), "30 días · 24% interés");
-        }
+        return determinarProducto(capital, sucursalId, null);
+    }
+
+    public ProductoCredito determinarProducto(BigDecimal capital, Long sucursalId, Integer plazoSeleccionado) {
+        return seleccionarProducto(listarProductos(capital, sucursalId, TipoPago.DIARIO), plazoSeleccionado,
+                TipoPago.DIARIO, capital);
     }
 
     /**
@@ -115,7 +107,15 @@ public class CreditoCalculoService {
      * pago=round(24800/30)=827)
      */
     public ResumenCalculo calcularCredito(BigDecimal capital, Long sucursalId) {
-        ProductoCredito producto = determinarProducto(capital, sucursalId);
+        return calcularCredito(capital, sucursalId, null);
+    }
+
+    public ResumenCalculo calcularCredito(BigDecimal capital, Long sucursalId, Integer plazoSeleccionado) {
+        ProductoCredito producto = determinarProducto(capital, sucursalId, plazoSeleccionado);
+        return calcularConProducto(capital, producto, false);
+    }
+
+    private ResumenCalculo calcularConProducto(BigDecimal capital, ProductoCredito producto, boolean semanal) {
 
         BigDecimal cargo = capital.multiply(producto.tasa()).setScale(2, RoundingMode.HALF_UP);
         BigDecimal total = capital.add(cargo).setScale(2, RoundingMode.HALF_UP);
@@ -123,9 +123,10 @@ public class CreditoCalculoService {
         BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
         BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
         BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
-        // Último pago absorbe residuo del redondeo y es el cobrado por adelantado
-        BigDecimal ultimoPago = total.subtract(pago.multiply(BigDecimal.valueOf(producto.plazo() - 1L)))
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal pagoAdelantado = semanal
+                ? BigDecimal.ZERO
+                : total.subtract(pago.multiply(BigDecimal.valueOf(producto.plazo() - 1L)))
+                        .setScale(2, RoundingMode.HALF_UP);
 
         return new ResumenCalculo(
                 capital,
@@ -135,7 +136,7 @@ public class CreditoCalculoService {
                 total,
                 pagoExacto,
                 pago,
-                ultimoPago
+                pagoAdelantado
         );
     }
 
@@ -220,22 +221,13 @@ public class CreditoCalculoService {
      * para la sucursal; si no, usa los valores predeterminados del sistema.
      */
     public ProductoCredito determinarProductoSemanal(BigDecimal capital, Long sucursalId) {
-        if (sucursalId != null) {
-            Optional<ConfigRangoCredito> rango = configRangoRepo
-                    .findBySucursalAndTipoPagoAndCapital(sucursalId, "SEMANAL", capital);
-            if (rango.isPresent()) {
-                ConfigRangoCredito r = rango.get();
-                String pct = r.getTasaInteres().multiply(BigDecimal.valueOf(100))
-                        .stripTrailingZeros().toPlainString();
-                return new ProductoCredito(r.getPlazo(), r.getTasaInteres(),
-                        r.getPlazo() + " semanas · " + pct + "% interés");
-            }
-        }
-        if (capital.compareTo(new BigDecimal("10000")) < 0) {
-            return new ProductoCredito(8, new BigDecimal("0.40"), "8 semanas · 40% interés");
-        } else {
-            return new ProductoCredito(12, new BigDecimal("0.40"), "12 semanas · 40% interés");
-        }
+        return determinarProductoSemanal(capital, sucursalId, null);
+    }
+
+    public ProductoCredito determinarProductoSemanal(BigDecimal capital, Long sucursalId,
+            Integer plazoSeleccionado) {
+        return seleccionarProducto(listarProductos(capital, sucursalId, TipoPago.SEMANAL), plazoSeleccionado,
+                TipoPago.SEMANAL, capital);
     }
 
     /**
@@ -249,26 +241,95 @@ public class CreditoCalculoService {
      * capital=$15,000 → cargo=$6,000, total=$21,000, pago semanal=$1,750 ✓
      */
     public ResumenCalculo calcularCreditoSemanal(BigDecimal capital, Long sucursalId) {
-        ProductoCredito producto = determinarProductoSemanal(capital, sucursalId);
+        return calcularCreditoSemanal(capital, sucursalId, null);
+    }
 
-        BigDecimal cargo = capital.multiply(producto.tasa()).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal total = capital.add(cargo).setScale(2, RoundingMode.HALF_UP);
+    public ResumenCalculo calcularCreditoSemanal(BigDecimal capital, Long sucursalId, Integer plazoSeleccionado) {
+        ProductoCredito producto = determinarProductoSemanal(capital, sucursalId, plazoSeleccionado);
+        return calcularConProducto(capital, producto, true);
+    }
 
-        BigDecimal plazoDecimal = BigDecimal.valueOf(producto.plazo());
-        BigDecimal pagoExacto = total.divide(plazoDecimal, 10, RoundingMode.HALF_UP);
-        BigDecimal pago = total.divide(plazoDecimal, 0, RoundingMode.HALF_UP);
+    /**
+     * Devuelve todas las alternativas configuradas que incluyen el monto. Esto
+     * permite que un límite compartido (por ejemplo $50,000) ofrezca ambos plazos
+     * en vez de provocar un resultado no único en JPA.
+     */
+    public List<OpcionCalculo> calcularOpciones(BigDecimal capital, Long sucursalId, TipoPago tipoPago) {
+        boolean semanal = tipoPago == TipoPago.SEMANAL;
+        return listarProductos(capital, sucursalId, tipoPago).stream()
+                .map(producto -> new OpcionCalculo(producto, calcularConProducto(capital, producto, semanal)))
+                .toList();
+    }
 
-        // Créditos semanales: no hay pago adelantado, el crédito se entrega completo.
-        return new ResumenCalculo(
-                capital,
-                producto.plazo(),
-                producto.tasa(),
-                cargo,
-                total,
-                pagoExacto,
-                pago,
-                BigDecimal.ZERO
-        );
+    private List<ProductoCredito> listarProductos(BigDecimal capital, Long sucursalId, TipoPago tipoPago) {
+        if (capital == null || capital.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        if (sucursalId != null) {
+            List<ConfigRangoCredito> configurados = configRangoRepo
+                    .findBySucursalIdAndTipoPagoOrderByRangoMinAsc(sucursalId, tipoPago.name());
+            if (configurados != null && !configurados.isEmpty()) {
+                String unidad = tipoPago == TipoPago.SEMANAL ? " semanas · " : " días · ";
+                return configurados.stream()
+                        .filter(r -> capital.compareTo(r.getRangoMin()) >= 0
+                                && capital.compareTo(r.getRangoMax()) <= 0)
+                        .map(r -> {
+                            String pct = r.getTasaInteres().multiply(BigDecimal.valueOf(100))
+                                    .stripTrailingZeros().toPlainString();
+                            return new ProductoCredito(r.getPlazo(), r.getTasaInteres(),
+                                    r.getPlazo() + unidad + pct + "% interés");
+                        })
+                        .toList();
+            }
+        }
+
+        return listarProductosPredeterminados(capital, tipoPago);
+    }
+
+    private List<ProductoCredito> listarProductosPredeterminados(BigDecimal capital, TipoPago tipoPago) {
+        if (tipoPago == TipoPago.SEMANAL) {
+            if (capital.compareTo(new BigDecimal("2000")) < 0
+                    || capital.compareTo(new BigDecimal("30000")) > 0) {
+                return List.of();
+            }
+            return capital.compareTo(new BigDecimal("10000")) < 0
+                    ? List.of(new ProductoCredito(8, new BigDecimal("0.40"), "8 semanas · 40% interés"))
+                    : List.of(new ProductoCredito(12, new BigDecimal("0.40"), "12 semanas · 40% interés"));
+        }
+
+        if (capital.compareTo(new BigDecimal("1000")) < 0
+                || capital.compareTo(new BigDecimal("50000")) > 0) {
+            return List.of();
+        }
+        if (capital.compareTo(new BigDecimal("15000")) < 0) {
+            return List.of(new ProductoCredito(25, new BigDecimal("0.30"), "25 días · 30% interés"));
+        }
+        if (capital.compareTo(new BigDecimal("20000")) < 0) {
+            return List.of(new ProductoCredito(25, new BigDecimal("0.24"), "25 días · 24% interés"));
+        }
+        return List.of(new ProductoCredito(30, new BigDecimal("0.24"), "30 días · 24% interés"));
+    }
+
+    private ProductoCredito seleccionarProducto(List<ProductoCredito> opciones, Integer plazoSeleccionado,
+            TipoPago tipoPago, BigDecimal capital) {
+        String unidad = tipoPago == TipoPago.SEMANAL ? "semanas" : "días";
+        if (opciones.isEmpty()) {
+            throw new IllegalArgumentException("No existe un rango de crédito " + tipoPago.name().toLowerCase()
+                    + " configurado para el monto $" + capital.stripTrailingZeros().toPlainString());
+        }
+        if (plazoSeleccionado != null) {
+            return opciones.stream()
+                    .filter(opcion -> opcion.plazo() == plazoSeleccionado)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El plazo de " + plazoSeleccionado + " " + unidad + " no aplica para este monto"));
+        }
+        long plazosDistintos = opciones.stream().map(ProductoCredito::plazo).distinct().count();
+        if (plazosDistintos > 1) {
+            throw new IllegalArgumentException("Selecciona el plazo en " + unidad + " para este monto");
+        }
+        return opciones.get(0);
     }
 
     /**

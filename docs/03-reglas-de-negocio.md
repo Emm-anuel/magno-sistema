@@ -107,7 +107,7 @@
 - Contador independiente del Tipo 1.
 - Para créditos semanales la multa por incompletos usa `config_multas.multa_semanal_incompletos` (base seed: $300).
 
-- Las multas pendientes **se descuentan del desembolso en renovaciones**.
+- Las multas pendientes **no son un obstáculo para renovar** — no bloquean la elegibilidad ni la creación de la solicitud. Por defecto se descuentan del desembolso al confirmar la renovación, pero el gerente que aprueba puede **condonarlas** explícitamente según su juicio (ver "Condonación de multas" en la sección 6.4).
 - Configuración en módulo Administración → Config. Multas: Sucursal | Rango Mín | Rango Máx | Multa/Día | Multa por 2 Incompletos.
 
 ### 6.4 Renovaciones ✅ Implementado (Módulo 5 — flujo de dos pasos V13)
@@ -134,13 +134,23 @@
 - El gerente puede ajustar el monto aprobado inline al aprobar; el ajuste se guarda en `monto_aprobado`.
 - **Fórmula del desembolso (confirmada):**
   ```
-  Desembolso = monto_aprobado − Pagos Restantes − Multas Pendientes − Pago Adelantado nuevo
+  Desembolso = monto_aprobado − Pagos Restantes − Multas Pendientes (no condonadas) − Pago Adelantado nuevo
   ```
   Ejemplo: $8,000 − (8 × $416 = $3,328) − $0 − $416 = **$4,256**
+- **Pagos Restantes** (incluye el saldo exacto de cuotas con abono parcial) es un descuento **obligatorio, no negociable** — siempre se cubre en su totalidad con la renovación.
+- **Multas Pendientes** son discrecionales — no bloquean la renovación. Por defecto se descuentan del desembolso (se "pagan con el nuevo crédito"), pero pueden condonarse (ver abajo).
 - Pago adelantado → se aplica al último pago del nuevo crédito.
 - Campos calculados automáticamente: Pagos Restantes, Monto Pagos Restantes, Pago Crédito Nuevo, Monto a Entregar.
-- Al confirmar desembolso: crédito anterior → estado RENOVADO; pagos pendientes → PAGADO; multas → cobradas=true.
+- Al confirmar desembolso: crédito anterior → estado RENOVADO; pagos pendientes → PAGADO; multas no condonadas → cobradas=true (se consideran saldadas vía el descuento); multas condonadas quedan marcadas como tal y nunca se cobran.
 - Se crea nuevo crédito directamente en estado ACTIVO con calendario de pagos generado.
+
+#### Condonación de multas (a juicio del gerente)
+
+- Al **aprobar** la solicitud (SOLICITADO → APROBADO), el gerente puede seleccionar, multa por multa, cuáles condonar (perdonar).
+- Requiere un **motivo obligatorio** (texto libre) que queda registrado junto con quién condonó y cuándo.
+- El desembolso se recalcula al momento: solo las multas **no** seleccionadas para condonar se restan.
+- Una multa ya cobrada, o que pertenece a otro crédito, no puede condonarse (el sistema lo rechaza).
+- Transparencia: las 3 pantallas del flujo (Nueva Solicitud, Pendientes de Aprobación, Pendientes de Desembolso) muestran el total de multas pendientes y el desglose entre lo condonado y lo que efectivamente se descuenta.
 - Registro de `renovaciones` vincula credito_anterior_id ↔ credito_nuevo_id para trazabilidad.
 - Evidencias multimedia: `renovaciones.evidencia_urls TEXT[]` (fotos/videos del negocio, opcional).
 - Video de entrega: `renovaciones.video_entrega_url` (opcional, se sube al confirmar el desembolso).

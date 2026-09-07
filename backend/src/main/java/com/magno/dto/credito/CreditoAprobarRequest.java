@@ -11,5 +11,7 @@ public record CreditoAprobarRequest(
         @DecimalMin(value = "1000.00", message = "El monto mínimo es $1,000")
         BigDecimal montoAprobado,
 
+        Integer plazo,
+
         String observaciones
 ) {}

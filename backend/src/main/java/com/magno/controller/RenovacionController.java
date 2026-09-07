@@ -42,12 +42,13 @@ public class RenovacionController {
     public ResponseEntity<RenovacionCalculoDTO> calcular(
             @RequestParam Long creditoId,
             @RequestParam BigDecimal montoNuevo,
-            @RequestParam(required = false) TipoPago tipoPago) {
+            @RequestParam(required = false) TipoPago tipoPago,
+            @RequestParam(required = false) Integer plazo) {
 
         if (montoNuevo.compareTo(BigDecimal.valueOf(1000)) < 0) {
             return ResponseEntity.badRequest().build();
         }
-        return ResponseEntity.ok(renovacionService.calcularPreview(creditoId, montoNuevo, tipoPago));
+        return ResponseEntity.ok(renovacionService.calcularPreview(creditoId, montoNuevo, tipoPago, plazo));
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -82,10 +83,11 @@ public class RenovacionController {
 
         JwtPrincipal p = principal(auth);
         BigDecimal montoAprobado = req != null ? req.montoAprobado() : null;
+        Integer plazo = req != null ? req.plazo() : null;
         List<Long> multasCondonadas = req != null ? req.multasCondonadasIds() : null;
         String motivo = req != null ? req.motivoCondonacion() : null;
         return ResponseEntity.ok(
-                renovacionService.aprobarRenovacion(id, montoAprobado, multasCondonadas, motivo, p.userId()));
+                renovacionService.aprobarRenovacion(id, montoAprobado, plazo, multasCondonadas, motivo, p.userId()));
     }
 
     // ────────────────────────────────────────────────────────────────────

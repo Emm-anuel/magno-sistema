@@ -16,7 +16,7 @@ import { renovacionService } from '@/services/renovacionService'
 import { creditoService } from '@/services/creditoService'
 import MultiFileUpload from '@/components/MultiFileUpload'
 import ProcessingOverlay from '@/components/ProcessingOverlay'
-import type { ClienteResumen, RenovacionCalculo, CreditoDetalle, ListoRenovarItem } from '@/types'
+import type { ClienteResumen, RenovacionCalculo, CreditoDetalle, ListoRenovarItem, ProductoCalculo } from '@/types'
 
 type Step = 1 | 2
 
@@ -83,6 +83,9 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
 
   // Calculation
   const [calculo, setCalculo] = useState<RenovacionCalculo | null>(null)
+  const [opcionesCalculo, setOpcionesCalculo] = useState<ProductoCalculo[]>([])
+  const [plazoSeleccionado, setPlazoSeleccionado] = useState<number | ''>('')
+  const [calculoError, setCalculoError] = useState('')
   const [calculoLoading, setCalculoLoading] = useState(false)
   const calcDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -125,6 +128,9 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
     setSearchOpen(false)
     setCreditoActivo(null)
     setCalculo(null)
+    setOpcionesCalculo([])
+    setPlazoSeleccionado('')
+    setCalculoError('')
     setMontoStr('')
 
     if (!c.tiene_credito_activo) return
@@ -165,6 +171,9 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
     const clean = val.replace(/[^0-9.]/g, '')
     setMontoStr(clean)
     setCalculo(null)
+    setOpcionesCalculo([])
+    setPlazoSeleccionado('')
+    setCalculoError('')
 
     if (calcDebounceRef.current) clearTimeout(calcDebounceRef.current)
     if (!creditoActivo) return
@@ -173,7 +182,7 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
     
     // Determinar rangos válidos según el tipo de pago
     const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
-    const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
+    const rangoMax = 50000
     
     if (!clean || isNaN(num) || num < rangoMin || num > rangoMax) {
       setCalculoLoading(false)
@@ -183,10 +192,19 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
     setCalculoLoading(true)
     calcDebounceRef.current = setTimeout(async () => {
       try {
-        const result = await renovacionService.calcular(creditoActivo.id, num, tipoPago)
-        setCalculo(result)
+        const opciones = await creditoService.calcularOpciones(num, tipoPago)
+        setOpcionesCalculo(opciones)
+        if (opciones.length === 1) {
+          setPlazoSeleccionado(opciones[0].plazo)
+          const result = await renovacionService.calcular(
+            creditoActivo.id, num, tipoPago, opciones[0].plazo,
+          )
+          setCalculo(result)
+        } else if (opciones.length === 0) {
+          setCalculoError('No hay un plazo configurado para este monto y forma de pago')
+        }
       } catch (err: any) {
-        toast.error(err?.message ?? 'Error al calcular')
+        setCalculoError(err?.message ?? 'Error al calcular')
         setCalculo(null)
       } finally {
         setCalculoLoading(false)
@@ -198,7 +216,7 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
 
   const monto = parseFloat(montoStr)
   const rangoMin = tipoPago === 'SEMANAL' ? 2000 : 1000
-  const rangoMax = tipoPago === 'SEMANAL' ? 30000 : 50000
+  const rangoMax = 50000
   const montoValido = !isNaN(monto) && monto >= rangoMin && monto <= rangoMax
   const elegible = creditoActivo?.estadisticas?.elegibleRenovacion === true
   const canContinue =
@@ -216,6 +234,7 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
         creditoAnteriorId: creditoActivo!.id,
         montoNuevo: monto,
         tipoPago,
+        plazo: calculo?.plazoDiasNuevo,
         garantiaDescripcion: garantiaDescripcion.trim() || undefined,
         evidenciaUrls,
         videoEntregaUrl: videoEntregaUrl.trim() || undefined,
@@ -396,19 +415,19 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
                           setTipoPago(v)
                           setMontoStr('')
                           setCalculo(null)
+                          setOpcionesCalculo([])
+                          setPlazoSeleccionado('')
+                          setCalculoError('')
                         }}
                         className="w-4 h-4 accent-[#3d6b35]"
                       />
-                      <span className="text-sm">{v === 'DIARIO' ? 'Diario (25-30 días)' : 'Semanal (8-12 semanas)'}</span>
+                      <span className="text-sm">{v === 'DIARIO' ? 'Diario' : 'Semanal'}</span>
                     </label>
                   ))}
                 </div>
-                {tipoPago === 'DIARIO' && (
-                  <p className="text-xs text-gray-600 mt-2">📌 Rango: $1,000–$50,000 a 24%–30% de interés</p>
-                )}
-                {tipoPago === 'SEMANAL' && (
-                  <p className="text-xs text-gray-600 mt-2">📌 Rango: $2,000–$30,000 a 40% de interés</p>
-                )}
+                <p className="text-xs text-gray-600 mt-2">
+                  📌 El plazo y la tasa se tomarán de la configuración de la sucursal.
+                </p>
               </div>
 
               {/* Monto */}
@@ -434,10 +453,47 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
                     Para {tipoPago === 'DIARIO' ? 'créditos diarios' : 'créditos semanales'}, el monto debe estar entre ${rangoMin.toLocaleString()} y ${rangoMax.toLocaleString()}
                   </p>
                 )}
-                {montoStr && montoValido && tipoPago === 'SEMANAL' && (
-                  <p className="text-xs text-gray-600 mt-1">
-                    💡 Este crédito semanal se pagará en {monto < 10000 ? '8 semanas' : '12 semanas'} a 40% de interés
-                  </p>
+                {opcionesCalculo.length > 1 && (
+                  <div className="mt-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Plazo para cubrir el crédito <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={plazoSeleccionado}
+                      onChange={async (e) => {
+                        const plazo = e.target.value ? Number(e.target.value) : ''
+                        setPlazoSeleccionado(plazo)
+                        setCalculo(null)
+                        setCalculoError('')
+                        if (plazo === '' || !creditoActivo || !Number.isFinite(monto)) return
+                        setCalculoLoading(true)
+                        try {
+                          const result = await renovacionService.calcular(
+                            creditoActivo.id, monto, tipoPago, plazo,
+                          )
+                          setCalculo(result)
+                        } catch (err: any) {
+                          setCalculoError(err?.message ?? 'Error al calcular')
+                        } finally {
+                          setCalculoLoading(false)
+                        }
+                      }}
+                      className="input w-full"
+                    >
+                      <option value="">Seleccionar plazo...</option>
+                      {opcionesCalculo.map((opcion) => (
+                        <option key={`${opcion.plazo}-${opcion.tasa}`} value={opcion.plazo}>
+                          {opcion.plazo} {tipoPago === 'SEMANAL' ? 'semanas' : 'días'} · {(opcion.tasa * 100).toFixed(0)}% · pago {opcion.pagoPeriodico.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Este monto coincide con más de un período configurado.
+                    </p>
+                  </div>
+                )}
+                {calculoError && montoValido && (
+                  <p className="text-xs text-red-500 mt-1">{calculoError}</p>
                 )}
                 {/* Resumen de cálculo */}
                 {calculoLoading && (
@@ -453,7 +509,7 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
                         ['Saldo crédito anterior', `${fmt(calculo.montoPagosRestantes)} en ${calculo.pagosRestantes} cuotas con saldo`],
                         ['Multas pendientes', fmt(calculo.multasPendientes)],
                         ['Pago adelantado nuevo', fmt(calculo.pagoAdelantadoNuevo)],
-                        ['Pago diario nuevo', fmt(calculo.pagoPeriodicoNuevo)],
+                        [`Pago ${tipoPago === 'SEMANAL' ? 'semanal' : 'diario'} nuevo`, fmt(calculo.pagoPeriodicoNuevo)],
                         ['Plazo nuevo', `${calculo.plazoDiasNuevo} ${tipoPago === 'SEMANAL' ? 'semanas' : 'días'}`],
                       ].map(([label, value]) => (
                         <div key={label} className="contents">
@@ -573,11 +629,11 @@ export default function TabNuevaRenovacion({ initialCliente, initialCreditoId, o
             <div className="space-y-1.5 text-sm">
               {[
                 ['Crédito nuevo', fmt(calculo.montoNuevo)],
-                ['Plazo', `${calculo.plazoDiasNuevo} días`],
+                ['Plazo', `${calculo.plazoDiasNuevo} ${tipoPago === 'SEMANAL' ? 'semanas' : 'días'}`],
                 ['Tasa', `${(calculo.tasaNueva * 100).toFixed(0)}%`],
                 ['Cargo financiero', fmt(calculo.cargoFinancieroNuevo)],
                 ['Total a pagar', fmt(calculo.totalAPagarNuevo)],
-                ['Pago diario', fmt(calculo.pagoPeriodicoNuevo)],
+                [`Pago ${tipoPago === 'SEMANAL' ? 'semanal' : 'diario'}`, fmt(calculo.pagoPeriodicoNuevo)],
                 ['— Saldo crédito anterior', `–${fmt(calculo.montoPagosRestantes)}`],
                 ['— Multas pendientes', `–${fmt(calculo.multasPendientes)}`],
                 ['— Pago adelantado', `–${fmt(calculo.pagoAdelantadoNuevo)}`],

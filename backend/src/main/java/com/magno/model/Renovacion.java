@@ -65,6 +65,9 @@ public class Renovacion {
     @Column(name = "monto_nuevo", nullable = false, precision = 12, scale = 2)
     private BigDecimal montoNuevo;
 
+    @Column(name = "plazo_nuevo")
+    private Integer plazoNuevo;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_pago", nullable = false, length = 10)
     private TipoPago tipoPago;

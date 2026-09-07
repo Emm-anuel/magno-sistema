@@ -14,6 +14,8 @@ public record CreditoActualizarSolicitudRequest(
 
         @NotNull(message = "El tipo de pago es requerido") String tipoPago,
 
+        Integer plazo,
+
         String garantiaDescripcion,
 
         List<String> evidenciaUrls,

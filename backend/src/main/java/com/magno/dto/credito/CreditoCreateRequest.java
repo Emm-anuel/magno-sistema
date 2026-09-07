@@ -23,6 +23,8 @@ public record CreditoCreateRequest(
         @NotNull(message = "El tipo de pago es requerido")
         String tipoPago,               // "DIARIO" | "SEMANAL"
 
+        Integer plazo,                 // requerido sólo si el monto tiene más de una opción
+
         String garantiaDescripcion,    // opcional
 
         List<String> evidenciaUrls,    // URLs ya subidas a S3 (pueden llegar después)

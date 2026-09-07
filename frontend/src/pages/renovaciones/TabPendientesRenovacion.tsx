@@ -291,12 +291,17 @@ function TarjetaPendiente({
             <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
               <p className="text-xs text-gray-400 mb-0.5">Crédito anterior</p>
               <p className="text-base font-bold text-gray-700">{fmt(r.creditoAnterior.montoCapital)}</p>
-              <p className="text-xs text-gray-400">{r.creditoAnterior.plazoDias} días</p>
+              <p className="text-xs text-gray-400">
+                {r.creditoAnterior.plazoDias} {r.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}
+              </p>
             </div>
             <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
               <p className="text-xs text-gray-400 mb-0.5">Monto solicitado</p>
               <p className="text-base font-bold text-gray-500">{fmt(r.montoNuevo)}</p>
-              <p className="text-xs text-gray-400">{r.tipoPago === 'DIARIO' ? 'Diario' : 'Semanal'}</p>
+              <p className="text-xs text-gray-400">
+                {r.tipoPago === 'DIARIO' ? 'Diario' : 'Semanal'}
+                {r.plazoNuevo != null && ` · ${r.plazoNuevo} ${r.tipoPago === 'SEMANAL' ? 'semanas' : 'días'}`}
+              </p>
             </div>
           </div>
 
@@ -472,8 +477,10 @@ export default function TabPendientesRenovacion() {
       const monto = montoStr ? parseFloat(montoStr) : undefined
       const seleccionadas = multasSeleccionadas.get(renovacionId)
       const motivo = motivoCondonacion.get(renovacionId)
+      const renovacion = pendientes.find((item) => item.id === renovacionId)
       return renovacionService.aprobar(renovacionId, {
         montoAprobado: Number.isFinite(monto) ? monto : undefined,
+        plazo: renovacion?.plazoNuevo,
         multasCondonadasIds: seleccionadas && seleccionadas.size > 0 ? Array.from(seleccionadas) : undefined,
         motivoCondonacion: motivo?.trim() || undefined,
       })
