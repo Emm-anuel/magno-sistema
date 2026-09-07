@@ -206,6 +206,11 @@ public class AbonoCorrienteService {
                 .toList());
 
         for (CalendarioPago slot : calendarioPagoRepo.findSlotsCubrir(creditoId, fechaOperacion)) {
+            // Un pago directo parcial no equivale a "no pagó" — no se proyecta una
+            // multa NO_PAGO para él (mismo criterio que generarMultasNoPagoFaltantes).
+            if (slot.getEstado() == EstadoCalendarioPago.PARCIAL) {
+                continue;
+            }
             if (!slot.getFechaProgramada().isBefore(fechaOperacion)) {
                 continue;
             }

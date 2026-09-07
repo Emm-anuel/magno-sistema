@@ -424,6 +424,52 @@ class AbonoCorrienteServiceTest {
         assertThat(result.coberturas().get(0).numeroPago()).isEqualTo(16);
     }
 
+    // ────────────────────────────────────────────────────────────────
+    // previewMultasParaAbono — no debe proyectar multa NO_PAGO para un
+    // slot PARCIAL: un pago parcial directo no equivale a "no pagó".
+    // ────────────────────────────────────────────────────────────────
+
+    @Test
+    void previewMultas_noProyectaMultaNoPago_paraSlotParcial() {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
+        LocalDate diaParcial = hoy.minusDays(2);
+        CalendarioPago slotParcial = slot(50L, 3, diaParcial, new BigDecimal("156.00"), EstadoCalendarioPago.PARCIAL);
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slotParcial));
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(42L))
+                .thenReturn(List.of());
+        // Sin multa NO_PAGO previa — si el guard de PARCIAL no existiera, se proyectaría una.
+        when(multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(42L, diaParcial, "NO_PAGO"))
+                .thenReturn(false);
+
+        List<com.magno.dto.cobros.MultaDTO> result = service.previewMultasParaAbono(42L, null, 10L);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void previewMultas_siProyectaMultaNoPago_paraSlotVencidoSinTocar() {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
+        LocalDate diaVencido = hoy.minusDays(2);
+        CalendarioPago slotVencido = slot(51L, 3, diaVencido, new BigDecimal("156.00"), EstadoCalendarioPago.PENDIENTE);
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slotVencido));
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(42L))
+                .thenReturn(List.of());
+        when(multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(42L, diaVencido, "NO_PAGO"))
+                .thenReturn(false);
+
+        List<com.magno.dto.cobros.MultaDTO> result = service.previewMultasParaAbono(42L, null, 10L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).id()).isNull();
+        assertThat(result.get(0).fecha()).isEqualTo(diaVencido);
+    }
+
     @Test
     void lanzaError400_cuandoNoHayDiasAtrasados() {
         when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));

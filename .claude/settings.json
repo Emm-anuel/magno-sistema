@@ -52,7 +52,11 @@
       "Bash(java -cp .:/c/Users/Emm-a/.m2/repository/org/springframework/security/spring-security-crypto/5.7.2/spring-security-crypto-5.7.2.jar:/c/Users/Emm-a/.m2/repository/commons-logging/commons-logging/1.1.3/commons-logging-1.1.3.jar HashGen)",
       "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"admin@magno.com\",\"password\":\"Test1234!\"}')",
       "Bash(curl -s -X POST http://localhost:8080/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"diego@magno.mx\",\"password\":\"Test1234!\"}')",
-      "Bash(python3 -m json.tool)"
+      "Bash(python3 -m json.tool)",
+      "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest#previewMultas_noProyectaMultaNoPago_paraSlotParcial+previewMultas_siProyectaMultaNoPago_paraSlotVencidoSinTocar)",
+      "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest#previewMultas_noProyectaMultaNoPago_paraSlotParcial)",
+      "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest)",
+      "Bash(taskkill //F //PID 7632)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Emm-a\\AppData\\Local\\Temp\\pw-smoke"
