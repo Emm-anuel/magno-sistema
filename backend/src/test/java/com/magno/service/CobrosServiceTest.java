@@ -793,6 +793,27 @@ class CobrosServiceTest {
     }
 
     @Test
+    void registrarPago_pagoActivoMismoNumero_bloqueaDuplicado() {
+        LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
+        CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
+                .thenReturn(List.of(cp));
+        when(pagoRepo.existsByCreditoIdAndNumeroPagoAndDeletedAtIsNull(42L, 5)).thenReturn(true);
+
+        var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("156.00"), null, null);
+
+        assertThatThrownBy(() -> service.registrarPago(req, 10L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("El pago #5 ya fue registrado");
+
+        verify(pagoRepo, never()).save(any());
+        verify(calendarioPagoRepo, never()).save(any());
+    }
+
+    @Test
     void registrarPago_montoIgualACuota_seRegistraCompletoSinTocarMultas() {
         LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
         CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
@@ -801,7 +822,7 @@ class CobrosServiceTest {
         when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
         when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
                 .thenReturn(List.of(cp));
-        when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
+        when(pagoRepo.existsByCreditoIdAndNumeroPagoAndDeletedAtIsNull(42L, 5)).thenReturn(false);
         when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(cp));
 
@@ -823,7 +844,7 @@ class CobrosServiceTest {
         when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
         when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
                 .thenReturn(List.of(cp));
-        when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
+        when(pagoRepo.existsByCreditoIdAndNumeroPagoAndDeletedAtIsNull(42L, 5)).thenReturn(false);
         when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(pagoRepo.countPagosIncompletosByCreditoId(42L)).thenReturn(1L);
         when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(cp));
@@ -844,7 +865,7 @@ class CobrosServiceTest {
         when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
         when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
                 .thenReturn(List.of(cp));
-        when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
+        when(pagoRepo.existsByCreditoIdAndNumeroPagoAndDeletedAtIsNull(42L, 5)).thenReturn(false);
 
         var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("456.00"), null, null);
 

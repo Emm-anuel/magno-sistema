@@ -90,18 +90,24 @@ function notaFila(fila: FilaCalendario): string | null {
 }
 
 interface FilaMultaInfo {
+  /** Accionable con "Cubrir multa" — solo si es una multa real (con id), no una proyección. */
   pendiente: boolean
   monto: number
   condonada: boolean
+  /** true si el único monto que compone el badge es una proyección de "Pagar adeudo" (id null, aún no generada). */
+  soloProyectada: boolean
 }
 
 function multaDelDia(fecha: string, multas: MultaCobroDTO[]): FilaMultaInfo | null {
   const delDia = multas.filter((m) => m.fecha?.slice(0, 10) === fecha)
   if (delDia.length === 0) return null
   const monto = delDia.reduce((sum, m) => sum + Number(m.monto ?? 0), 0)
-  const pendiente = delDia.some((m) => !m.cobrada && !m.condonada)
+  // Las multas "proyectadas" (id null) vienen del preview de "Pagar adeudo" — todavía
+  // no existen en BD, así que no se pueden cubrir con el botón dedicado.
+  const pendiente = delDia.some((m) => m.id != null && !m.cobrada && !m.condonada)
   const condonada = delDia.every((m) => m.condonada)
-  return { pendiente, monto, condonada }
+  const soloProyectada = delDia.every((m) => m.id == null)
+  return { pendiente, monto, condonada, soloProyectada }
 }
 
 function FilaRow({
@@ -150,13 +156,16 @@ function FilaRow({
             style={
               multaInfo.condonada
                 ? { background: '#f3e8ff', color: '#7e22ce' }
-                : multaInfo.pendiente
-                  ? { background: '#fef3c7', color: '#92400e' }
-                  : { background: '#f1f5f9', color: '#64748b' }
+                : multaInfo.soloProyectada
+                  ? { background: '#eff6ff', color: '#1d4ed8' }
+                  : multaInfo.pendiente
+                    ? { background: '#fef3c7', color: '#92400e' }
+                    : { background: '#f1f5f9', color: '#64748b' }
             }
+            title={multaInfo.soloProyectada ? 'Se generaría al cerrar caja o registrar el no pago — todavía no existe' : undefined}
           >
             <AlertTriangle className="w-3 h-3" />
-            {multaInfo.condonada ? 'Multa condonada' : 'Multa'} {fmtMoney(multaInfo.monto)}
+            {multaInfo.condonada ? 'Multa condonada' : multaInfo.soloProyectada ? 'Multa proyectada' : 'Multa'} {fmtMoney(multaInfo.monto)}
           </span>
         )}
         {nota && <span className="text-[11px] text-gray-500">{nota}</span>}

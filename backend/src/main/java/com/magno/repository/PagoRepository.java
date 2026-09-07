@@ -38,7 +38,7 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
 
        Page<Pago> findByClienteId(Long clienteId, Pageable pageable);
 
-       boolean existsByCreditoIdAndNumeroPago(Long creditoId, Integer numeroPago);
+       boolean existsByCreditoIdAndNumeroPagoAndDeletedAtIsNull(Long creditoId, Integer numeroPago);
 
        boolean existsByCreditoIdAndDeletedAtIsNull(Long creditoId);
 

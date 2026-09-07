@@ -457,7 +457,11 @@ public class CobrosService {
         }
 
         // 7. Verificar que no se registre dos veces el mismo pago
-        if (pagoRepo.existsByCreditoIdAndNumeroPago(credito.getId(), cp.getNumeroPago())) {
+        // Los no-pagos automáticos revertidos se conservan con borrado lógico por
+        // auditoría. No deben bloquear que la cuota, restaurada a PENDIENTE, pueda
+        // cobrarse de nuevo.
+        if (pagoRepo.existsByCreditoIdAndNumeroPagoAndDeletedAtIsNull(
+                credito.getId(), cp.getNumeroPago())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "El pago #" + cp.getNumeroPago() + " ya fue registrado para este crédito");
         }

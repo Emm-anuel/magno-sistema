@@ -541,7 +541,8 @@ export interface PagoCobroDTO {
 }
 
 export interface MultaCobroDTO {
-  id: number
+  /** null = multa proyectada (preview de "Pagar adeudo"), aún no generada en BD — no accionable. */
+  id: number | null
   creditoId: number
   clienteId: number
   pagoId: number | null
