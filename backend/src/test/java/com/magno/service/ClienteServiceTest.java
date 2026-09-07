@@ -16,6 +16,7 @@ import com.magno.repository.SucursalRepository;
 import com.magno.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -116,6 +117,50 @@ class ClienteServiceTest {
                 .hasMessageContaining("Utiliza el registro existente");
 
         verify(clienteRepo, never()).save(any(Cliente.class));
+    }
+
+    @Test
+    void crearCliente_quitaAcentosDeVocalesPeroConservaLaN() {
+        ClienteCreateRequest request = mock(ClienteCreateRequest.class);
+        when(request.nombre()).thenReturn("María José");
+        when(request.apellidoPaterno()).thenReturn("Núñez");
+        when(request.apellidoMaterno()).thenReturn("Gómez");
+        when(request.fechaNacimiento()).thenReturn(LocalDate.of(1990, 5, 20));
+        when(request.celular()).thenReturn("5599998888");
+        when(request.sucursalId()).thenReturn(1L);
+        when(request.asesorId()).thenReturn(null);
+        existente.getSucursal().setPrefijo("CTR");
+        existente.getSucursal().setNumeroSecuencial(0);
+        when(sucursalRepo.findByIdForUpdate(1L)).thenReturn(Optional.of(existente.getSucursal()));
+        when(clienteRepo.findAll(any(Specification.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+        when(clienteRepo.save(any(Cliente.class))).then(returnsFirstArg());
+
+        service.crearCliente(request, 99L);
+
+        ArgumentCaptor<Cliente> captor = ArgumentCaptor.forClass(Cliente.class);
+        verify(clienteRepo).save(captor.capture());
+        assertThat(captor.getValue().getNombre()).isEqualTo("Maria Jose");
+        assertThat(captor.getValue().getApellidoPaterno()).isEqualTo("Nuñez");
+        assertThat(captor.getValue().getApellidoMaterno()).isEqualTo("Gomez");
+    }
+
+    @Test
+    void actualizarCliente_quitaAcentosDeVocalesPeroConservaLaN() {
+        ClienteUpdateRequest request = mock(ClienteUpdateRequest.class);
+        when(request.nombre()).thenReturn("María José");
+        when(request.apellidoPaterno()).thenReturn("Núñez");
+        when(request.apellidoMaterno()).thenReturn("Peña");
+        when(request.sucursalId()).thenReturn(null);
+        when(request.asesorId()).thenReturn(null);
+        when(clienteRepo.findById(25L)).thenReturn(Optional.of(existente));
+        when(clienteRepo.save(any(Cliente.class))).then(returnsFirstArg());
+
+        service.actualizarCliente(25L, request);
+
+        assertThat(existente.getNombre()).isEqualTo("Maria Jose");
+        assertThat(existente.getApellidoPaterno()).isEqualTo("Nuñez");
+        assertThat(existente.getApellidoMaterno()).isEqualTo("Peña");
     }
 
     @Test

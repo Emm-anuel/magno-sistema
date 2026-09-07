@@ -203,6 +203,18 @@ function FilaRow({
   )
 }
 
+function CabeceraCalendario() {
+  return (
+    <div className="hidden sm:grid grid-cols-[3rem_6rem_5rem_1fr_auto] gap-x-3 px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide bg-[#f8fafc] border-b border-[#e2e8f0]">
+      <div>No.</div>
+      <div>Fecha</div>
+      <div>Monto</div>
+      <div>Estado</div>
+      <div className="text-right">Acciones</div>
+    </div>
+  )
+}
+
 export interface CalendarioPagosProps {
   calendario: CalendarioPagoDetalle[]
   pagosHistorial: PagoCobroDTO[]
@@ -243,6 +255,24 @@ export default function CalendarioPagos({
     [calendario, pagosHistorial, abonosCredito, multas, hoyIso, liquidadoPorRenovacion],
   )
   const resumen = useMemo(() => resumirFilas(filas), [filas])
+  const columnasAmplias = useMemo(() => {
+    const mitad = Math.ceil(filas.length / 2)
+    return [filas.slice(0, mitad), filas.slice(mitad)]
+  }, [filas])
+
+  const renderFilas = (filasColumna: FilaCalendario[]) =>
+    filasColumna.map((fila) => (
+      <FilaRow
+        key={fila.id}
+        fila={fila}
+        multaInfo={multaDelDia(fila.fechaProgramada, multas)}
+        esAdminSupervisor={esAdminSupervisor}
+        onVerPago={onVerPago}
+        onModificarPago={onModificarPago}
+        onVerAbono={onVerAbono}
+        onPagarMulta={onPagarMulta}
+      />
+    ))
 
   return (
     <div className="space-y-4">
@@ -260,25 +290,19 @@ export default function CalendarioPagos({
 
       {/* Tabla / lista — una fila por día, como el control de pagos en papel */}
       <div className="rounded-lg border border-[#e2e8f0] bg-white overflow-hidden">
-        <div className="hidden sm:grid grid-cols-[3rem_6rem_5rem_1fr_auto] gap-x-3 px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide bg-[#f8fafc] border-b border-[#e2e8f0]">
-          <div>No.</div>
-          <div>Fecha</div>
-          <div>Monto</div>
-          <div>Estado</div>
-          <div className="text-right">Acciones</div>
+        <div className="2xl:hidden">
+          <CabeceraCalendario />
+          {renderFilas(filas)}
         </div>
-        {filas.map((fila) => (
-          <FilaRow
-            key={fila.id}
-            fila={fila}
-            multaInfo={multaDelDia(fila.fechaProgramada, multas)}
-            esAdminSupervisor={esAdminSupervisor}
-            onVerPago={onVerPago}
-            onModificarPago={onModificarPago}
-            onVerAbono={onVerAbono}
-            onPagarMulta={onPagarMulta}
-          />
-        ))}
+
+        <div className="hidden 2xl:grid 2xl:grid-cols-2 2xl:divide-x 2xl:divide-[#e2e8f0]">
+          {columnasAmplias.map((filasColumna, indice) => (
+            <div key={indice} className="min-w-0">
+              <CabeceraCalendario />
+              {renderFilas(filasColumna)}
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

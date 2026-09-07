@@ -33,7 +33,12 @@
       "Bash(mv \"c:\\\\Users\\\\Emm-a\\\\Documents\\\\GitHub\\\\magno-sistema\\\\smoke-test.mjs\" \"/tmp/pw-smoke/smoke-test.mjs\")",
       "Read(//c/Users/Emm-a/**)",
       "Read(//c/Users/Emm-a/AppData/Local/Temp/pw-smoke/**)",
-      "Bash(node smoke2.mjs)"
+      "Bash(node smoke2.mjs)",
+      "Bash(mvn -q -o test -Dtest=ClienteServiceTest#crearCliente_quitaAcentosDeVocalesPeroConservaLaN+actualizarCliente_quitaAcentosDeVocalesPeroConservaLaN)",
+      "Bash(mvn -q -o test -Dtest=ClienteServiceTest)",
+      "Bash(taskkill //F //PID 2092)",
+      "Bash(curl -sf http://localhost:8080/actuator/health)",
+      "Bash(break)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Emm-a\\AppData\\Local\\Temp\\pw-smoke"

@@ -206,9 +206,9 @@ public class ClienteService {
         Usuario creador = usuarioRepo.findById(createdByUserId).orElse(null);
 
         Cliente nuevo = Cliente.builder()
-                .nombre(req.nombre())
-                .apellidoPaterno(req.apellidoPaterno())
-                .apellidoMaterno(req.apellidoMaterno())
+                .nombre(quitarAcentos(req.nombre()))
+                .apellidoPaterno(quitarAcentos(req.apellidoPaterno()))
+                .apellidoMaterno(quitarAcentos(req.apellidoMaterno()))
                 .fechaNacimiento(req.fechaNacimiento())
                 .genero(req.genero())
                 .estadoCivil(req.estadoCivil())
@@ -288,9 +288,9 @@ public class ClienteService {
             c.setCelular(req.celular());
         }
 
-        if (req.nombre() != null)             c.setNombre(req.nombre());
-        if (req.apellidoPaterno() != null)    c.setApellidoPaterno(req.apellidoPaterno());
-        if (req.apellidoMaterno() != null)    c.setApellidoMaterno(req.apellidoMaterno());
+        if (req.nombre() != null)             c.setNombre(quitarAcentos(req.nombre()));
+        if (req.apellidoPaterno() != null)    c.setApellidoPaterno(quitarAcentos(req.apellidoPaterno()));
+        if (req.apellidoMaterno() != null)    c.setApellidoMaterno(quitarAcentos(req.apellidoMaterno()));
         if (req.fechaNacimiento() != null)    c.setFechaNacimiento(req.fechaNacimiento());
         if (req.genero() != null)             c.setGenero(req.genero());
         if (req.estadoCivil() != null)        c.setEstadoCivil(req.estadoCivil());
@@ -438,6 +438,21 @@ public class ClienteService {
     private String normalizeDigits(String value) {
         if (value == null || value.isBlank()) return null;
         return value.replaceAll("\\D", "");
+    }
+
+    private static final String VOCALES_ACENTUADAS = "áéíóúüÁÉÍÓÚÜ";
+    private static final String VOCALES_SIN_ACENTO = "aeiouuAEIOUU";
+
+    /** Quita acentos de vocales (á→a, é→e...) pero conserva la ñ/Ñ, que no es un acento. */
+    private String quitarAcentos(String value) {
+        if (value == null) return null;
+        StringBuilder sb = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            int idx = VOCALES_ACENTUADAS.indexOf(ch);
+            sb.append(idx >= 0 ? VOCALES_SIN_ACENTO.charAt(idx) : ch);
+        }
+        return sb.toString();
     }
 
     private String maskPhone(String value) {
