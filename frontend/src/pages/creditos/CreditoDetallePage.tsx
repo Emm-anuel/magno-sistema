@@ -110,6 +110,7 @@ export default function CreditoDetallePage() {
   const [registrarPagoOpen, setRegistrarPagoOpen] = useState(false)
   const [adeudoOpen, setAdeudoOpen] = useState(false)
   const [multaOpen, setMultaOpen] = useState(false)
+  const [multaFecha, setMultaFecha] = useState<string | null>(null)
   const [adelantoOpen, setAdelantoOpen] = useState(false)
   const [abonoDetalleModal, setAbonoDetalleModal] = useState<AbonoCorrienteDTO | null>(null)
   const [revertirOpen, setRevertirOpen] = useState(false)
@@ -395,7 +396,7 @@ export default function CreditoDetallePage() {
             multasPendientesVisual > 0 && (
             <button
               className="btn btn-sm border-[#dc2626] text-[#dc2626] hover:bg-red-50"
-              onClick={() => setMultaOpen(true)}
+              onClick={() => { setMultaFecha(null); setMultaOpen(true) }}
             >
               Pagar multa
             </button>
@@ -661,7 +662,9 @@ export default function CreditoDetallePage() {
                 onVerPago={setPagoModal}
                 onModificarPago={setPagoEditar}
                 onVerAbono={setAbonoDetalleModal}
-                onPagarMulta={(puedeRegistrarCobro || esAdminSupervisor) ? () => setMultaOpen(true) : undefined}
+                onPagarMulta={(puedeRegistrarCobro || esAdminSupervisor)
+                  ? (fecha) => { setMultaFecha(fecha); setMultaOpen(true) }
+                  : undefined}
               />
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1 pt-1 text-sm">
                 <span className="text-[#16a34a] font-semibold">
@@ -986,6 +989,7 @@ export default function CreditoDetallePage() {
         <ModalPagarMulta
           creditoId={numId}
           nombreCliente={credito.cliente.nombreCompleto}
+          fecha={multaFecha ?? undefined}
           onClose={() => setMultaOpen(false)}
           onSuccess={() => {
             setMultaOpen(false)

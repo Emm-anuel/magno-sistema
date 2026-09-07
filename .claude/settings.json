@@ -38,7 +38,9 @@
       "Bash(mvn -q -o test -Dtest=ClienteServiceTest)",
       "Bash(taskkill //F //PID 2092)",
       "Bash(curl -sf http://localhost:8080/actuator/health)",
-      "Bash(break)"
+      "Bash(break)",
+      "Bash(mvn -q -o compile test-compile)",
+      "Bash(mvn -q -o test -Dtest='!MagnoApplicationTests')"
     ],
     "additionalDirectories": [
       "C:\\Users\\Emm-a\\AppData\\Local\\Temp\\pw-smoke"

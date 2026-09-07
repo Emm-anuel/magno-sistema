@@ -260,6 +260,7 @@ export default function TabRutaDia({ asesorId, fecha }: Props) {
         <ModalPagarMulta
           creditoId={multaModal.creditoId}
           nombreCliente={multaModal.nombreCompleto}
+          fecha={fecha}
           onClose={() => setMultaModal(null)}
           onSuccess={() => setMultaModal(null)}
         />

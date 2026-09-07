@@ -106,11 +106,12 @@ public class CobrosController {
     @PreAuthorize("hasAnyAuthority('SUPERVISOR_CAMPO','ASESOR_COBRADOR')")
     public ResponseEntity<PagoDTO> pagarMultas(
             @PathVariable Long creditoId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             Authentication auth) {
 
         JwtPrincipal principal = (JwtPrincipal) auth.getPrincipal();
         cajaGuard.validarCajaAbierta(principal);
-        PagoDTO pago = cobrosService.pagarMultasPendientes(creditoId, principal.userId());
+        PagoDTO pago = cobrosService.pagarMultasPendientes(creditoId, principal.userId(), fecha);
         return ResponseEntity.status(HttpStatus.CREATED).body(pago);
     }
 

@@ -38,8 +38,6 @@ public class CobrosService {
     private final ConfigMultaRepository configMultaRepo;
     private final DiaFestivoRepository diaFestivoRepo;
     private final AbonoCoberturaDetalleRepository abonoCoberturaRepo;
-    private final AbonoCorrienteRepository abonoCorrienteRepo;
-    private final AbonoFuturoService abonoFuturoService;
 
     public CobrosService(PagoRepository pagoRepo,
             MultaRepository multaRepo,
@@ -48,9 +46,7 @@ public class CobrosService {
             CalendarioPagoRepository calendarioPagoRepo,
             ConfigMultaRepository configMultaRepo,
             DiaFestivoRepository diaFestivoRepo,
-            AbonoCoberturaDetalleRepository abonoCoberturaRepo,
-            AbonoCorrienteRepository abonoCorrienteRepo,
-            AbonoFuturoService abonoFuturoService) {
+            AbonoCoberturaDetalleRepository abonoCoberturaRepo) {
         this.pagoRepo = pagoRepo;
         this.multaRepo = multaRepo;
         this.creditoRepo = creditoRepo;
@@ -59,8 +55,6 @@ public class CobrosService {
         this.configMultaRepo = configMultaRepo;
         this.diaFestivoRepo = diaFestivoRepo;
         this.abonoCoberturaRepo = abonoCoberturaRepo;
-        this.abonoCorrienteRepo = abonoCorrienteRepo;
-        this.abonoFuturoService = abonoFuturoService;
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -494,7 +488,7 @@ public class CobrosService {
     // ────────────────────────────────────────────────────────────────────
 
     @Transactional
-    public PagoDTO pagarMultasPendientes(Long creditoId, Long usuarioId) {
+    public PagoDTO pagarMultasPendientes(Long creditoId, Long usuarioId, LocalDate fecha) {
         Credito credito = creditoRepo.findById(creditoId)
                 .orElseThrow(() -> new EntityNotFoundException("Crédito no encontrado: " + creditoId));
 
@@ -520,8 +514,9 @@ public class CobrosService {
             }
         }
 
-        List<Multa> multasPendientes = multaRepo
-                .findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(creditoId);
+        List<Multa> multasPendientes = fecha != null
+                ? multaRepo.findPendientesByCreditoIdAndFecha(creditoId, fecha)
+                : multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(creditoId);
         if (multasPendientes.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Este crédito no tiene multas pendientes por pagar");
@@ -753,31 +748,17 @@ public class CobrosService {
         BigDecimal montoRecibido = req.montoRecibido();
         BigDecimal montoEsperado = cp.getMontoEsperado();
 
-        // Obtener multas pendientes no cobradas
-        List<Multa> multasPendientes = multaRepo
-                .findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(credito.getId());
-        BigDecimal totalMultasPendientes = multasPendientes.stream()
-                .map(Multa::getMonto)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Determinar si el pago es completo (cubre el monto esperado)
-        boolean esCompleto = montoRecibido.compareTo(montoEsperado) >= 0;
-        BigDecimal multaAplicadaEnEstePago = BigDecimal.ZERO;
-
-        // Determinar si cubre además las multas pendientes
-        if (montoRecibido.compareTo(montoEsperado.add(totalMultasPendientes)) >= 0) {
-            // Cubre todo: pago + multas
-            multaAplicadaEnEstePago = totalMultasPendientes;
+        // "Cobrar" cubre única y exclusivamente la cuota del día — nunca multas
+        // pendientes ni adeudo acumulado ni adelantos a futuro. Para eso están
+        // los botones dedicados: "Pagar multa", "Pagar adeudo", "Adelantar pagos".
+        if (montoRecibido.compareTo(montoEsperado) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El monto no puede ser mayor a la cuota del día (" + montoEsperado
+                            + "). Usa 'Pagar multa', 'Pagar adeudo' o 'Adelantar pagos' para cubrir el excedente.");
         }
 
-        // Lo que exceda cuota + multas del día no se amontona en este pago: se
-        // adelanta a días futuros (o queda como sobrante) vía un AbonoCorriente,
-        // igual que el flujo de "Pagar Adeudo".
-        BigDecimal excedente = montoRecibido.subtract(montoEsperado).subtract(multaAplicadaEnEstePago)
-                .max(BigDecimal.ZERO);
-        BigDecimal montoRecibidoDelDia = montoRecibido.subtract(excedente);
+        boolean esCompleto = montoRecibido.compareTo(montoEsperado) >= 0;
 
-        // Crear el pago
         Pago pago = Pago.builder()
                 .credito(credito)
                 .cliente(cliente)
@@ -785,24 +766,15 @@ public class CobrosService {
                 .calendarioPago(cp)
                 .numeroPago(cp.getNumeroPago())
                 .fechaPago(hoy)
-                .montoRecibido(montoRecibidoDelDia)
+                .montoRecibido(montoRecibido)
                 .montoEsperado(montoEsperado)
                 .esCompleto(esCompleto)
                 .razonNoPago(null)
-                .multaAplicada(multaAplicadaEnEstePago)
+                .multaAplicada(BigDecimal.ZERO)
                 .registradoPor(registrador)
                 .build();
 
         pagoRepo.save(pago);
-
-        // Marcar multas como cobradas si el pago las cubrió
-        if (multaAplicadaEnEstePago.compareTo(BigDecimal.ZERO) > 0) {
-            for (Multa m : multasPendientes) {
-                m.setCobrada(true);
-                m.setCobradaEnPago(pago);
-                multaRepo.save(m);
-            }
-        }
 
         // Actualizar estado del calendario
         EstadoCalendarioPago nuevoEstado = esCompleto
@@ -816,42 +788,10 @@ public class CobrosService {
             verificarMultaIncompletos(credito, cliente, hoy, sucursalId, montoCapital, pago);
         }
 
-        if (excedente.compareTo(BigDecimal.ZERO) > 0) {
-            adelantarExcedenteComoAbono(credito, registrador, excedente, hoy);
-        }
-
         // Verificar si el crédito está completamente pagado
         verificarCreditoCompletado(credito);
 
         return pago;
-    }
-
-    /**
-     * El monto recibido en el día que sobra después de cubrir cuota + multas no
-     * se pierde: se adelanta a los próximos días PENDIENTE del calendario (o
-     * queda registrado como sobrante si no hay más días), igual que "Pagar
-     * Adeudo". Así el cliente puede pagar por adelantado y calificar antes para
-     * renovación.
-     */
-    private void adelantarExcedenteComoAbono(Credito credito, Usuario registrador, BigDecimal excedente,
-            LocalDate hoy) {
-        AbonoFuturoService.ResultadoAdelanto adelanto =
-                abonoFuturoService.adelantarDiasFuturos(credito, excedente, hoy);
-
-        AbonoCorriente abono = AbonoCorriente.builder()
-                .credito(credito)
-                .fecha(hoy)
-                .montoTotal(excedente)
-                .montoDistribuido(excedente.subtract(adelanto.saldoRestante()))
-                .montoSobrante(adelanto.saldoRestante())
-                .registradoPor(registrador)
-                .build();
-        abono = abonoCorrienteRepo.save(abono);
-
-        for (AbonoCoberturaDetalle c : adelanto.coberturas()) {
-            c.setAbono(abono);
-            abonoCoberturaRepo.save(c);
-        }
     }
 
     /**

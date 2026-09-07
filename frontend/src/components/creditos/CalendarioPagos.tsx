@@ -119,7 +119,7 @@ function FilaRow({
   onVerPago: (pago: PagoCobroDTO) => void
   onModificarPago: (pago: PagoCobroDTO) => void
   onVerAbono: (abono: AbonoCorrienteDTO) => void
-  onPagarMulta?: () => void
+  onPagarMulta?: (fecha: string) => void
 }) {
   const estilo = estiloClasificacion(fila)
   const nota = notaFila(fila)
@@ -197,7 +197,7 @@ function FilaRow({
           <button
             type="button"
             className="btn btn-sm text-xs py-0.5 px-2 text-[#dc2626] border-[#fecaca] hover:bg-red-50"
-            onClick={onPagarMulta}
+            onClick={() => onPagarMulta(fila.fechaProgramada)}
           >
             Cubrir multa
           </button>
@@ -231,7 +231,7 @@ export interface CalendarioPagosProps {
   onVerPago: (pago: PagoCobroDTO) => void
   onModificarPago: (pago: PagoCobroDTO) => void
   onVerAbono: (abono: AbonoCorrienteDTO) => void
-  onPagarMulta?: () => void
+  onPagarMulta?: (fecha: string) => void
 }
 
 export default function CalendarioPagos({

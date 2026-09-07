@@ -132,6 +132,11 @@ export default function ModalRegistrarPago({
     },
   })
 
+  const montoNum = Number(monto)
+  const montoEsperado = Number(pagoPeriodico)
+  const esAbono = !esRegistroNoPago && Number.isFinite(montoNum) && montoNum > 0 && montoNum < montoEsperado
+  const excedeCuota = !esRegistroNoPago && Number.isFinite(montoNum) && montoNum > montoEsperado
+
   // ── Validación ────────────────────────────────────────────────────
   function canSubmit() {
     if (mutation.isPending) return false
@@ -139,13 +144,9 @@ export default function ModalRegistrarPago({
       const r = razon === 'Otro' ? razonCustom.trim() : razon
       return r.length > 0
     }
-    const n = Number(monto)
-    return Number.isFinite(n) && n > 0
+    if (excedeCuota) return false
+    return Number.isFinite(montoNum) && montoNum > 0
   }
-
-  const montoNum = Number(monto)
-  const montoEsperado = Number(pagoPeriodico)
-  const esAbono = !esRegistroNoPago && Number.isFinite(montoNum) && montoNum > 0 && montoNum < montoEsperado
 
   return (
     <div
@@ -230,13 +231,19 @@ export default function ModalRegistrarPago({
                     type="number"
                     inputMode="decimal"
                     min="0.01"
+                    max={montoEsperado}
                     step="0.01"
-                    className="input pl-7"
+                    className={`input pl-7 ${excedeCuota ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
                     value={monto}
                     onChange={(e) => setMonto(e.target.value)}
                   />
                 </div>
-                {esAbono && (
+                {excedeCuota ? (
+                  <p className="text-[11px] text-red-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    No puede ser mayor a la cuota del día (${montoEsperado.toLocaleString('es-MX')}). El excedente se cubre con "Pagar multa", "Pagar adeudo" o "Adelantar pagos".
+                  </p>
+                ) : esAbono && (
                   <p className="text-[11px] text-[#f59e0b] mt-1 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     Abono parcial — monto menor al pago esperado (${montoEsperado.toLocaleString('es-MX')})

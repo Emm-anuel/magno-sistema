@@ -34,8 +34,6 @@ class CobrosServiceTest {
     private ConfigMultaRepository configMultaRepo;
     private DiaFestivoRepository diaFestivoRepo;
     private AbonoCoberturaDetalleRepository abonoCoberturaRepo;
-    private AbonoCorrienteRepository abonoCorrienteRepo;
-    private AbonoFuturoService abonoFuturoService;
 
     private CobrosService service;
 
@@ -57,17 +55,10 @@ class CobrosServiceTest {
         configMultaRepo = mock(ConfigMultaRepository.class);
         diaFestivoRepo = mock(DiaFestivoRepository.class);
         abonoCoberturaRepo = mock(AbonoCoberturaDetalleRepository.class);
-        abonoCorrienteRepo = mock(AbonoCorrienteRepository.class);
-        abonoFuturoService = mock(AbonoFuturoService.class);
-
-        // Por defecto no hay días futuros que adelantar: el excedente queda igual.
-        when(abonoFuturoService.adelantarDiasFuturos(any(), any(), any()))
-                .thenAnswer(inv -> new AbonoFuturoService.ResultadoAdelanto(List.of(), inv.getArgument(1)));
 
         service = new CobrosService(
                 pagoRepo, multaRepo, creditoRepo, usuarioRepo,
-                calendarioPagoRepo, configMultaRepo, diaFestivoRepo, abonoCoberturaRepo,
-                abonoCorrienteRepo, abonoFuturoService);
+                calendarioPagoRepo, configMultaRepo, diaFestivoRepo, abonoCoberturaRepo);
 
         sucursal = new Sucursal();
         sucursal.setId(1L);
@@ -714,7 +705,7 @@ class CobrosServiceTest {
                 .thenReturn(List.of(multa1, multa2));
         when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        PagoDTO result = service.pagarMultasPendientes(42L, 10L);
+        PagoDTO result = service.pagarMultasPendientes(42L, 10L, null);
 
         assertThat(result.multaAplicada()).isEqualByComparingTo("150.00");
         assertThat(result.montoRecibido()).isEqualByComparingTo("150.00");
@@ -739,14 +730,55 @@ class CobrosServiceTest {
         when(multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(42L))
                 .thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.pagarMultasPendientes(42L, 10L))
+        assertThatThrownBy(() -> service.pagarMultasPendientes(42L, 10L, null))
                 .isInstanceOf(ResponseStatusException.class);
 
         verify(pagoRepo, never()).save(any());
     }
 
+    @Test
+    void pagarMultasPendientes_conFecha_soloCubreLasMultasDeEseDia() {
+        LocalDate otroDia = HOY.minusDays(3);
+
+        Multa multaDeHoy = new Multa();
+        multaDeHoy.setId(703L);
+        multaDeHoy.setCredito(credito);
+        multaDeHoy.setCliente(cliente);
+        multaDeHoy.setMonto(new BigDecimal("50.00"));
+        multaDeHoy.setFecha(HOY);
+        multaDeHoy.setCobrada(false);
+        multaDeHoy.setCondonada(false);
+
+        // Otra multa de un día distinto que NO debe verse afectada.
+        Multa multaDeOtroDia = new Multa();
+        multaDeOtroDia.setId(704L);
+        multaDeOtroDia.setCredito(credito);
+        multaDeOtroDia.setCliente(cliente);
+        multaDeOtroDia.setMonto(new BigDecimal("100.00"));
+        multaDeOtroDia.setFecha(otroDia);
+        multaDeOtroDia.setCobrada(false);
+        multaDeOtroDia.setCondonada(false);
+
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(multaRepo.findPendientesByCreditoIdAndFecha(42L, HOY))
+                .thenReturn(List.of(multaDeHoy));
+        when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        PagoDTO result = service.pagarMultasPendientes(42L, 10L, HOY);
+
+        assertThat(result.multaAplicada()).isEqualByComparingTo("50.00");
+        assertThat(multaDeHoy.getCobrada()).isTrue();
+        assertThat(multaDeOtroDia.getCobrada())
+                .as("la multa de otro día no debe tocarse cuando se paga por fecha")
+                .isFalse();
+
+        verify(multaRepo, never())
+                .findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(any());
+    }
+
     // ────────────────────────────────────────────────────────────────
-    // registrarPago — excedente se adelanta a días futuros
+    // registrarPago — "Cobrar" solo cubre la cuota del día, nunca más
     // ────────────────────────────────────────────────────────────────
 
     private CalendarioPago slotPendiente(long id, int numeroPago, LocalDate fecha, String monto) {
@@ -761,7 +793,7 @@ class CobrosServiceTest {
     }
 
     @Test
-    void registrarPago_montoExacto_noGeneraExcedenteNiAbono() {
+    void registrarPago_montoIgualACuota_seRegistraCompletoSinTocarMultas() {
         LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
         CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
 
@@ -770,7 +802,6 @@ class CobrosServiceTest {
         when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
                 .thenReturn(List.of(cp));
         when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
-        when(multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(42L)).thenReturn(List.of());
         when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(cp));
 
@@ -778,12 +809,13 @@ class CobrosServiceTest {
         var result = service.registrarPago(req, 10L);
 
         assertThat(result.montoRecibido()).isEqualByComparingTo("156.00");
-        verify(abonoFuturoService, never()).adelantarDiasFuturos(any(), any(), any());
-        verify(abonoCorrienteRepo, never()).save(any());
+        assertThat(result.esCompleto()).isTrue();
+        assertThat(result.multaAplicada()).isEqualByComparingTo(BigDecimal.ZERO);
+        verify(multaRepo, never()).findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(any());
     }
 
     @Test
-    void registrarPago_conExcedente_loAdelantaADiasFuturosYCreaAbono() {
+    void registrarPago_montoMenorACuota_seRegistraComoParcial() {
         LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
         CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
 
@@ -792,36 +824,35 @@ class CobrosServiceTest {
         when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
                 .thenReturn(List.of(cp));
         when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
-        when(multaRepo.findByCreditoIdAndCobradaFalseAndDeletedAtIsNull(42L)).thenReturn(List.of());
         when(pagoRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(pagoRepo.countPagosIncompletosByCreditoId(42L)).thenReturn(1L);
         when(calendarioPagoRepo.findByCreditoIdOrderByNumeroPago(42L)).thenReturn(List.of(cp));
 
-        CalendarioPago slotFuturo = slotPendiente(501L, 6, hoy.plusDays(1), "156.00");
-        AbonoCoberturaDetalle coberturaFutura = AbonoCoberturaDetalle.builder()
-                .calendarioPago(slotFuturo)
-                .numeroPago(6)
-                .montoCuota(new BigDecimal("156.00"))
-                .montoMulta(BigDecimal.ZERO)
-                .totalAplicado(new BigDecimal("156.00"))
-                .esParcial(false)
-                .build();
-        when(abonoFuturoService.adelantarDiasFuturos(eq(credito), eq(new BigDecimal("300.00")), eq(hoy)))
-                .thenReturn(new AbonoFuturoService.ResultadoAdelanto(List.of(coberturaFutura), BigDecimal.ZERO));
-        when(abonoCorrienteRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
-
-        var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("456.00"), null, null);
+        var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("100.00"), null, null);
         var result = service.registrarPago(req, 10L);
 
-        assertThat(result.montoRecibido())
-                .as("el pago del día solo refleja la cuota, no el excedente")
-                .isEqualByComparingTo("156.00");
-        assertThat(coberturaFutura.getAbono()).isNotNull();
+        assertThat(result.montoRecibido()).isEqualByComparingTo("100.00");
+        assertThat(result.esCompleto()).isFalse();
+    }
 
-        ArgumentCaptor<AbonoCorriente> captor = ArgumentCaptor.forClass(AbonoCorriente.class);
-        verify(abonoCorrienteRepo).save(captor.capture());
-        assertThat(captor.getValue().getMontoTotal()).isEqualByComparingTo("300.00");
-        assertThat(captor.getValue().getMontoDistribuido()).isEqualByComparingTo("300.00");
-        assertThat(captor.getValue().getMontoSobrante()).isEqualByComparingTo(BigDecimal.ZERO);
+    @Test
+    void registrarPago_montoMayorACuota_lanzaExcepcionYNoRegistraNada() {
+        LocalDate hoy = LocalDate.now(java.time.ZoneId.of("America/Mexico_City"));
+        CalendarioPago cp = slotPendiente(500L, 5, hoy, "156.00");
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findByCreditoIdAndEstado(42L, EstadoCalendarioPago.PENDIENTE))
+                .thenReturn(List.of(cp));
+        when(pagoRepo.existsByCreditoIdAndNumeroPago(42L, 5)).thenReturn(false);
+
+        var req = new com.magno.dto.cobros.PagoRegistrarRequest(42L, false, new BigDecimal("456.00"), null, null);
+
+        assertThatThrownBy(() -> service.registrarPago(req, 10L))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("no puede ser mayor a la cuota");
+
+        verify(pagoRepo, never()).save(any());
+        verify(calendarioPagoRepo, never()).save(any());
     }
 }

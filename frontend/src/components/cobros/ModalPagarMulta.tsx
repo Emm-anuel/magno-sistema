@@ -7,6 +7,8 @@ import { cobrosService } from '@/services/cobrosService'
 interface Props {
   creditoId: number
   nombreCliente: string
+  /** Si se indica, solo se muestran/cubren las multas de ese día — no todo lo acumulado del crédito. */
+  fecha?: string
   onClose: () => void
   onSuccess: () => void
 }
@@ -23,7 +25,7 @@ function fmtDate(v: string) {
   })
 }
 
-export default function ModalPagarMulta({ creditoId, nombreCliente, onClose, onSuccess }: Props) {
+export default function ModalPagarMulta({ creditoId, nombreCliente, fecha, onClose, onSuccess }: Props) {
   const qc = useQueryClient()
 
   useEffect(() => {
@@ -38,11 +40,13 @@ export default function ModalPagarMulta({ creditoId, nombreCliente, onClose, onS
     staleTime: 30_000,
   })
 
-  const pendientes = multas.filter((m) => !m.cobrada && !m.condonada)
+  const pendientes = multas
+    .filter((m) => !m.cobrada && !m.condonada)
+    .filter((m) => !fecha || m.fecha?.slice(0, 10) === fecha)
   const total = pendientes.reduce((sum, m) => sum + Number(m.monto), 0)
 
   const mutation = useMutation({
-    mutationFn: () => cobrosService.pagarMultas(creditoId),
+    mutationFn: () => cobrosService.pagarMultas(creditoId, fecha),
     onSuccess: () => {
       toast.success('Multas cubiertas correctamente')
       qc.invalidateQueries({ queryKey: ['ruta-dia'] })
@@ -69,7 +73,9 @@ export default function ModalPagarMulta({ creditoId, nombreCliente, onClose, onS
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e9ecef] sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-[15px] font-semibold text-[#212529]">Cubrir multas</h2>
+            <h2 className="text-[15px] font-semibold text-[#212529]">
+              {fecha ? `Cubrir multa del ${fmtDate(fecha)}` : 'Cubrir multas'}
+            </h2>
             <p className="text-[12px] text-[#6c757d] mt-0.5">{nombreCliente}</p>
           </div>
           <button type="button" onClick={onClose} className="btn btn-sm p-1.5">
@@ -81,7 +87,9 @@ export default function ModalPagarMulta({ creditoId, nombreCliente, onClose, onS
           {isLoading ? (
             <p className="text-[13px] text-[#6c757d] text-center py-4">Cargando multas...</p>
           ) : pendientes.length === 0 ? (
-            <p className="text-[13px] text-[#6c757d] text-center py-4">Este crédito no tiene multas pendientes.</p>
+            <p className="text-[13px] text-[#6c757d] text-center py-4">
+              {fecha ? 'Ese día no tiene multa pendiente.' : 'Este crédito no tiene multas pendientes.'}
+            </p>
           ) : (
             <>
               <div className="rounded-lg border border-[#e9ecef] overflow-hidden">
