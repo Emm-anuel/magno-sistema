@@ -221,6 +221,8 @@ public class CajaService {
                         throw new IllegalArgumentException("Solo se puede reabrir la caja del dia actual");
                 }
 
+                cobrosService.revertirNoPagoAutomatico(caja.getSucursal().getId(), caja.getFecha());
+
                 caja.setEstado(EstadoCaja.ABIERTA);
                 caja.setCerradaPor(null);
                 caja.setFechaHoraCierre(null);

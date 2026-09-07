@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Search, Eye, CheckCircle, Banknote, Plus, Pencil, XCircle } from 'lucide-react'
@@ -99,10 +99,11 @@ export default function TabSolicitudes({
   })
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['creditos', { estado, asesorId, buscar, page }],
+    queryKey: ['creditos', { estado, tipoFilter, asesorId, buscar, page }],
     queryFn: () =>
       creditoService.listar({
         estado: estado || undefined,
+        tipo: tipoFilter || undefined,
         asesorId,
         buscar: buscar.trim() || undefined,
         page,
@@ -117,12 +118,15 @@ export default function TabSolicitudes({
   })
 
   const creditos = data?.content ?? []
+  const totalPages = data?.total_pages ?? 0
 
-  // El nombre se filtra en backend antes de paginar; el tipo sigue siendo local.
-  const filtered = creditos.filter((c) => {
-    if (tipoFilter && (c.tipo ?? 'NUEVO') !== tipoFilter) return false
-    return true
-  })
+  useEffect(() => {
+    if (totalPages === 0 && page !== 0) {
+      setPage(0)
+    } else if (totalPages > 0 && page >= totalPages) {
+      setPage(totalPages - 1)
+    }
+  }, [page, totalPages])
 
   // Metrics from current page data
   const total = data?.total_elements ?? 0
@@ -153,8 +157,8 @@ export default function TabSolicitudes({
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${isAdminOrSup ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+          <div className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
@@ -170,7 +174,7 @@ export default function TabSolicitudes({
               setEstado(e.target.value)
               setPage(0)
             }}
-            className="input w-full sm:w-40"
+            className="input w-full"
           >
             {ESTADOS.map((e) => (
               <option key={e.value} value={e.value}>
@@ -184,7 +188,7 @@ export default function TabSolicitudes({
               setTipoFilter(e.target.value as '' | 'NUEVO' | 'RENOVACION')
               setPage(0)
             }}
-            className="input w-full sm:w-36"
+            className="input w-full"
           >
             <option value="">Todos los tipos</option>
             <option value="NUEVO">Nuevo</option>
@@ -197,7 +201,7 @@ export default function TabSolicitudes({
                 setAsesorId(e.target.value ? Number(e.target.value) : undefined)
                 setPage(0)
               }}
-              className="input w-full sm:w-44"
+              className="input w-full"
             >
               <option value="">Todos los asesores</option>
               {asesores.content.map((u) => (
@@ -253,14 +257,14 @@ export default function TabSolicitudes({
                 </tr>
               </thead>
               <tbody>
-                {filtered.length === 0 ? (
+                {creditos.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="text-center text-gray-400 py-8">
                       Sin registros
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((c) => (
+                  creditos.map((c) => (
                     <tr key={c.id}>
                       <td className="font-semibold text-gray-700 whitespace-nowrap">
                         #{c.id}
@@ -407,10 +411,10 @@ export default function TabSolicitudes({
 
           {/* Mobile cards */}
           <div className="lg:hidden space-y-3">
-            {filtered.length === 0 && (
+            {creditos.length === 0 && (
               <div className="card p-6 text-center text-gray-400">Sin registros</div>
             )}
-            {filtered.map((c) => (
+            {creditos.map((c) => (
               <MobileCard
                 key={c.id}
                 credito={c}
@@ -425,7 +429,7 @@ export default function TabSolicitudes({
           </div>
 
           {/* Pagination */}
-          {(data?.total_pages ?? 0) > 1 && (
+          {totalPages > 1 && (
             <div className="flex justify-center gap-2 pt-2">
               <button
                 type="button"
@@ -436,12 +440,12 @@ export default function TabSolicitudes({
                 ← Anterior
               </button>
               <span className="text-sm text-gray-600 self-center">
-                Página {page + 1} de {data?.total_pages}
+                Página {page + 1} de {totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => setPage((p) => p + 1)}
-                disabled={page >= (data?.total_pages ?? 1) - 1}
+                disabled={page >= totalPages - 1}
                 className="btn btn-sm"
               >
                 Siguiente →

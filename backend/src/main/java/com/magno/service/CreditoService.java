@@ -88,6 +88,7 @@ public class CreditoService {
                         Long asesorId,
                         Long sucursalId,
                         EstadoCredito estado,
+                        TipoCredito tipo,
                         String buscar,
                         Pageable pageable) {
                 Specification<Credito> spec = Specification.where(null);
@@ -103,6 +104,8 @@ public class CreditoService {
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("sucursal").get("id"), sucursalId));
                 if (estado != null)
                         spec = spec.and((r, q, cb) -> cb.equal(r.get("estado"), estado));
+                if (tipo != null)
+                        spec = spec.and((r, q, cb) -> cb.equal(r.get("tipo"), tipo));
                 if (buscar != null && !buscar.isBlank()) {
                         String termino = buscar.trim();
                         String patron = "%" + termino.toLowerCase() + "%";

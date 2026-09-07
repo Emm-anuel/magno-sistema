@@ -21,6 +21,8 @@ public interface MultaRepository extends JpaRepository<Multa, Long> {
 
        List<Multa> findByCreditoIdAndDeletedAtIsNullOrderByFechaDesc(Long creditoId);
 
+       List<Multa> findByPagoIdAndDeletedAtIsNull(Long pagoId);
+
        @Query("SELECT COALESCE(SUM(m.monto), 0) FROM Multa m " +
                      "WHERE m.credito.id = :creditoId " +
                      "AND m.cobrada = false " +

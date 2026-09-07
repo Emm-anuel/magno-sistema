@@ -2,6 +2,7 @@ package com.magno.controller;
 
 import com.magno.dto.credito.*;
 import com.magno.model.EstadoCredito;
+import com.magno.model.TipoCredito;
 import com.magno.model.TipoPago;
 import com.magno.security.CajaGuard;
 import com.magno.security.JwtPrincipal;
@@ -62,6 +63,7 @@ public class CreditoController {
             @RequestParam(required = false) Long asesorId,
             @RequestParam(required = false) Long sucursalId,
             @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String tipo,
             @RequestParam(required = false) String buscar,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -69,6 +71,7 @@ public class CreditoController {
 
         JwtPrincipal p = principal(auth);
         EstadoCredito estadoEnum = parseEstado(estado);
+        TipoCredito tipoEnum = parseTipoCredito(tipo);
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
         // Filtrado por rol — aplicar restricciones de sucursal/asesor según rol
@@ -78,7 +81,7 @@ public class CreditoController {
         }
 
         return ResponseEntity.ok(
-                creditoService.listar(clienteId, asesorId, sucursalId, estadoEnum, buscar, pageable));
+                creditoService.listar(clienteId, asesorId, sucursalId, estadoEnum, tipoEnum, buscar, pageable));
     }
 
     // ────────────────────────────────────────────────────────────────────
@@ -316,6 +319,16 @@ public class CreditoController {
             return null;
         try {
             return EstadoCredito.valueOf(s.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private TipoCredito parseTipoCredito(String s) {
+        if (s == null || s.isBlank())
+            return null;
+        try {
+            return TipoCredito.valueOf(s.toUpperCase());
         } catch (IllegalArgumentException e) {
             return null;
         }

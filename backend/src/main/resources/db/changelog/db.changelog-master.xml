@@ -335,4 +335,12 @@
             stripComments="false"/>
     </changeSet>
 
+    <changeSet id="V42-limpiar-no-pago-reapertura-20260907" author="magno">
+        <sqlFile
+            path="db/changelog/V42__limpiar_no_pago_reapertura_20260907.sql"
+            relativeToChangelogFile="false"
+            splitStatements="false"
+            stripComments="false"/>
+    </changeSet>
+
 </databaseChangeLog>

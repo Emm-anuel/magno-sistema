@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -336,8 +337,69 @@ public class CobrosService {
     }
 
     // ────────────────────────────────────────────────────────────────────
-    // Registrar pago
+    // Revertir no pagos automáticos al cancelar un cierre
     // ────────────────────────────────────────────────────────────────────
+
+    /**
+     * Revierte únicamente los no-pagos creados automáticamente por el cierre que
+     * todavía no tuvieron actividad posterior. Se usa cuando el corte del mismo
+     * día se cancela para que los clientes vuelvan a tener oportunidad de pagar.
+     */
+    @Transactional
+    public List<ClienteNoPagoAutomaticoDTO> revertirNoPagoAutomatico(Long sucursalId, LocalDate fecha) {
+        List<Pago> pagosAutomaticos = pagoRepo
+                .findByCreditoSucursalIdAndFechaPagoAndRazonNoPagoAndDeletedAtIsNull(
+                        sucursalId, fecha, RAZON_NO_PAGO_AUTOMATICO);
+        if (pagosAutomaticos.isEmpty()) {
+            return List.of();
+        }
+
+        OffsetDateTime ahora = DateTimeUtils.ahoraEnMagno();
+        List<ClienteNoPagoAutomaticoDTO> resultado = new ArrayList<>();
+
+        for (Pago pago : pagosAutomaticos) {
+            CalendarioPago calendario = pago.getCalendarioPago();
+            if (calendario == null
+                    || calendario.getEstado() != EstadoCalendarioPago.NO_PAGADO
+                    || pago.getModificadoPor() != null
+                    || pago.getFechaModificacion() != null
+                    || pagoRepo.existsOtroPagoActivoEnCalendario(calendario.getId(), pago.getId())
+                    || abonoCoberturaRepo.existsByCalendarioPagoId(calendario.getId())) {
+                continue;
+            }
+
+            List<Multa> multas = multaRepo.findByPagoIdAndDeletedAtIsNull(pago.getId());
+            boolean multaConActividad = multas.stream().anyMatch(multa ->
+                    Boolean.TRUE.equals(multa.getCobrada())
+                            || Boolean.TRUE.equals(multa.getCondonada())
+                            || multa.getCobradaEnPago() != null
+                            || multa.getCobradaEnAbono() != null
+                            || multa.getCondonadaEnRenovacion() != null);
+            if (multaConActividad) {
+                continue;
+            }
+
+            multas.forEach(multa -> multa.setDeletedAt(ahora));
+            multaRepo.saveAll(multas);
+
+            pago.setDeletedAt(ahora);
+            pagoRepo.save(pago);
+
+            calendario.setEstado(EstadoCalendarioPago.PENDIENTE);
+            calendarioPagoRepo.save(calendario);
+
+            resultado.add(new ClienteNoPagoAutomaticoDTO(
+                    pago.getCliente().getId(),
+                    pago.getCliente().getNombreCompleto(),
+                    pago.getCredito().getId(),
+                    pago.getNumeroPago(),
+                    pago.getMultaAplicada()));
+        }
+
+        return resultado;
+    }
+
+    // Registrar pago
 
     @Transactional
     public PagoDTO registrarPago(PagoRegistrarRequest req, Long usuarioId) {

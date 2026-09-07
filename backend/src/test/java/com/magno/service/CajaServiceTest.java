@@ -197,4 +197,21 @@ class CajaServiceTest {
         assertThat(result.disponible()).isFalse();
         assertThat(result.monto()).isEqualByComparingTo(BigDecimal.ZERO);
     }
+
+    @Test
+    void cancelarCierre_revierteNoPagosAutomaticosAntesDeReabrir() {
+        caja.setEstado(EstadoCaja.CERRADA);
+        caja.setCerradaPor(admin);
+        caja.setFechaHoraCierre(DateTimeUtils.ahoraEnMagno());
+
+        when(cajaDiaRepo.findById(500L)).thenReturn(Optional.of(caja));
+        when(cajaDiaRepo.save(any(CajaDia.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(movimientoRepo.findByCajaDiaIdOrderByCreatedAtAsc(500L)).thenReturn(List.of());
+
+        CajaDiaDetalleDTO result = service.cancelarCierre(500L, principal);
+
+        verify(cobrosService).revertirNoPagoAutomatico(1L, hoy);
+        assertThat(result.estado()).isEqualTo("ABIERTA");
+        assertThat(caja.getFechaHoraCierre()).isNull();
+    }
 }

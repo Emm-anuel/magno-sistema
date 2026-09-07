@@ -18,6 +18,8 @@ public interface AbonoCoberturaDetalleRepository extends JpaRepository<AbonoCobe
 
     List<AbonoCoberturaDetalle> findByCalendarioPagoId(Long calendarioPagoId);
 
+    boolean existsByCalendarioPagoId(Long calendarioPagoId);
+
     @Query("SELECT COALESCE(SUM(d.totalAplicado), 0) FROM AbonoCoberturaDetalle d WHERE d.calendarioPago.id = :cpId")
     BigDecimal sumTotalAplicadoByCalendarioPagoId(@Param("cpId") Long cpId);
 

@@ -388,6 +388,111 @@ class CobrosServiceTest {
     }
 
     @Test
+    void revertirNoPagoAutomatico_restauraCuotaYConservaAuditoriaConSoftDelete() {
+        CalendarioPago noPagado = CalendarioPago.builder()
+                .id(7L)
+                .numeroPago(5)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.NO_PAGADO)
+                .build();
+        Pago pagoAutomatico = Pago.builder()
+                .id(90L)
+                .credito(credito)
+                .cliente(cliente)
+                .asesor(asesor)
+                .calendarioPago(noPagado)
+                .numeroPago(5)
+                .fechaPago(HOY)
+                .montoRecibido(BigDecimal.ZERO)
+                .montoEsperado(new BigDecimal("156.00"))
+                .esCompleto(false)
+                .razonNoPago("Cierre de caja — sin registro de pago")
+                .multaAplicada(new BigDecimal("50.00"))
+                .registradoPor(asesor)
+                .build();
+        Multa multa = Multa.builder()
+                .id(91L)
+                .pago(pagoAutomatico)
+                .cliente(cliente)
+                .credito(credito)
+                .tipo("NO_PAGO")
+                .monto(new BigDecimal("50.00"))
+                .fecha(HOY)
+                .cobrada(false)
+                .condonada(false)
+                .build();
+
+        when(pagoRepo.findByCreditoSucursalIdAndFechaPagoAndRazonNoPagoAndDeletedAtIsNull(
+                1L, HOY, "Cierre de caja — sin registro de pago"))
+                .thenReturn(List.of(pagoAutomatico));
+        when(pagoRepo.existsOtroPagoActivoEnCalendario(7L, 90L)).thenReturn(false);
+        when(abonoCoberturaRepo.existsByCalendarioPagoId(7L)).thenReturn(false);
+        when(multaRepo.findByPagoIdAndDeletedAtIsNull(90L)).thenReturn(List.of(multa));
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = service.revertirNoPagoAutomatico(1L, HOY);
+
+        assertThat(resultado).hasSize(1);
+        assertThat(noPagado.getEstado()).isEqualTo(EstadoCalendarioPago.PENDIENTE);
+        assertThat(pagoAutomatico.getDeletedAt()).isNotNull();
+        assertThat(multa.getDeletedAt()).isNotNull();
+        verify(pagoRepo).save(pagoAutomatico);
+        verify(multaRepo).saveAll(List.of(multa));
+        verify(calendarioPagoRepo).save(noPagado);
+    }
+
+    @Test
+    void revertirNoPagoAutomatico_conMultaCobrada_noModificaElCredito() {
+        CalendarioPago noPagado = CalendarioPago.builder()
+                .id(7L)
+                .numeroPago(5)
+                .fechaProgramada(HOY)
+                .montoEsperado(new BigDecimal("156.00"))
+                .estado(EstadoCalendarioPago.NO_PAGADO)
+                .build();
+        Pago pagoAutomatico = Pago.builder()
+                .id(90L)
+                .credito(credito)
+                .cliente(cliente)
+                .asesor(asesor)
+                .calendarioPago(noPagado)
+                .numeroPago(5)
+                .fechaPago(HOY)
+                .montoRecibido(BigDecimal.ZERO)
+                .montoEsperado(new BigDecimal("156.00"))
+                .esCompleto(false)
+                .razonNoPago("Cierre de caja — sin registro de pago")
+                .multaAplicada(new BigDecimal("50.00"))
+                .registradoPor(asesor)
+                .build();
+        Multa multaCobrada = Multa.builder()
+                .id(91L)
+                .pago(pagoAutomatico)
+                .cliente(cliente)
+                .credito(credito)
+                .tipo("NO_PAGO")
+                .monto(new BigDecimal("50.00"))
+                .fecha(HOY)
+                .cobrada(true)
+                .condonada(false)
+                .build();
+
+        when(pagoRepo.findByCreditoSucursalIdAndFechaPagoAndRazonNoPagoAndDeletedAtIsNull(
+                1L, HOY, "Cierre de caja — sin registro de pago"))
+                .thenReturn(List.of(pagoAutomatico));
+        when(multaRepo.findByPagoIdAndDeletedAtIsNull(90L)).thenReturn(List.of(multaCobrada));
+
+        List<ClienteNoPagoAutomaticoDTO> resultado = service.revertirNoPagoAutomatico(1L, HOY);
+
+        assertThat(resultado).isEmpty();
+        assertThat(noPagado.getEstado()).isEqualTo(EstadoCalendarioPago.NO_PAGADO);
+        assertThat(pagoAutomatico.getDeletedAt()).isNull();
+        verify(pagoRepo, never()).save(any());
+        verify(multaRepo, never()).saveAll(any());
+        verify(calendarioPagoRepo, never()).save(any());
+    }
+
+    @Test
     void marcarNoPagoAutomatico_conDosCandidatos_marcaAmbosDeFormaIndependiente() {
         // Segundo cliente/asesor/crédito, distintos del fixture compartido,
         // para probar que el loop no cruza datos entre iteraciones.

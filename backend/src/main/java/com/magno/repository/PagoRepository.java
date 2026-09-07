@@ -19,6 +19,19 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
 
        Optional<Pago> findByCreditoIdAndFechaPago(Long creditoId, LocalDate fechaPago);
 
+       List<Pago> findByCreditoSucursalIdAndFechaPagoAndRazonNoPagoAndDeletedAtIsNull(
+                     Long sucursalId,
+                     LocalDate fechaPago,
+                     String razonNoPago);
+
+       @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END FROM Pago p " +
+                     "WHERE p.calendarioPago.id = :calendarioPagoId " +
+                     "AND p.id <> :pagoId " +
+                     "AND p.deletedAt IS NULL")
+       boolean existsOtroPagoActivoEnCalendario(
+                     @Param("calendarioPagoId") Long calendarioPagoId,
+                     @Param("pagoId") Long pagoId);
+
        List<Pago> findByAsesorIdAndFechaPagoOrderByNumeroPago(Long asesorId, LocalDate fechaPago);
 
        List<Pago> findByClienteIdOrderByFechaPagoDesc(Long clienteId);

@@ -165,6 +165,7 @@ export const creditoService = {
     asesorId?: number
     sucursalId?: number
     estado?: string
+    tipo?: 'NUEVO' | 'RENOVACION'
     buscar?: string
     page?: number
     size?: number
