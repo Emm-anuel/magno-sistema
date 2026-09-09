@@ -227,6 +227,43 @@ class AbonoCorrienteServiceTest {
     }
 
     @Test
+    void excluyeMultasDelAbono_cuandoElUsuarioNoLasContempla() {
+        LocalDate fecha = LocalDate.of(2026, 6, 25);
+        CalendarioPago slot = slot(
+                100L, 1, fecha, new BigDecimal("156.00"), EstadoCalendarioPago.NO_PAGADO);
+        Multa multaPendiente = multaNoPago(200L, fecha, new BigDecimal("50.00"));
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slot));
+        when(multaRepo.findPendientesByCreditoIdAndFecha(42L, fecha))
+                .thenReturn(List.of(multaPendiente));
+        when(abonoCoberturaRepo.sumMontoCuotaByCalendarioPagoId(100L)).thenReturn(BigDecimal.ZERO);
+
+        AbonoCorriente savedAbono = new AbonoCorriente();
+        savedAbono.setId(13L);
+        savedAbono.setCredito(credito);
+        savedAbono.setFecha(LocalDate.now(ZoneId.of("America/Mexico_City")));
+        savedAbono.setMontoTotal(new BigDecimal("156.00"));
+        savedAbono.setMontoDistribuido(new BigDecimal("156.00"));
+        savedAbono.setMontoSobrante(BigDecimal.ZERO);
+        savedAbono.setRegistradoPor(asesor);
+        when(abonoCorrienteRepo.save(any())).thenReturn(savedAbono);
+        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AbonoCorrienteDTO result = service.registrarAbono(
+                new AbonoCorrienteRequest(42L, new BigDecimal("156.00"), null, false), 10L);
+
+        assertThat(result.coberturas()).hasSize(1);
+        assertThat(result.coberturas().get(0).montoCuota()).isEqualByComparingTo("156.00");
+        assertThat(result.coberturas().get(0).montoMulta()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(slot.getEstado()).isEqualTo(EstadoCalendarioPago.RECUPERADO);
+        assertThat(multaPendiente.getCobrada()).isFalse();
+        verify(multaRepo, never()).findPendientesByCreditoIdAndFecha(anyLong(), any());
+        verify(multaRepo, never()).save(any());
+    }
+
+    @Test
     void segundoAbono_completa_slotRecuperadoParcial() {
         LocalDate dia8 = LocalDate.of(2026, 7, 4);
         LocalDate dia9 = LocalDate.of(2026, 7, 7);
@@ -355,6 +392,43 @@ class AbonoCorrienteServiceTest {
     }
 
     @Test
+    void noGeneraMultaNoPagoFaltante_paraSlotRecuperadoParcial() {
+        // Un slot RECUPERADO_PARCIAL ya recibió dinero de un abono anterior — no
+        // equivale a "no pagó", igual que un PARCIAL directo. No debe generarse
+        // una multa NO_PAGO nueva para él en un abono posterior.
+        LocalDate diaParcial = LocalDate.now(ZoneId.of("America/Mexico_City")).minusDays(5);
+        BigDecimal cuota = new BigDecimal("208.00");
+        CalendarioPago slotRecuperadoParcial =
+                slot(107L, 7, diaParcial, cuota, EstadoCalendarioPago.RECUPERADO_PARCIAL);
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slotRecuperadoParcial));
+        when(multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(42L, diaParcial, "NO_PAGO"))
+                .thenReturn(false);
+        when(multaRepo.findPendientesByCreditoIdAndFecha(42L, diaParcial)).thenReturn(List.of());
+        when(abonoCoberturaRepo.sumTotalAplicadoByCalendarioPagoId(107L)).thenReturn(new BigDecimal("100.00"));
+        when(abonoCoberturaRepo.sumMontoMultaByCalendarioPagoId(107L)).thenReturn(BigDecimal.ZERO);
+        when(abonoCoberturaRepo.sumMontoCuotaByCalendarioPagoId(107L)).thenReturn(new BigDecimal("100.00"));
+
+        AbonoCorriente savedAbono = new AbonoCorriente();
+        savedAbono.setId(12L);
+        savedAbono.setCredito(credito);
+        savedAbono.setFecha(LocalDate.now(ZoneId.of("America/Mexico_City")));
+        savedAbono.setMontoTotal(new BigDecimal("108.00"));
+        savedAbono.setMontoDistribuido(new BigDecimal("108.00"));
+        savedAbono.setMontoSobrante(BigDecimal.ZERO);
+        savedAbono.setRegistradoPor(asesor);
+        when(abonoCorrienteRepo.save(any())).thenReturn(savedAbono);
+        when(abonoCoberturaRepo.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AbonoCorrienteRequest req = new AbonoCorrienteRequest(42L, new BigDecimal("108.00"), null);
+        service.registrarAbono(req, 10L);
+
+        verify(multaRepo, never()).save(any());
+    }
+
+    @Test
     void sobranteDespuesDeAtrasados_seDistribuyeHaciaDiasFuturos() {
         LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
         BigDecimal cuota = new BigDecimal("700.00");
@@ -468,6 +542,26 @@ class AbonoCorrienteServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).id()).isNull();
         assertThat(result.get(0).fecha()).isEqualTo(diaVencido);
+    }
+
+    @Test
+    void previewMultas_noProyectaMultaNoPago_paraSlotRecuperadoParcial() {
+        LocalDate hoy = LocalDate.now(ZoneId.of("America/Mexico_City"));
+        LocalDate diaRecuperadoParcial = hoy.minusDays(2);
+        CalendarioPago slotRecuperadoParcial = slot(
+                52L, 3, diaRecuperadoParcial, new BigDecimal("156.00"), EstadoCalendarioPago.RECUPERADO_PARCIAL);
+
+        when(usuarioRepo.findById(10L)).thenReturn(Optional.of(asesor));
+        when(creditoRepo.findById(42L)).thenReturn(Optional.of(credito));
+        when(calendarioPagoRepo.findSlotsCubrir(eq(42L), any())).thenReturn(List.of(slotRecuperadoParcial));
+        when(multaRepo.findByCreditoIdAndCobradaFalseAndCondonadaFalseAndDeletedAtIsNull(42L))
+                .thenReturn(List.of());
+        when(multaRepo.existsByCreditoIdAndFechaAndTipoAndDeletedAtIsNull(42L, diaRecuperadoParcial, "NO_PAGO"))
+                .thenReturn(false);
+
+        List<com.magno.dto.cobros.MultaDTO> result = service.previewMultasParaAbono(42L, null, 10L);
+
+        assertThat(result).isEmpty();
     }
 
     @Test

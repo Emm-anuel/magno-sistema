@@ -247,6 +247,7 @@ export const cobrosService = {
         credito_id: req.creditoId,
         monto_recibido: req.montoRecibido,
         fecha_pago: req.fechaPago,
+        incluir_multas: req.incluirMultas,
       })
       .then((r) => normalizeAbono(r.data)),
 

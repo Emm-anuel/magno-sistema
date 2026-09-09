@@ -38,6 +38,7 @@ function computeDistribucion(
   abonosExistentes: Array<{ coberturas: AbonoCoberturaDTO[] }>,
   pagosDirectos: PagoCobroDTO[],
   hoy: string,
+  incluirMultas: boolean,
 ): DistribucionRow[] {
   const eligibles = slots.filter((p) => {
     if (p.estado === 'NO_PAGADO' || p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL') return true
@@ -70,9 +71,9 @@ function computeDistribucion(
   const rows: DistribucionRow[] = []
 
   for (const slot of eligibles) {
-    const multasDia = multasPendientes.filter(
-      (m) => m.fecha === slot.fechaProgramada && !m.cobrada,
-    )
+    const multasDia = incluirMultas
+      ? multasPendientes.filter((m) => m.fecha === slot.fechaProgramada && !m.cobrada)
+      : []
     const totalMultasDia = multasDia.reduce((s, m) => s + Number(m.monto), 0)
     const cuotaRestante = Math.max(0, Number(slot.montoEsperado) - (cuotaYaAplicada[slot.numeroPago] ?? 0))
     const multaRestante = Math.max(0, totalMultasDia - (multaYaAbonada[slot.id] ?? 0))
@@ -138,6 +139,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
   const qc = useQueryClient()
   const hoy = useMemo(() => todayLocalStr(), [])
   const [monto, setMonto] = useState('')
+  const [incluirMultas, setIncluirMultas] = useState(true)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -183,8 +185,9 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
       abonosExistentes,
       pagosDirectos.filter((p) => p.creditoId === creditoId),
       hoy,
+      incluirMultas,
     )
-  }, [montoNum, calendario, multas, abonosExistentes, pagosDirectos, creditoId, hoy, montoValido])
+  }, [montoNum, calendario, multas, abonosExistentes, pagosDirectos, creditoId, hoy, incluirMultas, montoValido])
 
   const cuotaAplicadaPorNumero = useMemo(() => {
     const resultado: Record<number, number> = {}
@@ -224,13 +227,13 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
     [cuotasParciales, cuotaAplicadaPorNumero],
   )
 
-  const montoParaCorriente = useMemo(() => {
+  const saldosParaCorriente = useMemo(() => {
     const eligibles = calendario.filter((p) => {
       if (p.estado === 'NO_PAGADO' || p.estado === 'PARCIAL' || p.estado === 'RECUPERADO_PARCIAL') return true
       if (p.estado === 'PENDIENTE' && p.fechaProgramada <= hoy) return true
       return false
     })
-    return eligibles.reduce((sum: number, slot: any) => {
+    return eligibles.reduce((saldos: { cuotas: number; multas: number }, slot: any) => {
       const multasDia = multas
         .filter((m) => m.fecha === slot.fechaProgramada && !m.cobrada)
         .reduce((s, m) => s + Number(m.monto), 0)
@@ -242,10 +245,15 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
         0,
         multasDia - (multaAbonadaPorNumero[slot.numeroPago] ?? 0),
       )
-      const restante = cuotaRestante + multaRestante
-      return sum + Math.max(0, restante)
-    }, 0)
+      return {
+        cuotas: saldos.cuotas + cuotaRestante,
+        multas: saldos.multas + multaRestante,
+      }
+    }, { cuotas: 0, multas: 0 })
   }, [calendario, multas, hoy, cuotaAplicadaPorNumero, multaAbonadaPorNumero])
+
+  const montoParaCorriente = saldosParaCorriente.cuotas
+    + (incluirMultas ? saldosParaCorriente.multas : 0)
 
   const montoFuturoDisponible = useMemo(() =>
     calendario
@@ -282,6 +290,7 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
       return cobrosService.registrarAbonoCorrente({
         creditoId,
         montoRecibido: montoNum,
+        incluirMultas,
       })
     },
     onSuccess: () => {
@@ -346,11 +355,67 @@ export default function ModalPagarAdeudo({ creditoId, nombreCliente, modo = 'ade
             </div>
             <div className="bg-[#fef3c7] rounded-lg p-3 text-center">
               <p className="text-[11px] text-[#6c757d] mb-0.5">
-                {cuotasParciales.length > 0 ? 'Total para ponerse al corriente' : 'Para ponerse al corriente'}
+                {!incluirMultas
+                  ? 'Cuotas para ponerse al corriente'
+                  : cuotasParciales.length > 0
+                    ? 'Total para ponerse al corriente'
+                    : 'Para ponerse al corriente'}
               </p>
               <p className="text-[16px] font-bold text-[#92400e]">{fmtMoney(montoParaCorriente)}</p>
             </div>
           </div>
+
+          {modo === 'adeudo' && saldosParaCorriente.multas > 0 && (
+            <fieldset>
+              <legend className="block text-[12px] font-medium text-[#495057] mb-2">
+                ¿Este abono contempla multas?
+              </legend>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <label
+                  className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                    incluirMultas
+                      ? 'border-amber-400 bg-amber-50'
+                      : 'border-[#dee2e6] hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="incluir-multas"
+                    checked={incluirMultas}
+                    onChange={() => setIncluirMultas(true)}
+                    className="mt-0.5 accent-amber-600"
+                  />
+                  <span>
+                    <span className="block text-[12px] font-medium text-[#212529]">Sí, incluir multas</span>
+                    <span className="block text-[11px] text-[#6c757d]">
+                      Se cobrarán {fmtMoney(saldosParaCorriente.multas)} en multas pendientes.
+                    </span>
+                  </span>
+                </label>
+                <label
+                  className={`flex items-start gap-2 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${
+                    !incluirMultas
+                      ? 'border-amber-400 bg-amber-50'
+                      : 'border-[#dee2e6] hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="incluir-multas"
+                    checked={!incluirMultas}
+                    onChange={() => setIncluirMultas(false)}
+                    className="mt-0.5 accent-amber-600"
+                  />
+                  <span>
+                    <span className="block text-[12px] font-medium text-[#212529]">No incluir multas</span>
+                    <span className="block text-[11px] text-[#6c757d]">
+                      Las multas quedarán pendientes; el abono cubrirá solo cuotas.
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
+          )}
 
           {cuotasParciales.length > 0 && (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">

@@ -89,18 +89,23 @@ public class AbonoCorrienteService {
         generarMultasNoPagoFaltantes(credito, slots, fechaOperacion);
 
         BigDecimal saldo = req.montoRecibido();
+        boolean incluirMultas = req.incluirMultas();
         List<AbonoCoberturaDetalle> coberturas = new ArrayList<>();
         List<Multa> multasCubiertas = new ArrayList<>();
 
         for (CalendarioPago slot : slots) {
             if (saldo.compareTo(BigDecimal.ZERO) <= 0) break;
 
-            List<Multa> multasDia = multaRepo.findPendientesByCreditoIdAndFecha(
-                    credito.getId(), slot.getFechaProgramada());
+            List<Multa> multasDia = incluirMultas
+                    ? multaRepo.findPendientesByCreditoIdAndFecha(
+                            credito.getId(), slot.getFechaProgramada())
+                    : List.of();
             BigDecimal totalMultasDia = multasDia.stream()
                     .map(Multa::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal multaYaAbonada = abonoCoberturaRepo.sumMontoMultaByCalendarioPagoId(slot.getId());
+            BigDecimal multaYaAbonada = incluirMultas
+                    ? abonoCoberturaRepo.sumMontoMultaByCalendarioPagoId(slot.getId())
+                    : BigDecimal.ZERO;
             BigDecimal cuotaRestante = saldoCuotaService.saldoCuota(slot);
             BigDecimal multaRestante = totalMultasDia.subtract(multaYaAbonada).max(BigDecimal.ZERO);
             BigDecimal costoRestante = cuotaRestante.add(multaRestante);
@@ -206,9 +211,11 @@ public class AbonoCorrienteService {
                 .toList());
 
         for (CalendarioPago slot : calendarioPagoRepo.findSlotsCubrir(creditoId, fechaOperacion)) {
-            // Un pago directo parcial no equivale a "no pagó" — no se proyecta una
-            // multa NO_PAGO para él (mismo criterio que generarMultasNoPagoFaltantes).
-            if (slot.getEstado() == EstadoCalendarioPago.PARCIAL) {
+            // Un pago parcial — directo o vía abono anterior — no equivale a
+            // "no pagó": no se proyecta una multa NO_PAGO para él (mismo
+            // criterio que generarMultasNoPagoFaltantes).
+            if (slot.getEstado() == EstadoCalendarioPago.PARCIAL
+                    || slot.getEstado() == EstadoCalendarioPago.RECUPERADO_PARCIAL) {
                 continue;
             }
             if (!slot.getFechaProgramada().isBefore(fechaOperacion)) {
@@ -269,10 +276,12 @@ public class AbonoCorrienteService {
 
     private void generarMultasNoPagoFaltantes(Credito credito, List<CalendarioPago> slots, LocalDate fechaOperacion) {
         for (CalendarioPago slot : slots) {
-            // Un pago directo parcial no equivale a "no pagó". Puede generar la
+            // Un pago parcial — directo (PARCIAL) o vía abono anterior
+            // (RECUPERADO_PARCIAL) — no equivale a "no pagó". Puede generar la
             // multa de incompletos correspondiente, pero no una segunda multa
             // de tipo NO_PAGO al momento de completar la cuota.
-            if (slot.getEstado() == EstadoCalendarioPago.PARCIAL) {
+            if (slot.getEstado() == EstadoCalendarioPago.PARCIAL
+                    || slot.getEstado() == EstadoCalendarioPago.RECUPERADO_PARCIAL) {
                 continue;
             }
             if (!slot.getFechaProgramada().isBefore(fechaOperacion)) {

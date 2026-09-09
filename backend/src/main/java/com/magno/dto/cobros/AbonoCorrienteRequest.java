@@ -19,5 +19,18 @@ public record AbonoCorrienteRequest(
         BigDecimal montoRecibido,
 
         @JsonAlias("fecha_pago")
-        LocalDate fechaPago
-) {}
+        LocalDate fechaPago,
+
+        @JsonAlias("incluir_multas")
+        Boolean incluirMultas
+) {
+    public AbonoCorrienteRequest {
+        if (incluirMultas == null) {
+            incluirMultas = true;
+        }
+    }
+
+    public AbonoCorrienteRequest(Long creditoId, BigDecimal montoRecibido, LocalDate fechaPago) {
+        this(creditoId, montoRecibido, fechaPago, true);
+    }
+}

@@ -600,6 +600,7 @@ export interface AbonoCorrienteRequest {
   creditoId: number
   montoRecibido: number
   fechaPago?: string
+  incluirMultas?: boolean
 }
 
 // ------------------------------------------------------------------

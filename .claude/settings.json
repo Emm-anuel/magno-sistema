@@ -56,7 +56,8 @@
       "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest#previewMultas_noProyectaMultaNoPago_paraSlotParcial+previewMultas_siProyectaMultaNoPago_paraSlotVencidoSinTocar)",
       "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest#previewMultas_noProyectaMultaNoPago_paraSlotParcial)",
       "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest)",
-      "Bash(taskkill //F //PID 7632)"
+      "Bash(taskkill //F //PID 7632)",
+      "Bash(mvn -q -o test -Dtest=AbonoCorrienteServiceTest#noGeneraMultaNoPagoFaltante_paraSlotRecuperadoParcial+previewMultas_noProyectaMultaNoPago_paraSlotRecuperadoParcial)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Emm-a\\AppData\\Local\\Temp\\pw-smoke"
